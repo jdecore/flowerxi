@@ -11,15 +11,45 @@ import sys
 import urllib.request
 from typing import Iterable
 
-REGION = "sabana-bogota"
-OPEN_METEO_URL = (
-    "https://archive-api.open-meteo.com/v1/archive"
-    "?latitude=4.7110&longitude=-74.0721"
-    "&start_date=2026-01-01&end_date=2026-04-15"
-    "&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum"
-    "&timezone=America%2FBogota"
-)
+START_DATE = "2026-01-01"
+END_DATE = "2026-04-15"
 HOLIDAYS_URL = "https://date.nager.at/api/v3/PublicHolidays/2026/CO"
+REGIONS = [
+    {
+        "slug": "madrid",
+        "name": "Madrid",
+        "city": "Madrid",
+        "latitude": 4.7320,
+        "longitude": -74.2640,
+        "crop_focus": "rosa de corte (lavanda/morada)",
+    },
+    {
+        "slug": "facatativa",
+        "name": "Facatativa",
+        "city": "Facatativa",
+        "latitude": 4.8130,
+        "longitude": -74.3540,
+        "crop_focus": "rosa de corte (lavanda/morada)",
+    },
+    {
+        "slug": "funza",
+        "name": "Funza",
+        "city": "Funza",
+        "latitude": 4.7160,
+        "longitude": -74.2110,
+        "crop_focus": "rosa de corte (lavanda/morada)",
+    },
+]
+
+
+def build_open_meteo_url(latitude: float, longitude: float) -> str:
+    return (
+        "https://archive-api.open-meteo.com/v1/archive"
+        f"?latitude={latitude:.4f}&longitude={longitude:.4f}"
+        f"&start_date={START_DATE}&end_date={END_DATE}"
+        "&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum"
+        "&timezone=America%2FBogota"
+    )
 
 
 def fetch_json(url: str):
@@ -43,17 +73,17 @@ def get_risk_level(fungal: int, water: int, heat: int) -> str:
 def get_recommendation(fungal: int, water: int, heat: int) -> tuple[str, str]:
     if fungal >= max(water, heat):
         return (
-            "Ventilacion y control fungico",
-            "Aumenta ventilacion de invernadero, evita mojado nocturno del follaje y programa monitoreo preventivo.",
+            "Control fungico en rosa",
+            "Aumenta ventilacion, evita mojado nocturno y refuerza monitoreo preventivo para botrytis en boton floral.",
         )
     if water >= max(fungal, heat):
         return (
             "Drenaje prioritario",
-            "Revisa drenajes y camas de cultivo para evitar encharcamientos que afecten tallo y calidad de corte.",
+            "Ajusta drenajes y camas para evitar encharcamientos que afecten tallo, vida en florero y calidad de corte.",
         )
     return (
-        "Manejo termico y riego temprano",
-        "Refuerza sombra en horas pico y ajusta riego temprano para proteger la calidad de petalo y tallo.",
+        "Manejo termico de invernadero",
+        "Refuerza sombra en horas pico y calibra riego temprano para proteger calibre, color y firmeza de petalo.",
     )
 
 
@@ -80,66 +110,77 @@ def chunked(items: list[str], size: int) -> Iterable[list[str]]:
 
 
 def build_data_rows():
-    weather = fetch_json(OPEN_METEO_URL)
     holidays = fetch_json(HOLIDAYS_URL)
-
-    daily = weather["daily"]
     rows_weather: list[str] = []
     rows_risk: list[str] = []
     rows_recommendations: list[str] = []
 
-    for idx, day in enumerate(daily["time"]):
-        temp_mean = float(daily["temperature_2m_mean"][idx])
-        temp_max = float(daily["temperature_2m_max"][idx])
-        temp_min = float(daily["temperature_2m_min"][idx])
-        precip = float(daily["precipitation_sum"][idx])
+    weather_sources: dict[str, str] = {}
+    for region in REGIONS:
+        region_slug = region["slug"]
+        weather_url = build_open_meteo_url(region["latitude"], region["longitude"])
+        weather_sources[region_slug] = weather_url
+        weather = fetch_json(weather_url)
+        daily = weather["daily"]
 
-        fungal = clamp(round((precip * 7.0) + max(0.0, 19.0 - temp_mean) * 2.2))
-        water = clamp(round(precip * 9.0))
-        heat = clamp(round(max(0.0, temp_mean - 20.0) * 12.0))
-        risk_level = get_risk_level(fungal, water, heat)
-        rec_title, rec_message = get_recommendation(fungal, water, heat)
+        for idx, day in enumerate(daily["time"]):
+            temp_mean = float(daily["temperature_2m_mean"][idx])
+            temp_max = float(daily["temperature_2m_max"][idx])
+            temp_min = float(daily["temperature_2m_min"][idx])
+            precip = float(daily["precipitation_sum"][idx])
 
-        rows_weather.append(
-            "(" + ",".join(
-                [
-                    f"'{REGION}'",
-                    f"'{day}'",
-                    f"{temp_mean:.2f}",
-                    f"{temp_max:.2f}",
-                    f"{temp_min:.2f}",
-                    f"{precip:.2f}",
-                    "'open-meteo-archive'",
-                    f"'{OPEN_METEO_URL}'",
-                ]
-            ) + ")"
-        )
+            fungal = clamp(round((precip * 7.0) + max(0.0, 19.0 - temp_mean) * 2.2))
+            water = clamp(round(precip * 9.0))
+            heat = clamp(round(max(0.0, temp_mean - 20.0) * 12.0))
+            risk_level = get_risk_level(fungal, water, heat)
+            rec_title, rec_message = get_recommendation(fungal, water, heat)
 
-        rows_risk.append(
-            "(" + ",".join(
-                [
-                    f"'{REGION}'",
-                    f"'{day}'",
-                    str(fungal),
-                    str(water),
-                    str(heat),
-                    f"'{risk_level}'",
-                    "'flowerxi-risk-model-v1'",
-                ]
-            ) + ")"
-        )
+            rows_weather.append(
+                "("
+                + ",".join(
+                    [
+                        f"'{region_slug}'",
+                        f"'{day}'",
+                        f"{temp_mean:.2f}",
+                        f"{temp_max:.2f}",
+                        f"{temp_min:.2f}",
+                        f"{precip:.2f}",
+                        "'open-meteo-archive'",
+                        f"'{weather_url}'",
+                    ]
+                )
+                + ")"
+            )
 
-        rows_recommendations.append(
-            "(" + ",".join(
-                [
-                    f"'{REGION}'",
-                    f"'{day}'",
-                    f"'{sql_escape(rec_title)}'",
-                    f"'{sql_escape(rec_message)}'",
-                    "'flowerxi-rules-2026'",
-                ]
-            ) + ")"
-        )
+            rows_risk.append(
+                "("
+                + ",".join(
+                    [
+                        f"'{region_slug}'",
+                        f"'{day}'",
+                        str(fungal),
+                        str(water),
+                        str(heat),
+                        f"'{risk_level}'",
+                        "'flowerxi-risk-model-v1'",
+                    ]
+                )
+                + ")"
+            )
+
+            rows_recommendations.append(
+                "("
+                + ",".join(
+                    [
+                        f"'{region_slug}'",
+                        f"'{day}'",
+                        f"'{sql_escape(rec_title)}'",
+                        f"'{sql_escape(rec_message)}'",
+                        "'flowerxi-rules-2026'",
+                    ]
+                )
+                + ")"
+            )
 
     rows_holidays: list[str] = []
     for item in holidays:
@@ -148,7 +189,8 @@ def build_data_rows():
         name = sql_escape(item.get("name", "Holiday"))
         local = sql_escape(item.get("localName", ""))
         rows_holidays.append(
-            "(" + ",".join(
+            "("
+            + ",".join(
                 [
                     "'CO'",
                     f"'{date_raw}'",
@@ -157,27 +199,49 @@ def build_data_rows():
                     "'nager-public-holidays'",
                     f"'{HOLIDAYS_URL}'",
                 ]
-            ) + ")"
+            )
+            + ")"
         )
 
-    return rows_weather, rows_risk, rows_recommendations, rows_holidays
+    return rows_weather, rows_risk, rows_recommendations, rows_holidays, weather_sources
 
 
 def apply_seed() -> None:
+    region_rows: list[str] = []
+    for region in REGIONS:
+        region_rows.append(
+            "("
+            + ",".join(
+                [
+                    f"'{sql_escape(region['slug'])}'",
+                    f"'{sql_escape(region['name'])}'",
+                    f"'{sql_escape(region['city'])}'",
+                    f"{region['latitude']:.4f}",
+                    f"{region['longitude']:.4f}",
+                    f"'{sql_escape(region['crop_focus'])}'",
+                ]
+            )
+            + ")"
+        )
+
     run_insforge_query(
         """
         INSERT INTO flowerxi_regions (slug, name, city, latitude, longitude, crop_focus)
-        VALUES ('sabana-bogota', 'Sabana de Bogota', 'Bogota', 4.7110, -74.0721, 'flores de corte')
+        VALUES
+        """.strip()
+        + "\n"
+        + ",\n".join(region_rows)
+        + """
         ON CONFLICT (slug) DO UPDATE SET
           name = EXCLUDED.name,
           city = EXCLUDED.city,
           latitude = EXCLUDED.latitude,
           longitude = EXCLUDED.longitude,
           crop_focus = EXCLUDED.crop_focus;
-        """.strip()
+        """.rstrip()
     )
 
-    rows_weather, rows_risk, rows_recommendations, rows_holidays = build_data_rows()
+    rows_weather, rows_risk, rows_recommendations, rows_holidays, _ = build_data_rows()
 
     for chunk in chunked(rows_weather, 30):
         run_insforge_query(
@@ -232,6 +296,7 @@ def apply_seed() -> None:
         )
 
     print("Seed completed:")
+    print(f"- regions: {len(REGIONS)}")
     print(f"- weather rows: {len(rows_weather)}")
     print(f"- risk rows: {len(rows_risk)}")
     print(f"- recommendation rows: {len(rows_recommendations)}")
@@ -244,15 +309,16 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.apply:
-        rows_weather, rows_risk, rows_recommendations, rows_holidays = build_data_rows()
+        rows_weather, rows_risk, rows_recommendations, rows_holidays, weather_sources = build_data_rows()
         print(
             json.dumps(
                 {
+                    "regions": [region["slug"] for region in REGIONS],
                     "weather_rows": len(rows_weather),
                     "risk_rows": len(rows_risk),
                     "recommendation_rows": len(rows_recommendations),
                     "market_calendar_rows": len(rows_holidays),
-                    "weather_source": OPEN_METEO_URL,
+                    "weather_sources": weather_sources,
                     "calendar_source": HOLIDAYS_URL,
                 },
                 indent=2,

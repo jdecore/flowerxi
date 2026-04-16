@@ -1,15 +1,38 @@
 <script>
+  import { onMount } from 'svelte';
+
   export let apiUrl;
 
   let loading = true;
+  let loadingRegions = true;
   let error = '';
   let data = null;
+  let regions = [];
+  let selectedRegion = 'madrid';
+
+  const fetchRegions = async () => {
+    loadingRegions = true;
+    const res = await fetch(`${apiUrl}/api/regions`);
+    if (!res.ok) {
+      throw new Error(`Backend respondio ${res.status} al listar municipios`);
+    }
+
+    const payload = await res.json();
+    regions = payload.items ?? [];
+    if (regions.length === 0) {
+      throw new Error('No hay municipios disponibles');
+    }
+
+    const defaultRegion = payload.default_region;
+    const available = new Set(regions.map((item) => item.slug));
+    selectedRegion = defaultRegion && available.has(defaultRegion) ? defaultRegion : regions[0].slug;
+  };
 
   const fetchDashboard = async () => {
     loading = true;
     error = '';
     try {
-      const res = await fetch(`${apiUrl}/api/dashboard?region=sabana-bogota`);
+      const res = await fetch(`${apiUrl}/api/dashboard?region=${encodeURIComponent(selectedRegion)}`);
       if (!res.ok) {
         throw new Error(`Backend respondio ${res.status}`);
       }
@@ -21,10 +44,40 @@
     }
   };
 
-  fetchDashboard();
+  const initialize = async () => {
+    error = '';
+    try {
+      await fetchRegions();
+      await fetchDashboard();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Error cargando dashboard';
+      loading = false;
+    } finally {
+      loadingRegions = false;
+    }
+  };
+
+  const onRegionChange = async (event) => {
+    selectedRegion = event.currentTarget.value;
+    await fetchDashboard();
+  };
+
+  onMount(() => {
+    initialize();
+  });
 </script>
 
 <section class="grid">
+  <article class="card wide">
+    <h2>Municipio</h2>
+    <label class="muted" for="region-select">Analisis en rosa de corte</label>
+    <select id="region-select" value={selectedRegion} on:change={onRegionChange} disabled={loadingRegions || loading}>
+      {#each regions as region}
+        <option value={region.slug}>{region.name}</option>
+      {/each}
+    </select>
+  </article>
+
   <article class="card wide">
     <h2>Estado operativo</h2>
     {#if loading}
@@ -33,6 +86,8 @@
       <p class="error">{error}</p>
     {:else if data}
       <p class="kpi">Riesgo global: <strong>{data.snapshot.global_risk_level}</strong></p>
+      <p class="muted">Municipio: {data.snapshot.region_name} ({data.snapshot.region_city})</p>
+      <p class="muted">Cultivo foco: {data.snapshot.crop_focus}</p>
       <p class="muted">Fecha: {data.snapshot.observed_on}</p>
       <p class="muted">Temperatura media: {data.snapshot.temp_mean_c} C</p>
       <p class="muted">Precipitacion: {data.snapshot.precipitation_mm} mm</p>
@@ -116,6 +171,17 @@
   .muted {
     color: #cdb8f5;
     margin: 0.2rem 0;
+  }
+
+  select {
+    margin-top: 0.45rem;
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(177, 108, 255, 0.55);
+    background: rgba(22, 10, 47, 0.85);
+    color: #f5efff;
+    padding: 0.6rem 0.7rem;
+    font: inherit;
   }
 
   .error {
