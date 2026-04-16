@@ -1,0 +1,69 @@
+---
+import Dashboard from '../components/Dashboard.svelte';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>flowerxi | Flores de Corte Inteligentes</title>
+    <style>
+      :root {
+        --bg: #160a2f;
+        --bg-soft: #241046;
+        --card: #2e1460;
+        --text: #f5efff;
+        --muted: #cdb8f5;
+        --accent: #b16cff;
+        --accent-2: #7f39fb;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, Arial, sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 15% 20%, #2d1264 0%, var(--bg) 45%, #0c0620 100%);
+        min-height: 100vh;
+      }
+
+      .wrapper {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, rgba(177, 108, 255, 0.25), rgba(127, 57, 251, 0.18));
+        border: 1px solid rgba(177, 108, 255, 0.45);
+        border-radius: 20px;
+        padding: 1.25rem 1.1rem;
+        margin-bottom: 1.2rem;
+      }
+
+      .hero h1 {
+        margin: 0 0 0.55rem;
+        font-size: clamp(1.7rem, 4vw, 2.5rem);
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrapper">
+      <section class="hero">
+        <h1>FlowerXi: Inteligencia para Flores de Corte</h1>
+        <p>
+          Monitoreo de riesgo climatico y recomendaciones operativas para la Sabana de Bogota,
+          alineado con automatizacion, analitica e IA aplicada.
+        </p>
+      </section>
+
+      <Dashboard apiUrl={apiUrl} client:load />
+    </main>
+  </body>
+</html>
