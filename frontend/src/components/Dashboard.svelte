@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import TrendChart from './TrendChart.svelte';
 
   export let apiUrl;
 
@@ -7,14 +8,25 @@
   let loadingRegions = true;
   let error = '';
   let data = null;
+  let historyData = [];
   let regions = [];
   let selectedRegion = 'madrid';
 
-  const cacheTodayData = (snapshot) => {
-    if (typeof window === 'undefined' || !snapshot) {
-      return;
-    }
+  const RISK_COLORS = {
+    alto: { bg: '#fef2f2', border: '#fca5a5', text: '#dc2626', label: 'ALTO' },
+    medio: { bg: '#fefce8', border: '#fde047', text: '#a16207', label: 'MEDIO' },
+    bajo: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', label: 'BAJO' },
+  };
 
+  const normalizeRiskLevel = (level) => {
+    const l = String(level ?? '').toLowerCase().trim();
+    if (l.includes('alto') || l === 'high' || l === '3') return 'alto';
+    if (l.includes('medio') || l === 'medium' || l === '2') return 'medio';
+    return 'bajo';
+  };
+
+  const cacheTodayData = (snapshot) => {
+    if (typeof window === 'undefined' || !snapshot) return;
     const payload = {
       region: snapshot.region_name ?? selectedRegion,
       temp: snapshot.temp_mean_c ?? null,
@@ -25,25 +37,18 @@
       recommendation: snapshot.recommendation_title ?? '',
       observed_on: snapshot.observed_on ?? null,
     };
-
     window.localStorage.setItem('flowerxi_today', JSON.stringify(payload));
   };
 
   const fetchRegions = async () => {
     loadingRegions = true;
     const res = await fetch(`${apiUrl}/api/regions`);
-    if (!res.ok) {
-      throw new Error(`Backend respondio ${res.status} al listar municipios`);
-    }
-
+    if (!res.ok) throw new Error(`Backend respondió ${res.status}`);
     const payload = await res.json();
     regions = payload.items ?? [];
-    if (regions.length === 0) {
-      throw new Error('No hay municipios disponibles');
-    }
-
+    if (regions.length === 0) throw new Error('No hay regiones disponibles');
     const defaultRegion = payload.default_region;
-    const available = new Set(regions.map((item) => item.slug));
+    const available = new Set(regions.map((r) => r.slug));
     selectedRegion = defaultRegion && available.has(defaultRegion) ? defaultRegion : regions[0].slug;
   };
 
@@ -52,9 +57,7 @@
     error = '';
     try {
       const res = await fetch(`${apiUrl}/api/dashboard?region=${encodeURIComponent(selectedRegion)}`);
-      if (!res.ok) {
-        throw new Error(`Backend respondio ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Backend respondió ${res.status}`);
       data = await res.json();
       cacheTodayData(data?.snapshot);
     } catch (err) {
@@ -64,11 +67,23 @@
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/history?region=${encodeURIComponent(selectedRegion)}&limit=30`);
+      if (!res.ok) return;
+      const payload = await res.json();
+      historyData = (payload.items ?? []).reverse();
+    } catch {
+      historyData = [];
+    }
+  };
+
   const initialize = async () => {
     error = '';
     try {
       await fetchRegions();
       await fetchDashboard();
+      await fetchHistory();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Error cargando dashboard';
       loading = false;
@@ -80,131 +95,315 @@
   const onRegionChange = async (event) => {
     selectedRegion = event.currentTarget.value;
     await fetchDashboard();
+    await fetchHistory();
   };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  };
+
+  const formatTemp = (val) => val != null ? `${Number(val).toFixed(1)} °C` : '—';
+  const formatPrecip = (val) => val != null ? `${Number(val).toFixed(1)} mm` : '—';
 
   onMount(() => {
     initialize();
   });
 </script>
 
-<section class="grid">
-  <article class="card wide">
-    <h2>Municipio</h2>
-    <label class="muted" for="region-select">Analisis en rosa de corte</label>
-    <select id="region-select" value={selectedRegion} on:change={onRegionChange} disabled={loadingRegions || loading}>
-      {#each regions as region}
-        <option value={region.slug}>{region.name}</option>
-      {/each}
-    </select>
-  </article>
+<section class="dashboard">
+  <header class="region-select">
+    <div class="selector">
+      <label for="region-select">Cultivo: <strong>rosa</strong> en</label>
+      <select id="region-select" value={selectedRegion} on:change={onRegionChange} disabled={loadingRegions || loading}>
+        {#each regions as region}
+          <option value={region.slug}>{region.name}</option>
+        {/each}
+      </select>
+    </div>
+  </header>
 
-  <article class="card wide">
-    <h2>Estado operativo</h2>
-    {#if loading}
-      <p class="muted">Cargando datos 2026...</p>
-    {:else if error}
-      <p class="error">{error}</p>
-    {:else if data}
-      <p class="kpi">Riesgo global: <strong>{data.snapshot.global_risk_level}</strong></p>
-      <p class="muted">Municipio: {data.snapshot.region_name} ({data.snapshot.region_city})</p>
-      <p class="muted">Cultivo foco: {data.snapshot.crop_focus}</p>
-      <p class="muted">Fecha: {data.snapshot.observed_on}</p>
-      <p class="muted">Temperatura media: {data.snapshot.temp_mean_c} C</p>
-      <p class="muted">Precipitacion: {data.snapshot.precipitation_mm} mm</p>
-    {/if}
-  </article>
+  {#if loading}
+    <div class="loading"><p>Cargando datos 2026...</p></div>
+  {:else if error}
+    <div class="error"><p>{error}</p></div>
+  {:else if data}
+    {@const riskLevel = normalizeRiskLevel(data.snapshot?.global_risk_level)}
+    {@const colors = RISK_COLORS[riskLevel] || RISK_COLORS.bajo}
 
-  <article class="card">
-    <h3>Riesgo fungico</h3>
-    {#if data}
-      <p class="score">{data.snapshot.fungal_risk}/100</p>
-    {:else}
-      <p class="muted">-</p>
-    {/if}
-  </article>
+    <section class="risk-card" style="--risk-bg: {colors.bg}; --risk-border: {colors.border}; --risk-text: {colors.text};">
+      <div class="risk-badge" style="background: {colors.bg}; border-color: {colors.border}; color: {colors.text};">
+        <span class="risk-dot" style="background: {colors.text};"></span>
+        <span>Riesgo {colors.label}</span>
+      </div>
+      <div class="risk-details">
+        <p class="risk-cause">
+          {#if riskLevel === 'alto'}
+            ⚠️ Probabilidad de botrytis elevada
+          {:else if riskLevel === 'medio'}
+            ⚡ Monitorear humedad en invernadero
+          {:else}
+            ✓ Condiciones optimizadas para cultivo
+          {/if}
+        </p>
+        <p class="risk-action">
+          <strong>Acción:</strong>
+          {#if riskLevel === 'alto'}
+            reducir humedad + aplicar preventivo
+          {:else if riskLevel === 'medio'}
+            ventilar y revisar lotes susceptibles
+          {:else}
+            continuar protocolo habitual
+          {/if}
+        </p>
+      </div>
+    </section>
 
-  <article class="card">
-    <h3>Riesgo por encharcamiento</h3>
-    {#if data}
-      <p class="score">{data.snapshot.waterlogging_risk}/100</p>
-    {:else}
-      <p class="muted">-</p>
-    {/if}
-  </article>
+    <section class="kpi-grid">
+      <article class="kpi-card">
+        <h3>Riesgo global</h3>
+        <p class="kpi-value" style="color: {colors.text};">{colors.label}</p>
+        <p class="kpi-sub">Nivel actual</p>
+      </article>
+      <article class="kpi-card">
+        <h3>Temperatura</h3>
+        <p class="kpi-value">{formatTemp(data.snapshot?.temp_mean_c)}</p>
+        <p class="kpi-sub">Media diaria</p>
+      </article>
+      <article class="kpi-card">
+        <h3>Precipitación</h3>
+        <p class="kpi-value">{formatPrecip(data.snapshot?.precipitation_mm)}</p>
+        <p class="kpi-sub">Últimas 24h</p>
+      </article>
+      <article class="kpi-card">
+        <h3>Actualizado</h3>
+        <p class="kpi-value">{formatDate(data.snapshot?.observed_on)}</p>
+        <p class="kpi-sub">{data.snapshot?.region_name}</p>
+      </article>
+    </section>
 
-  <article class="card">
-    <h3>Riesgo por calor</h3>
-    {#if data}
-      <p class="score">{data.snapshot.heat_risk}/100</p>
-    {:else}
-      <p class="muted">-</p>
-    {/if}
-  </article>
+    <section class="chart-section">
+      <h3>Tendencia últimos 30 días</h3>
+      {#if historyData.length > 0}
+        <TrendChart data={historyData} />
+      {:else}
+        <p class="muted">Sin datos históricos disponibles</p>
+      {/if}
+    </section>
 
-  <article class="card wide">
-    <h2>Recomendacion del dia</h2>
-    {#if data}
-      <p class="kpi">{data.snapshot.recommendation_title}</p>
-      <p class="muted">{data.snapshot.recommendation_message}</p>
-    {:else}
-      <p class="muted">Sin datos</p>
-    {/if}
-  </article>
+    <section class="recommendations">
+      <h3>📌 Recomendaciones para hoy</h3>
+      <ul>
+        {#if riskLevel === 'alto'}
+          <li>🔴 Ventilar invernadero en la mañana (reducir humedad relativa)</li>
+          <li>🔴 Evitar riego nocturnal</li>
+          <li>🔴 Aplicar fungicida preventivo (riesgo alto)</li>
+        {:else if riskLevel === 'medio'}
+          <li>🟡 Revisar estado de plantas en sectores afectados</li>
+          <li>🟡 Monitorear humedad cada 4 horas</li>
+        {:else}
+          <li>🟢 Continuar protocolo habitual de riego</li>
+          <li>🟢 Registro fitosanitario al día</li>
+        {/if}
+        {#if data.snapshot?.recommendation_title}
+          <li class="from-api">💡 {data.snapshot.recommendation_title}</li>
+        {/if}
+      </ul>
+    </section>
+  {/if}
 </section>
 
 <style>
-  .grid {
-    display: grid;
-    gap: 0.9rem;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
   }
 
-  .card {
-    background: linear-gradient(180deg, rgba(46, 20, 96, 0.95), rgba(35, 14, 72, 0.95));
-    border: 1px solid rgba(177, 108, 255, 0.35);
-    border-radius: 16px;
-    padding: 1rem;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  .region-select {
+    margin-bottom: 0.3rem;
   }
 
-  .wide {
-    grid-column: 1 / -1;
+  .selector {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
   }
 
-  h2,
-  h3 {
-    margin: 0 0 0.65rem;
-  }
-
-  .kpi {
-    font-size: 1.1rem;
-    margin: 0 0 0.4rem;
-  }
-
-  .score {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #d8b4fe;
-    margin: 0;
-  }
-
-  .muted {
+  .selector label {
     color: #cdb8f5;
-    margin: 0.2rem 0;
+    font-size: 0.95rem;
+  }
+
+  .selector strong {
+    color: #f5efff;
   }
 
   select {
-    margin-top: 0.45rem;
-    width: 100%;
     border-radius: 10px;
     border: 1px solid rgba(177, 108, 255, 0.55);
     background: rgba(22, 10, 47, 0.85);
     color: #f5efff;
-    padding: 0.6rem 0.7rem;
+    padding: 0.5rem 0.7rem;
     font: inherit;
+    font-size: 0.95rem;
   }
 
-  .error {
+  .loading, .error {
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .loading p, .error p {
+    margin: 0;
+    color: #cdb8f5;
+  }
+
+  .error p {
     color: #ffd4d4;
+  }
+
+  .risk-card {
+    background: linear-gradient(180deg, var(--risk-bg), rgba(255,255,255,0.03));
+    border: 2px solid var(--risk-border);
+    border-radius: 16px;
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .risk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1.5px solid;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    width: fit-content;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .risk-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .risk-cause {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--risk-text);
+  }
+
+  .risk-action {
+    margin: 0.25rem 0 0;
+    color: #cdb8f5;
+    font-size: 0.9rem;
+  }
+
+  .risk-action strong {
+    color: #f5efff;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .kpi-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .kpi-card {
+    background: linear-gradient(180deg, rgba(46, 20, 96, 0.95), rgba(35, 14, 72, 0.95));
+    border: 1px solid rgba(177, 108, 255, 0.35);
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .kpi-card h3 {
+    margin: 0 0 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #cdb8f5;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: #f5efff;
+  }
+
+  .kpi-sub {
+    margin: 0.25rem 0 0;
+    font-size: 0.75rem;
+    color: #9d8abf;
+  }
+
+  .chart-section {
+    background: linear-gradient(180deg, rgba(46, 20, 96, 0.92), rgba(35, 14, 72, 0.92));
+    border: 1px solid rgba(177, 108, 255, 0.35);
+    border-radius: 16px;
+    padding: 1.1rem;
+  }
+
+  .chart-section h3 {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+    color: #cdb8f5;
+  }
+
+  .chart-section .muted {
+    color: #9d8abf;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .recommendations {
+    background: linear-gradient(180deg, rgba(46, 20, 96, 0.92), rgba(35, 14, 72, 0.92));
+    border: 1px solid rgba(177, 108, 255, 0.35);
+    border-radius: 16px;
+    padding: 1.1rem;
+  }
+
+  .recommendations h3 {
+    margin: 0 0 0.85rem;
+    font-size: 1rem;
+    color: #f5efff;
+  }
+
+  .recommendations ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .recommendations li {
+    color: #e9dcff;
+    line-height: 1.4;
+    font-size: 0.95rem;
+  }
+
+  .recommendations li.from-api {
+    margin-top: 0.35rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid rgba(177, 108, 255, 0.2);
+    color: #d8b4fe;
   }
 </style>
