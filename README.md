@@ -13,8 +13,18 @@ Plataforma enfocada en rosa de corte para la Sabana de Bogota.
 - Cultivo foco: rosa de corte (variedades lavanda/morada).
 - Municipios foco: Madrid, Facatativa y Funza.
 - El dashboard permite seleccionar municipio y ver riesgo/recomendacion diaria.
+- Incluye capa de **vigilancia y priorizacion de riesgo agroclimatico** mensual (proxy fitosanitario).
 - Incluye chat IA en navegador (modelo local con Transformers.js).
 - Incluye pagina de precios de mercado en `/precios`.
+- El modelo es de priorizacion de riesgo, **no** diagnostico real de plagas por finca.
+
+## API principal
+
+- `GET /api/dashboard?region=madrid`
+- `GET /api/history?region=madrid&limit=30`
+- `GET /api/alerts/today?region=madrid`
+- `GET /api/recommendations/week?region=madrid&days=7`
+- `GET /api/risk/monthly?region=madrid&months=6`
 
 ## Despliegue recomendado
 

@@ -7,10 +7,12 @@
   let loadingRegions = true;
   let error = '';
   let historyError = '';
+  let monthlyRiskError = '';
   let data = null;
   let historyData = [];
+  let monthlyRisk = null;
   let regions = [];
-  let selectedRegion = 'sabana-bogota';
+  let selectedRegion = 'madrid';
 
   const DAY_NAMES = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
   const LOW_RISK_LABEL = 'bajo';
@@ -112,10 +114,22 @@
     }
   };
 
+  const fetchMonthlyRisk = async () => {
+    monthlyRiskError = '';
+    try {
+      const response = await fetch(`${apiUrl}/api/risk/monthly?region=${encodeURIComponent(selectedRegion)}&months=6`);
+      if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
+      monthlyRisk = await response.json();
+    } catch (err) {
+      monthlyRisk = null;
+      monthlyRiskError = err instanceof Error ? err.message : 'No fue posible cargar el riesgo mensual';
+    }
+  };
+
   const refreshAll = async () => {
     try {
       await fetchDashboard();
-      await fetchHistory();
+      await Promise.all([fetchHistory(), fetchMonthlyRisk()]);
     } catch (err) {
       loading = false;
       error = err instanceof Error ? err.message : 'Error cargando dashboard';
@@ -166,6 +180,11 @@
 
   const formatTemp = (value) => (value != null ? `${Number(value).toFixed(1)}°C` : '--');
   const formatPrecip = (value) => (value != null ? `${Number(value).toFixed(1)} mm` : '--');
+  const formatScore = (value) => (value == null ? '--' : `${Number(value).toFixed(1)}`);
+  const formatCurrency = (value) => {
+    if (value == null) return '--';
+    return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(value));
+  };
 
   onMount(() => {
     initialize();
@@ -257,6 +276,10 @@
       applied: registryDone,
     },
   ];
+  $: monthlyLatest = monthlyRisk?.latest ?? null;
+  $: monthlyItems = monthlyRisk?.items ?? [];
+  $: monthlyNarrative = monthlyRisk?.narrative ?? '';
+  $: monthlyCommercial = monthlyRisk?.commercial ?? null;
 </script>
 
 <section class="dashboard">
@@ -386,6 +409,54 @@
           {/each}
         </ul>
       </article>
+
+      <article class="card risk-mvp-card">
+        <header class="card-head">
+          <div>
+            <h2>Vigilancia y Priorizacion de Riesgo</h2>
+            <p class="card-subtitle">Modelo agroclimatico proxy (no diagnostico de plagas)</p>
+          </div>
+        </header>
+        {#if monthlyLatest}
+          <div class="mvp-kpis">
+            <div>
+              <span>Indice operativo-comercial</span>
+              <strong>{formatScore(monthlyLatest.combined_score)}</strong>
+            </div>
+            <div>
+              <span>Riesgo agroclimatico</span>
+              <strong>{formatScore(monthlyLatest.agroclimatic_score)}</strong>
+            </div>
+            <div>
+              <span>Dias con lluvia (mes)</span>
+              <strong>{monthlyLatest.rainy_days}</strong>
+            </div>
+            <div>
+              <span>Precio promedio (proxy)</span>
+              <strong>
+                {#if monthlyCommercial?.average_price_cop != null}
+                  ${formatCurrency(monthlyCommercial.average_price_cop)} COP
+                {:else}
+                  Sin datos
+                {/if}
+              </strong>
+            </div>
+          </div>
+
+          <p class="mvp-narrative">{monthlyNarrative}</p>
+
+          <div class="mvp-months">
+            {#each monthlyItems.slice(0, 4) as monthItem}
+              <div class="mvp-month-chip">
+                <span>{monthItem.month_label}</span>
+                <strong>{String(monthItem.risk_level ?? 'bajo').toUpperCase()} · {formatScore(monthItem.combined_score)}</strong>
+              </div>
+            {/each}
+          </div>
+        {:else if monthlyRiskError}
+          <p class="history-note">{monthlyRiskError}</p>
+        {/if}
+      </article>
     </section>
   {/if}
 </section>
@@ -417,7 +488,8 @@
     grid-template-columns: 3fr 2fr;
     grid-template-areas:
       'status calendar'
-      'stack protocols';
+      'stack protocols'
+      'mvp mvp';
     gap: 1rem;
   }
 
@@ -449,6 +521,10 @@
 
   .protocols-card {
     grid-area: protocols;
+  }
+
+  .risk-mvp-card {
+    grid-area: mvp;
   }
 
   .card-head {
@@ -813,6 +889,69 @@
     font-weight: 600;
   }
 
+  .mvp-kpis {
+    margin-top: 0.85rem;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .mvp-kpis > div {
+    border: 1px solid #EFE7DE;
+    border-radius: 14px;
+    padding: 0.65rem;
+    background: #FAF7F3;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .mvp-kpis span {
+    font-size: 0.75rem;
+    color: var(--text-muted, #6B6B6B);
+  }
+
+  .mvp-kpis strong {
+    font-size: 0.95rem;
+    color: var(--text, #1A1A1A);
+  }
+
+  .mvp-narrative {
+    margin: 0.85rem 0 0;
+    padding: 0.75rem 0.85rem;
+    border-radius: 14px;
+    background: #F6F1FA;
+    color: #4E3B6B;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .mvp-months {
+    margin-top: 0.8rem;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .mvp-month-chip {
+    border: 1px solid #EFE7DE;
+    border-radius: 12px;
+    padding: 0.55rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
+  }
+
+  .mvp-month-chip span {
+    font-size: 0.74rem;
+    color: var(--text-muted, #6B6B6B);
+  }
+
+  .mvp-month-chip strong {
+    font-size: 0.82rem;
+    color: var(--primary, #6B3FA0);
+  }
+
   @media (max-width: 980px) {
     .dashboard-grid {
       grid-template-columns: 1fr;
@@ -820,11 +959,17 @@
         'status'
         'calendar'
         'stack'
-        'protocols';
+        'protocols'
+        'mvp';
     }
 
     .bubble-coral {
       left: 140px;
+    }
+
+    .mvp-kpis,
+    .mvp-months {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -862,6 +1007,11 @@
       height: 116px;
       left: 100px;
       bottom: 14px;
+    }
+
+    .mvp-kpis,
+    .mvp-months {
+      grid-template-columns: 1fr;
     }
   }
 </style>
