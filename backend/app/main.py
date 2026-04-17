@@ -7,7 +7,18 @@ from .db import get_conn
 app = FastAPI(title=settings.app_name)
 DEFAULT_REGION = "madrid"
 
-allowed_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+
+def normalize_origin(origin: str) -> str:
+    clean = origin.strip().strip('"').strip("'")
+    return clean.rstrip("/")
+
+
+allowed_origins = []
+for raw_origin in settings.cors_origins.split(","):
+    normalized = normalize_origin(raw_origin)
+    if normalized:
+        allowed_origins.append(normalized)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
