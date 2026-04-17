@@ -12,13 +12,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
     <title>flowerxi | Flores de Corte Inteligentes</title>
     <style>
       :root {
-        --bg: #E6D2B5;
-        --text: #2E1A47;
-        --text-light: #3D2A54;
+        --bg: #D8C2A4;
+        --text: #2E2E2E;
+        --text-light: #3D3D3D;
         --muted: #5A4A3A;
-        --primary: #4B2E83;
-        --primary-soft: #5A3FA0;
-        --accent: #D4A017;
+        --primary: #5B3A8E;
+        --primary-soft: #6F52A3;
+        --primary-dark: #3E2764;
+        --accent: #C69214;
+        --accent-hover: #A87E10;
       }
 
       body {
@@ -61,13 +63,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
       .hero-actions a {
         display: inline-block;
         text-decoration: none;
-        color: #2E1A47;
+        color: #F5F5F5;
         border: none;
         border-radius: 999px;
         padding: 0.5rem 0.9rem;
         background: var(--accent);
         font-size: 0.9rem;
         font-weight: 600;
+      }
+
+      .hero-actions a:hover {
+        background: var(--accent-hover);
       }
     </style>
   </head>

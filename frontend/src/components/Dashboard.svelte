@@ -13,9 +13,9 @@
   let selectedRegion = 'madrid';
 
   const RISK_COLORS = {
-    alto: { bg: '#fef2f2', border: '#fca5a5', text: '#dc2626', label: 'ALTO' },
-    medio: { bg: '#fefce8', border: '#fde047', text: '#a16207', label: 'MEDIO' },
-    bajo: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', label: 'BAJO' },
+    alto: { bg: '#F5E6E6', border: '#D64545', text: '#7A1F1F', label: 'ALTO' },
+    medio: { bg: '#FEF6E6', border: '#E6A23C', text: '#7A5010', label: 'MEDIO' },
+    bajo: { bg: '#E6F5EC', border: '#2E9E6F', text: '#1A5A3A', label: 'BAJO' },
   };
 
   const normalizeRiskLevel = (level) => {
@@ -304,12 +304,12 @@
 
   .risk-action {
     margin: 0.25rem 0 0;
-    color: #D4C4E8;
+    color: #5A4A3A;
     font-size: 0.9rem;
   }
 
   .risk-action strong {
-    color: #F5F5F5;
+    color: #2E2E2E;
   }
 
   .kpi-grid {
@@ -325,18 +325,19 @@
   }
 
   .kpi-card {
-    background: linear-gradient(180deg, var(--primary), var(--primary-soft));
-    border: 1px solid rgba(75, 46, 131, 0.3);
+    background: #F3E7D7;
+    border: 1px solid rgba(91, 58, 142, 0.2);
     border-radius: 14px;
     padding: 1rem;
     text-align: center;
+    color: #2E2E2E;
   }
 
   .kpi-card h3 {
     margin: 0 0 0.4rem;
     font-size: 0.8rem;
     font-weight: 500;
-    color: #D4C4E8;
+    color: #5A4A3A;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
@@ -345,45 +346,47 @@
     font-size: 1.5rem;
     font-weight: 700;
     margin: 0;
-    color: #F5F5F5;
+    color: #2E2E2E;
   }
 
   .kpi-sub {
     margin: 0.25rem 0 0;
     font-size: 0.75rem;
-    color: #B8A8D0;
+    color: #6A5A4A;
   }
 
   .chart-section {
-    background: linear-gradient(180deg, var(--primary), var(--primary-soft));
-    border: 1px solid rgba(75, 46, 131, 0.3);
+    background: #F3E7D7;
+    border: 1px solid rgba(91, 58, 142, 0.2);
     border-radius: 16px;
     padding: 1.1rem;
+    color: #2E2E2E;
   }
 
   .chart-section h3 {
     margin: 0 0 1rem;
     font-size: 0.9rem;
-    color: #D4C4E8;
+    color: #5A4A3A;
   }
 
   .chart-section .muted {
-    color: #B8A8D0;
+    color: #6A5A4A;
     text-align: center;
     padding: 2rem;
   }
 
   .recommendations {
-    background: linear-gradient(180deg, var(--primary), var(--primary-soft));
-    border: 1px solid rgba(75, 46, 131, 0.3);
+    background: #F3E7D7;
+    border: 1px solid rgba(91, 58, 142, 0.2);
     border-radius: 16px;
     padding: 1.1rem;
+    color: #2E2E2E;
   }
 
   .recommendations h3 {
     margin: 0 0 0.85rem;
     font-size: 1rem;
-    color: #F5F5F5;
+    color: #2E2E2E;
   }
 
   .recommendations ul {
@@ -395,7 +398,7 @@
   }
 
   .recommendations li {
-    color: #E8DCF0;
+    color: #3D3D3D;
     line-height: 1.4;
     font-size: 0.95rem;
   }
@@ -403,7 +406,8 @@
   .recommendations li.from-api {
     margin-top: 0.35rem;
     padding-top: 0.55rem;
-    border-top: 1px solid rgba(212, 196, 232, 0.2);
-    color: #D4A017;
+    border-top: 1px solid rgba(91, 58, 142, 0.2);
+    color: #5B3A8E;
+    font-weight: 600;
   }
 </style>
