@@ -1,0 +1,29 @@
+name: Update Daily Weather Data
+
+on:
+  schedule:
+    - cron: "0 11 * * 1-6"
+  workflow_dispatch:
+
+jobs:
+  update-weather:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install requests "psycopg[binary]"
+
+      - name: Run auto-seed script
+        env:
+          INSFORGE_DB_URL: ${{ secrets.INSFORGE_DB_URL }}
+        run: python scripts/auto_seed.py
+

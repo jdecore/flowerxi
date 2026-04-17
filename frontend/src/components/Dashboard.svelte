@@ -10,6 +10,25 @@
   let regions = [];
   let selectedRegion = 'madrid';
 
+  const cacheTodayData = (snapshot) => {
+    if (typeof window === 'undefined' || !snapshot) {
+      return;
+    }
+
+    const payload = {
+      region: snapshot.region_name ?? selectedRegion,
+      temp: snapshot.temp_mean_c ?? null,
+      precip: snapshot.precipitation_mm ?? null,
+      risk_fungico: snapshot.fungal_risk ?? null,
+      risk_encharcamiento: snapshot.waterlogging_risk ?? null,
+      risk_calor: snapshot.heat_risk ?? null,
+      recommendation: snapshot.recommendation_title ?? '',
+      observed_on: snapshot.observed_on ?? null,
+    };
+
+    window.localStorage.setItem('flowerxi_today', JSON.stringify(payload));
+  };
+
   const fetchRegions = async () => {
     loadingRegions = true;
     const res = await fetch(`${apiUrl}/api/regions`);
@@ -37,6 +56,7 @@
         throw new Error(`Backend respondio ${res.status}`);
       }
       data = await res.json();
+      cacheTodayData(data?.snapshot);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Error cargando dashboard';
     } finally {

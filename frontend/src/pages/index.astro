@@ -1,5 +1,6 @@
 ---
 import Dashboard from '../components/Dashboard.svelte';
+import ChatBot from '../islands/ChatBot.svelte';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
 ---
@@ -51,6 +52,21 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
         margin: 0;
         color: var(--muted);
       }
+
+      .hero-actions {
+        margin-top: 1rem;
+      }
+
+      .hero-actions a {
+        display: inline-block;
+        text-decoration: none;
+        color: #f5efff;
+        border: 1px solid rgba(177, 108, 255, 0.65);
+        border-radius: 999px;
+        padding: 0.5rem 0.9rem;
+        background: rgba(127, 57, 251, 0.35);
+        font-size: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -61,9 +77,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
           Monitoreo de riesgo climatico y recomendaciones operativas para rosa de corte en
           Madrid, Facatativa y Funza; alineado con automatizacion, analitica e IA aplicada.
         </p>
+        <div class="hero-actions">
+          <a href="/precios">Ver precios de mercado</a>
+        </div>
       </section>
 
       <Dashboard apiUrl={apiUrl} client:load />
+      <ChatBot client:idle />
     </main>
   </body>
 </html>

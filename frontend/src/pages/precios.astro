@@ -1,0 +1,224 @@
+---
+import { readFile } from 'node:fs/promises';
+
+const defaultData = {
+  scraped_at: null,
+  generated_at: null,
+  sources: [],
+  data: [],
+  stale: false,
+};
+
+let marketData = defaultData;
+
+try {
+  const pricesPath = new URL('../../public/market_prices.json', import.meta.url);
+  const raw = await readFile(pricesPath, 'utf-8');
+  marketData = { ...defaultData, ...JSON.parse(raw) };
+} catch (error) {
+  console.error('No market_prices.json data:', error);
+}
+
+const validPrices = (marketData.data ?? []).filter((item) => Number(item.price_cop) > 0);
+const sources = marketData.sources ?? [];
+const averagePrice = validPrices.length
+  ? Math.round(validPrices.reduce((acc, item) => acc + Number(item.price_cop), 0) / validPrices.length)
+  : 0;
+const lastUpdateRaw = marketData.scraped_at ?? marketData.generated_at;
+const lastUpdate = lastUpdateRaw ? new Date(lastUpdateRaw) : null;
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(value));
+const formatDateTime = (dateValue) =>
+  dateValue.toLocaleString('es-CO', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  });
+const formatHour = (isoDate) =>
+  new Date(isoDate).toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>flowerxi | Precios de mercado</title>
+    <style>
+      :root {
+        --bg: #160a2f;
+        --bg-soft: #241046;
+        --card: #2e1460;
+        --text: #f5efff;
+        --muted: #cdb8f5;
+        --accent: #b16cff;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, Arial, sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 15% 20%, #2d1264 0%, var(--bg) 45%, #0c0620 100%);
+      }
+
+      .wrapper {
+        max-width: 1140px;
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem;
+      }
+
+      .hero {
+        border: 1px solid rgba(177, 108, 255, 0.45);
+        border-radius: 20px;
+        padding: 1.25rem 1.1rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, rgba(177, 108, 255, 0.25), rgba(127, 57, 251, 0.18));
+      }
+
+      .hero h1 {
+        margin: 0 0 0.35rem;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 0.8rem;
+        color: #f1e6ff;
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(177, 108, 255, 0.8);
+      }
+
+      .summary {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      }
+
+      .card {
+        background: linear-gradient(180deg, rgba(46, 20, 96, 0.95), rgba(35, 14, 72, 0.95));
+        border: 1px solid rgba(177, 108, 255, 0.35);
+        border-radius: 16px;
+        padding: 1rem;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .value {
+        margin-top: 0.25rem;
+        font-size: 1.15rem;
+        font-weight: 650;
+      }
+
+      .sources {
+        margin-top: 0.7rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
+      .source-tag {
+        font-size: 0.8rem;
+        border-radius: 999px;
+        border: 1px solid rgba(177, 108, 255, 0.45);
+        padding: 0.2rem 0.55rem;
+      }
+
+      .source-tag.error {
+        border-color: rgba(255, 92, 92, 0.5);
+        color: #ffd4d4;
+      }
+
+      .prices-grid {
+        margin-top: 1rem;
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      }
+
+      .price-main {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0.45rem 0;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .warning {
+        margin-top: 1rem;
+        border: 1px solid rgba(255, 204, 51, 0.45);
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+        background: rgba(255, 204, 51, 0.08);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrapper">
+      <section class="hero">
+        <h1>Precios de mercado de rosa de corte</h1>
+        <p>Actualizacion automatica por workflow de GitHub, sin carga extra sobre Render.</p>
+        <a href="/" class="back-link">Volver al dashboard</a>
+      </section>
+
+      <section class="summary">
+        <article class="card">
+          <div class="label">Ultima actualizacion</div>
+          <div class="value">{lastUpdate ? formatDateTime(lastUpdate) : 'Sin datos todavia'}</div>
+          {marketData.stale && <p class="muted">Se muestran los ultimos datos disponibles.</p>}
+        </article>
+        <article class="card">
+          <div class="label">Variedades con precio</div>
+          <div class="value">{validPrices.length}</div>
+        </article>
+        <article class="card">
+          <div class="label">Precio promedio</div>
+          <div class="value">{validPrices.length ? `$${formatCurrency(averagePrice)} COP` : 'N/A'}</div>
+        </article>
+      </section>
+
+      {sources.length > 0 && (
+        <section class="card">
+          <div class="label">Fuentes del scraping</div>
+          <div class="sources">
+            {sources.map((source) => (
+              <span class={`source-tag ${source.status === 'error' ? 'error' : ''}`}>
+                {source.name}
+                {source.status === 'error' ? ' (error)' : ''}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {validPrices.length === 0 ? (
+        <section class="warning">
+          No hay precios disponibles por ahora. El workflow seguira actualizando automaticamente.
+        </section>
+      ) : (
+        <section class="prices-grid">
+          {validPrices.map((item) => (
+            <article class="card">
+              <div class="label">{item.variety}</div>
+              <div class="muted">{item.unit}</div>
+              <p class="price-main">${formatCurrency(item.price_cop)} COP</p>
+              <div class="muted">{item.source}</div>
+              {item.scraped_at && <div class="muted">Hora de captura: {formatHour(item.scraped_at)}</div>}
+            </article>
+          ))}
+        </section>
+      )}
+    </main>
+  </body>
+</html>
+
