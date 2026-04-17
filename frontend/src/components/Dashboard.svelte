@@ -8,9 +8,13 @@
   let error = '';
   let historyError = '';
   let monthlyRiskError = '';
+  let alertsTodayError = '';
+  let weeklyRecommendationsError = '';
   let data = null;
   let historyData = [];
   let monthlyRisk = null;
+  let alertsToday = null;
+  let weeklyRecommendations = null;
   let regions = [];
   let selectedRegion = 'madrid';
 
@@ -126,10 +130,34 @@
     }
   };
 
+  const fetchAlertsToday = async () => {
+    alertsTodayError = '';
+    try {
+      const response = await fetch(`${apiUrl}/api/alerts/today?region=${encodeURIComponent(selectedRegion)}`);
+      if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
+      alertsToday = await response.json();
+    } catch (err) {
+      alertsToday = null;
+      alertsTodayError = err instanceof Error ? err.message : 'No fue posible cargar alertas de hoy';
+    }
+  };
+
+  const fetchWeeklyRecommendations = async () => {
+    weeklyRecommendationsError = '';
+    try {
+      const response = await fetch(`${apiUrl}/api/recommendations/week?region=${encodeURIComponent(selectedRegion)}&days=7`);
+      if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
+      weeklyRecommendations = await response.json();
+    } catch (err) {
+      weeklyRecommendations = null;
+      weeklyRecommendationsError = err instanceof Error ? err.message : 'No fue posible cargar recomendaciones semanales';
+    }
+  };
+
   const refreshAll = async () => {
     try {
       await fetchDashboard();
-      await Promise.all([fetchHistory(), fetchMonthlyRisk()]);
+      await Promise.all([fetchHistory(), fetchMonthlyRisk(), fetchAlertsToday(), fetchWeeklyRecommendations()]);
     } catch (err) {
       loading = false;
       error = err instanceof Error ? err.message : 'Error cargando dashboard';
@@ -181,6 +209,10 @@
   const formatTemp = (value) => (value != null ? `${Number(value).toFixed(1)}°C` : '--');
   const formatPrecip = (value) => (value != null ? `${Number(value).toFixed(1)} mm` : '--');
   const formatScore = (value) => (value == null ? '--' : `${Number(value).toFixed(1)}`);
+  const formatDate = (value) => {
+    if (!value) return '--';
+    return new Date(value).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
   const formatCurrency = (value) => {
     if (value == null) return '--';
     return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(value));
@@ -280,6 +312,9 @@
   $: monthlyItems = monthlyRisk?.items ?? [];
   $: monthlyNarrative = monthlyRisk?.narrative ?? '';
   $: monthlyCommercial = monthlyRisk?.commercial ?? null;
+  $: alertToday = alertsToday?.alert ?? null;
+  $: weeklyItems = weeklyRecommendations?.items ?? [];
+  $: weeklyDistribution = weeklyRecommendations?.risk_distribution ?? null;
 </script>
 
 <section class="dashboard">
@@ -457,6 +492,70 @@
           <p class="history-note">{monthlyRiskError}</p>
         {/if}
       </article>
+
+      <article class="card data-inventory-card">
+        <header class="card-head">
+          <div>
+            <h2>Datos Cargados en Frontend</h2>
+            <p class="card-subtitle">Vista explicita de campos recibidos por API</p>
+          </div>
+        </header>
+
+        <div class="data-grid">
+          <div class="data-block">
+            <h3>Snapshot diario</h3>
+            <p><strong>region:</strong> {snapshot.region_name ?? '--'}</p>
+            <p><strong>ciudad:</strong> {snapshot.region_city ?? '--'}</p>
+            <p><strong>fecha:</strong> {formatDate(snapshot.observed_on)}</p>
+            <p><strong>temp_mean_c:</strong> {snapshot.temp_mean_c ?? '--'}</p>
+            <p><strong>precipitation_mm:</strong> {snapshot.precipitation_mm ?? '--'}</p>
+            <p><strong>fungal_risk:</strong> {snapshot.fungal_risk ?? '--'}</p>
+            <p><strong>waterlogging_risk:</strong> {snapshot.waterlogging_risk ?? '--'}</p>
+            <p><strong>heat_risk:</strong> {snapshot.heat_risk ?? '--'}</p>
+            <p><strong>global_risk_level:</strong> {snapshot.global_risk_level ?? '--'}</p>
+            <p><strong>recommendation_title:</strong> {snapshot.recommendation_title ?? '--'}</p>
+          </div>
+
+          <div class="data-block">
+            <h3>Riesgo mensual</h3>
+            <p><strong>combined_score:</strong> {monthlyLatest?.combined_score ?? '--'}</p>
+            <p><strong>agroclimatic_score:</strong> {monthlyLatest?.agroclimatic_score ?? '--'}</p>
+            <p><strong>rainy_days:</strong> {monthlyLatest?.rainy_days ?? '--'}</p>
+            <p><strong>temp_anomaly_c:</strong> {monthlyLatest?.temp_anomaly_c ?? '--'}</p>
+            <p><strong>precip_anomaly_pct:</strong> {monthlyLatest?.precip_anomaly_pct ?? '--'}</p>
+            <p><strong>risk_level:</strong> {monthlyLatest?.risk_level ?? '--'}</p>
+            <p><strong>narrative:</strong> {monthlyNarrative || '--'}</p>
+          </div>
+
+          <div class="data-block">
+            <h3>Comercial proxy</h3>
+            <p><strong>average_price_cop:</strong> {monthlyCommercial?.average_price_cop ?? '--'}</p>
+            <p><strong>volatility_pct:</strong> {monthlyCommercial?.volatility_pct ?? '--'}</p>
+            <p><strong>concentration_pct:</strong> {monthlyCommercial?.concentration_pct ?? '--'}</p>
+            <p><strong>commercial_risk_score:</strong> {monthlyCommercial?.commercial_risk_score ?? '--'}</p>
+            <p><strong>last_update:</strong> {formatDate(monthlyCommercial?.last_update)}</p>
+            <p><strong>stale:</strong> {monthlyCommercial?.stale == null ? '--' : String(monthlyCommercial.stale)}</p>
+          </div>
+
+          <div class="data-block">
+            <h3>Alertas y recomendaciones</h3>
+            <p><strong>alert.risk_level:</strong> {alertToday?.risk_level ?? '--'}</p>
+            <p><strong>alert.agroclimatic_score:</strong> {alertToday?.agroclimatic_score ?? '--'}</p>
+            <p><strong>alert.message:</strong> {alertToday?.message ?? '--'}</p>
+            <p><strong>week.alto:</strong> {weeklyDistribution?.alto ?? '--'}</p>
+            <p><strong>week.medio:</strong> {weeklyDistribution?.medio ?? '--'}</p>
+            <p><strong>week.bajo:</strong> {weeklyDistribution?.bajo ?? '--'}</p>
+            <p><strong>week.items:</strong> {weeklyItems.length}</p>
+            {#if weeklyItems[0]}
+              <p><strong>reciente:</strong> {formatDate(weeklyItems[0].observed_on)} · {weeklyItems[0].title}</p>
+            {/if}
+          </div>
+        </div>
+
+        {#if alertsTodayError || weeklyRecommendationsError}
+          <p class="history-note">{alertsTodayError || weeklyRecommendationsError}</p>
+        {/if}
+      </article>
     </section>
   {/if}
 </section>
@@ -489,7 +588,8 @@
     grid-template-areas:
       'status calendar'
       'stack protocols'
-      'mvp mvp';
+      'mvp mvp'
+      'data data';
     gap: 1rem;
   }
 
@@ -525,6 +625,10 @@
 
   .risk-mvp-card {
     grid-area: mvp;
+  }
+
+  .data-inventory-card {
+    grid-area: data;
   }
 
   .card-head {
@@ -952,6 +1056,37 @@
     color: var(--primary, #6B3FA0);
   }
 
+  .data-grid {
+    margin-top: 0.9rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .data-block {
+    border: 1px solid #EFE7DE;
+    border-radius: 14px;
+    padding: 0.7rem;
+    background: #FCFAF8;
+  }
+
+  .data-block h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.86rem;
+    color: var(--primary, #6B3FA0);
+  }
+
+  .data-block p {
+    margin: 0.18rem 0;
+    font-size: 0.78rem;
+    color: var(--text-muted, #6B6B6B);
+    line-height: 1.4;
+  }
+
+  .data-block p strong {
+    color: var(--text, #1A1A1A);
+  }
+
   @media (max-width: 980px) {
     .dashboard-grid {
       grid-template-columns: 1fr;
@@ -960,7 +1095,8 @@
         'calendar'
         'stack'
         'protocols'
-        'mvp';
+        'mvp'
+        'data';
     }
 
     .bubble-coral {
@@ -1011,6 +1147,10 @@
 
     .mvp-kpis,
     .mvp-months {
+      grid-template-columns: 1fr;
+    }
+
+    .data-grid {
       grid-template-columns: 1fr;
     }
   }
