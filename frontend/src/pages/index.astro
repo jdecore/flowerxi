@@ -1,6 +1,7 @@
 ---
 import Dashboard from '../components/Dashboard.svelte';
 import ChatBot from '../islands/ChatBot.svelte';
+import '../styles/index.css';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
 ---
@@ -9,88 +10,116 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>flowerxi | Flores de Corte Inteligentes</title>
-    <style>
-      :root {
-        --bg: #D8C2A4;
-        --text: #2E2E2E;
-        --text-light: #3D3D3D;
-        --muted: #5A4A3A;
-        --primary: #5B3A8E;
-        --primary-soft: #6F52A3;
-        --primary-dark: #3E2764;
-        --accent: #C69214;
-        --accent-hover: #A87E10;
-      }
-
-      body {
-        margin: 0;
-        font-family: Inter, system-ui, Arial, sans-serif;
-        color: var(--text);
-        background: var(--bg);
-        min-height: 100vh;
-      }
-
-      .wrapper {
-        max-width: 1080px;
-        margin: 0 auto;
-        padding: 2rem 1rem 3rem;
-      }
-
-      .hero {
-        background: linear-gradient(135deg, var(--primary), var(--primary-soft));
-        border: 2px solid rgba(75, 46, 131, 0.3);
-        border-radius: 20px;
-        padding: 1.25rem 1.1rem;
-        margin-bottom: 1.2rem;
-      }
-
-      .hero h1 {
-        margin: 0 0 0.55rem;
-        font-size: clamp(1.7rem, 4vw, 2.5rem);
-        color: #F5F5F5;
-      }
-
-      .hero p {
-        margin: 0;
-        color: #D4C4E8;
-      }
-
-      .hero-actions {
-        margin-top: 1rem;
-      }
-
-      .hero-actions a {
-        display: inline-block;
-        text-decoration: none;
-        color: #F5F5F5;
-        border: none;
-        border-radius: 999px;
-        padding: 0.5rem 0.9rem;
-        background: var(--accent);
-        font-size: 0.9rem;
-        font-weight: 600;
-      }
-
-      .hero-actions a:hover {
-        background: var(--accent-hover);
-      }
-    </style>
+    <title>flowerxi | Estado de Cultivo</title>
   </head>
   <body>
-    <main class="wrapper">
-      <section class="hero">
-        <h1>Toma decisiones diarias para tu cultivo de rosa con IA</h1>
-        <p>
-          Monitoreo de riesgo climatico y recomendaciones accionables para rosa de corte en la Sabana de Bogota.
-        </p>
-        <div class="hero-actions">
-          <a href="#recomendaciones">Ver recomendaciones de hoy</a>
-        </div>
-      </section>
+    <main class="be-page">
+      <section class="app-shell">
+        <aside class="sidebar">
+          <div class="sidebar-top">
+            <div class="logo-mark" aria-label="flowerxi">✿</div>
+            <nav class="sidebar-nav" aria-label="Navegacion principal">
+              <button class="sidebar-icon active" type="button" aria-label="Inicio">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                  <path d="M3 10.7L12 3l9 7.7" />
+                  <path d="M5.5 9.7V21h13V9.7" />
+                </svg>
+              </button>
+              <button class="sidebar-icon" type="button" aria-label="Tendencia">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                  <path d="M4 18h16" />
+                  <path d="M6 15l4-4 3 2 5-6" />
+                  <circle cx="6" cy="15" r="1.2" />
+                  <circle cx="10" cy="11" r="1.2" />
+                  <circle cx="13" cy="13" r="1.2" />
+                  <circle cx="18" cy="7" r="1.2" />
+                </svg>
+              </button>
+              <button class="sidebar-icon" type="button" aria-label="Calendario">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                  <rect x="3.5" y="5.5" width="17" height="15" rx="2.5" />
+                  <path d="M8 3.5v4M16 3.5v4M3.5 10h17" />
+                </svg>
+              </button>
+              <button class="sidebar-icon" type="button" aria-label="Municipios">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                  <path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z" />
+                  <circle cx="12" cy="10" r="2.8" />
+                </svg>
+              </button>
+            </nav>
+          </div>
+          <div class="sidebar-bottom">
+            <button class="sidebar-icon" type="button" aria-label="Ajustes">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.2" />
+                <path d="M19 12a7 7 0 01-.1 1l2.1 1.6-2 3.4-2.6-1a7 7 0 01-1.8 1L14.2 21h-4.4l-.4-2.9a7 7 0 01-1.8-1l-2.6 1-2-3.4 2.1-1.6a7 7 0 010-2L3 9.5l2-3.4 2.6 1a7 7 0 011.8-1L9.8 3h4.4l.4 2.9a7 7 0 011.8 1l2.6-1 2 3.4-2.1 1.6c.1.3.1.7.1 1.1z" />
+              </svg>
+            </button>
+            <button class="sidebar-icon" type="button" aria-label="Perfil">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5.5 20a6.5 6.5 0 0113 0" />
+              </svg>
+            </button>
+          </div>
+        </aside>
 
-      <Dashboard apiUrl={apiUrl} client:load />
+        <section class="main-panel">
+          <header class="top-header">
+            <div class="brand-block">
+              <p class="brand-logo">flowerxi</p>
+              <h1>Hola, cultivador. Veamos el estado de tu roseal hoy</h1>
+            </div>
+            <div class="header-actions">
+              <label class="search-box" for="region-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6" />
+                  <path d="M20 20l-4.2-4.2" />
+                </svg>
+                <input id="region-search" type="search" placeholder="Buscar municipio..." autocomplete="off" />
+              </label>
+              <button id="refresh-dashboard" class="refresh-btn" type="button">Actualizar datos</button>
+            </div>
+          </header>
+
+          <Dashboard apiUrl={apiUrl} client:load />
+        </section>
+      </section>
       <ChatBot client:idle />
     </main>
+
+    <script is:inline>
+      (() => {
+        const searchInput = document.getElementById('region-search');
+        const refreshButton = document.getElementById('refresh-dashboard');
+        let searchDebounce;
+
+        const emit = (name, detail = {}) => {
+          window.dispatchEvent(new CustomEvent(name, { detail }));
+        };
+
+        if (searchInput) {
+          searchInput.addEventListener('input', (event) => {
+            const value = event.target instanceof HTMLInputElement ? event.target.value : '';
+            window.clearTimeout(searchDebounce);
+            searchDebounce = window.setTimeout(() => {
+              emit('flowerxi:search-region', { query: value });
+            }, 220);
+          });
+
+          searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              emit('flowerxi:search-region', { query: searchInput.value });
+            }
+          });
+        }
+
+        if (refreshButton) {
+          refreshButton.addEventListener('click', () => emit('flowerxi:refresh'));
+        }
+      })();
+    </script>
   </body>
 </html>
