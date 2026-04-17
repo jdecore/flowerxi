@@ -5,7 +5,7 @@ from .config import settings
 from .db import get_conn
 
 app = FastAPI(title=settings.app_name)
-DEFAULT_REGION = "madrid"
+DEFAULT_REGION = "sabana-bogota"
 
 
 def normalize_origin(origin: str) -> str:

@@ -59,7 +59,7 @@
     ? timeDay.range(xDomain[0], xDomain[1], Math.ceil(chartData.length / 7))
     : [];
 
-  $: xTicks = ticksX.length > 0 ? ticksX : [xDomain[0], xDomain[1]];
+  $: xTicks = ticksX.length > 0 ? ticksX : xDomain;
 </script>
 
 <div class="chart-container">
@@ -173,7 +173,7 @@
     gap: 1.2rem;
     margin-top: 0.6rem;
     font-size: 0.78rem;
-    color: #9d8abf;
+    color: #D4C4E8;
   }
 
   .legend-item {

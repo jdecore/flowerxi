@@ -12,20 +12,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
     <title>flowerxi | Flores de Corte Inteligentes</title>
     <style>
       :root {
-        --bg: #160a2f;
-        --bg-soft: #241046;
-        --card: #2e1460;
-        --text: #f5efff;
-        --muted: #cdb8f5;
-        --accent: #b16cff;
-        --accent-2: #7f39fb;
+        --bg: #E6D2B5;
+        --text: #2E1A47;
+        --text-light: #3D2A54;
+        --muted: #5A4A3A;
+        --primary: #4B2E83;
+        --primary-soft: #5A3FA0;
+        --accent: #D4A017;
       }
 
       body {
         margin: 0;
         font-family: Inter, system-ui, Arial, sans-serif;
         color: var(--text);
-        background: radial-gradient(circle at 15% 20%, #2d1264 0%, var(--bg) 45%, #0c0620 100%);
+        background: var(--bg);
         min-height: 100vh;
       }
 
@@ -36,8 +36,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
       }
 
       .hero {
-        background: linear-gradient(135deg, rgba(177, 108, 255, 0.25), rgba(127, 57, 251, 0.18));
-        border: 1px solid rgba(177, 108, 255, 0.45);
+        background: linear-gradient(135deg, var(--primary), var(--primary-soft));
+        border: 2px solid rgba(75, 46, 131, 0.3);
         border-radius: 20px;
         padding: 1.25rem 1.1rem;
         margin-bottom: 1.2rem;
@@ -46,11 +46,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
       .hero h1 {
         margin: 0 0 0.55rem;
         font-size: clamp(1.7rem, 4vw, 2.5rem);
+        color: #F5F5F5;
       }
 
       .hero p {
         margin: 0;
-        color: var(--muted);
+        color: #D4C4E8;
       }
 
       .hero-actions {
@@ -60,12 +61,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
       .hero-actions a {
         display: inline-block;
         text-decoration: none;
-        color: #f5efff;
-        border: 1px solid rgba(177, 108, 255, 0.65);
+        color: #2E1A47;
+        border: none;
         border-radius: 999px;
         padding: 0.5rem 0.9rem;
-        background: rgba(127, 57, 251, 0.35);
+        background: var(--accent);
         font-size: 0.9rem;
+        font-weight: 600;
       }
     </style>
   </head>

@@ -233,19 +233,19 @@
   }
 
   .selector label {
-    color: #cdb8f5;
+    color: var(--muted, #5A4A3A);
     font-size: 0.95rem;
   }
 
   .selector strong {
-    color: #f5efff;
+    color: var(--text, #2E1A47);
   }
 
   select {
     border-radius: 10px;
-    border: 1px solid rgba(177, 108, 255, 0.55);
-    background: rgba(22, 10, 47, 0.85);
-    color: #f5efff;
+    border: 1px solid var(--primary, #4B2E83);
+    background: var(--primary, #4B2E83);
+    color: #F5F5F5;
     padding: 0.5rem 0.7rem;
     font: inherit;
     font-size: 0.95rem;
@@ -258,7 +258,7 @@
 
   .loading p, .error p {
     margin: 0;
-    color: #cdb8f5;
+    color: var(--muted, #5A4A3A);
   }
 
   .error p {
@@ -304,12 +304,12 @@
 
   .risk-action {
     margin: 0.25rem 0 0;
-    color: #cdb8f5;
+    color: #D4C4E8;
     font-size: 0.9rem;
   }
 
   .risk-action strong {
-    color: #f5efff;
+    color: #F5F5F5;
   }
 
   .kpi-grid {
@@ -325,8 +325,8 @@
   }
 
   .kpi-card {
-    background: linear-gradient(180deg, rgba(46, 20, 96, 0.95), rgba(35, 14, 72, 0.95));
-    border: 1px solid rgba(177, 108, 255, 0.35);
+    background: linear-gradient(180deg, var(--primary), var(--primary-soft));
+    border: 1px solid rgba(75, 46, 131, 0.3);
     border-radius: 14px;
     padding: 1rem;
     text-align: center;
@@ -336,7 +336,7 @@
     margin: 0 0 0.4rem;
     font-size: 0.8rem;
     font-weight: 500;
-    color: #cdb8f5;
+    color: #D4C4E8;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
@@ -345,18 +345,18 @@
     font-size: 1.5rem;
     font-weight: 700;
     margin: 0;
-    color: #f5efff;
+    color: #F5F5F5;
   }
 
   .kpi-sub {
     margin: 0.25rem 0 0;
     font-size: 0.75rem;
-    color: #9d8abf;
+    color: #B8A8D0;
   }
 
   .chart-section {
-    background: linear-gradient(180deg, rgba(46, 20, 96, 0.92), rgba(35, 14, 72, 0.92));
-    border: 1px solid rgba(177, 108, 255, 0.35);
+    background: linear-gradient(180deg, var(--primary), var(--primary-soft));
+    border: 1px solid rgba(75, 46, 131, 0.3);
     border-radius: 16px;
     padding: 1.1rem;
   }
@@ -364,18 +364,18 @@
   .chart-section h3 {
     margin: 0 0 1rem;
     font-size: 0.9rem;
-    color: #cdb8f5;
+    color: #D4C4E8;
   }
 
   .chart-section .muted {
-    color: #9d8abf;
+    color: #B8A8D0;
     text-align: center;
     padding: 2rem;
   }
 
   .recommendations {
-    background: linear-gradient(180deg, rgba(46, 20, 96, 0.92), rgba(35, 14, 72, 0.92));
-    border: 1px solid rgba(177, 108, 255, 0.35);
+    background: linear-gradient(180deg, var(--primary), var(--primary-soft));
+    border: 1px solid rgba(75, 46, 131, 0.3);
     border-radius: 16px;
     padding: 1.1rem;
   }
@@ -383,7 +383,7 @@
   .recommendations h3 {
     margin: 0 0 0.85rem;
     font-size: 1rem;
-    color: #f5efff;
+    color: #F5F5F5;
   }
 
   .recommendations ul {
@@ -395,7 +395,7 @@
   }
 
   .recommendations li {
-    color: #e9dcff;
+    color: #E8DCF0;
     line-height: 1.4;
     font-size: 0.95rem;
   }
@@ -403,7 +403,7 @@
   .recommendations li.from-api {
     margin-top: 0.35rem;
     padding-top: 0.55rem;
-    border-top: 1px solid rgba(177, 108, 255, 0.2);
-    color: #d8b4fe;
+    border-top: 1px solid rgba(212, 196, 232, 0.2);
+    color: #D4A017;
   }
 </style>
