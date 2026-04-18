@@ -10,6 +10,9 @@
     { slug: 'funza', name: 'Funza' },
   ];
 
+  const REGIONS_CACHE_KEY = 'flowerxi_regions_cache';
+  const REGIONS_CACHE_TTL = 1000 * 60 * 30;
+
   const STATUS_UI = {
     rutina: { label: 'Rutina', tone: 'rutina' },
     vigilancia: { label: 'Vigilancia', tone: 'vigilancia' },
@@ -32,129 +35,49 @@
   let snapshot = null;
   let history = [];
   let lastUpdated = null;
-  let apiBases = [];
+  let apiBase = '';
 
   const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
 
-  const buildApiBases = (raw) => {
-    const configured = normalizeBaseUrl(raw);
-    const candidates = [];
+  $: apiBase = normalizeBaseUrl(apiUrl);
 
-    if (configured) candidates.push(configured);
-
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-      if (isLocalHost) {
-        candidates.push(`${window.location.protocol}//${host}:8000`);
-        candidates.push('http://localhost:8000');
-        candidates.push('http://127.0.0.1:8000');
-      }
+  const endpoint = (path) => {
+    if (!apiBase) return path;
+    if (apiBase.endsWith('/api') && path.startsWith('/api/')) {
+      return `${apiBase}${path.slice(4)}`;
     }
-
-    candidates.push('');
-    return [...new Set(candidates)];
+    return `${apiBase}${path}`;
   };
 
-  const endpoint = (base, path) => {
-    if (!base) return path;
-    if (base.endsWith('/api') && path.startsWith('/api/')) {
-      return `${base}${path.slice(4)}`;
+  const getCachedRegions = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const cached = window.localStorage.getItem(REGIONS_CACHE_KEY);
+      if (!cached) return null;
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp > REGIONS_CACHE_TTL) return null;
+      return data;
+    } catch {
+      return null;
     }
-    return `${base}${path}`;
   };
 
-  $: apiBases = buildApiBases(apiUrl);
-
-  const makeHttpError = (label, status) => {
-    const error = new Error(`${label} (${status})`);
-    error.status = status;
-    return error;
+  const setCachedRegions = (data) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(REGIONS_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+    } catch {}
   };
-
-  const isHttp404 = (err) =>
-    (err && typeof err === 'object' && Number(err.status) === 404) ||
-    (err instanceof Error && err.message.includes('(404)'));
 
   const fetchJson = async (path, label) => {
-    try {
-      let lastHttpError = null;
-      let hadConnectionError = false;
-
-      for (const base of apiBases) {
-        try {
-          const response = await fetch(endpoint(base, path), {
-            headers: { Accept: 'application/json' },
-          });
-          if (!response.ok) {
-            lastHttpError = makeHttpError(label, response.status);
-            continue;
-          }
-          return await response.json();
-        } catch (attemptError) {
-          if (attemptError instanceof TypeError) {
-            hadConnectionError = true;
-            continue;
-          }
-          throw attemptError;
-        }
-      }
-
-      if (lastHttpError) throw lastHttpError;
-      if (hadConnectionError) {
-        throw new Error('No se pudo conectar con el backend. Revisa PUBLIC_API_URL.');
-      }
-      throw new Error(`${label}. No se encontró endpoint disponible.`);
-    } catch (err) {
-      if (err instanceof TypeError) {
-        throw new Error('No se pudo conectar con el backend. Revisa PUBLIC_API_URL.');
-      }
+    const url = endpoint(path);
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      const err = new Error(`${label} (${res.status})`);
+      err.status = res.status;
       throw err;
     }
-  };
-
-  const scoreFromRisk = (riskLevel) => {
-    const normalized = String(riskLevel ?? '').toLowerCase().trim();
-    if (normalized.includes('alto') || normalized === 'high') return 75;
-    if (normalized.includes('medio') || normalized === 'medium') return 50;
-    return 22;
-  };
-
-  const deriveOperativoFallback = (alertPayload, dashboardSnapshot) => {
-    const alert = alertPayload?.alert ?? null;
-    const score = toNumberOrNull(alert?.agroclimatic_score) ?? scoreFromRisk(dashboardSnapshot?.global_risk_level);
-    const status = score <= 30 ? 'rutina' : score <= 60 ? 'vigilancia' : 'accion';
-
-    const statusLabelByKey = {
-      rutina: 'Rutina normal',
-      vigilancia: 'Vigilancia reforzada',
-      accion: 'Acción requerida',
-    };
-
-    return {
-      ok: true,
-      status,
-      status_label: statusLabelByKey[status],
-      score,
-      reason:
-        alert?.message ||
-        alert?.recommendation_title ||
-        'No hay explicación detallada del riesgo operativo en este backend.',
-      action_today:
-        alert?.recommendation_message ||
-        (status === 'accion'
-          ? 'Ejecuta inspección en campo, registra hallazgos y aplica protocolo preventivo.'
-          : status === 'vigilancia'
-          ? 'Refuerza revisión de humedad, drenaje y ventilación durante el turno.'
-          : 'Mantén la rutina de monitoreo sin acciones extraordinarias.'),
-      attention:
-        status === 'accion'
-          ? 'Este estado se calculó con fallback porque /api/risk/operativo no está disponible.'
-          : null,
-      trend_7d: 'stable',
-      confidence: 'media',
-      details: { days_available: 0, fallback: true },
-    };
+    return await res.json();
   };
 
   const toNumberOrNull = (value) => {
@@ -177,76 +100,43 @@
     return Math.max(35, Math.min(95, Math.round(estimate)));
   };
 
-  const hydrateRegions = async () => {
-    if (regions.length > 0) return;
-
-    try {
-      const payload = await fetchJson('/api/regions', 'No se pudieron cargar municipios');
-      const items = Array.isArray(payload?.items) ? payload.items : [];
-      if (items.length > 0) {
-        regions = items;
-        if (!regions.some((region) => region.slug === selectedRegion)) {
-          selectedRegion = regions[0].slug;
-        }
-      }
-    } catch {
-      // Si falla, seguimos con fallback local para no bloquear el dashboard.
-      regions = [...FALLBACK_REGIONS];
-    }
-  };
-
-  const loadLiveData = async () => {
-    const [dashboardPayload, historyPayload] = await Promise.all([
-      fetchJson(
-        `/api/dashboard?region=${encodeURIComponent(selectedRegion)}`,
-        'No se pudo cargar resumen del día'
-      ),
-      fetchJson(
-        `/api/history?region=${encodeURIComponent(selectedRegion)}&limit=14`,
-        'No se pudo cargar evidencia climática'
-      ),
-    ]);
-
-    snapshot = dashboardPayload?.snapshot ?? null;
-    history = Array.isArray(historyPayload?.items) ? [...historyPayload.items].reverse() : [];
-
-    let operativoPayload = null;
-    try {
-      operativoPayload = await fetchJson(
-        `/api/risk/operativo?region=${encodeURIComponent(selectedRegion)}`,
-        'No se pudo cargar estado operativo'
-      );
-    } catch (err) {
-      if (!isHttp404(err)) throw err;
-
-      let alertPayload = null;
-      try {
-        alertPayload = await fetchJson(
-          `/api/alerts/today?region=${encodeURIComponent(selectedRegion)}`,
-          'No se pudo cargar alerta diaria'
-        );
-      } catch {
-        alertPayload = null;
-      }
-      operativoPayload = deriveOperativoFallback(alertPayload, snapshot);
-    }
-
-    operativo = operativoPayload?.ok ? operativoPayload : deriveOperativoFallback(null, snapshot);
-  };
-
   const refreshAll = async () => {
     loading = true;
     error = '';
 
     try {
-      await hydrateRegions();
-      await loadLiveData();
+      const cached = getCachedRegions();
+      if (cached && cached.length > 0) {
+        regions = cached;
+      }
+
+      const data = await fetchJson(
+        `/api/dashboard/full?region=${encodeURIComponent(selectedRegion)}`,
+        'Error al cargar dashboard'
+      );
+
+      regions = data?.regions?.length > 0 ? data.regions : (regions.length > 0 ? regions : FALLBACK_REGIONS);
+      if (regions !== cached && typeof window !== 'undefined') {
+        setCachedRegions(regions);
+      }
+
+      snapshot = data?.snapshot ?? null;
+      operativo = data?.operativo ?? null;
+      history = Array.isArray(data?.history) ? data.history : [];
+
+      if (!regions.some((r) => r.slug === selectedRegion)) {
+        selectedRegion = regions[0]?.slug || 'madrid';
+      }
+
       lastUpdated = new Date().toLocaleString('es-CO', {
         dateStyle: 'medium',
         timeStyle: 'short',
       });
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Error al cargar dashboard en vivo';
+      if (regions.length === 0) {
+        regions = FALLBACK_REGIONS;
+      }
+      error = err instanceof Error ? err.message : 'Error al cargar dashboard';
     } finally {
       loading = false;
     }

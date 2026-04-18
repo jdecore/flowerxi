@@ -737,6 +737,215 @@ def dashboard(region: str = Query(DEFAULT_REGION)):
     return {"ok": True, "region": region, "snapshot": row}
 
 
+@app.get("/api/dashboard/full")
+def dashboard_full(region: str = Query(DEFAULT_REGION)):
+    """
+    Endpoint unificado que devuelve:
+    - regions: lista de municipios
+    - snapshot: datos del día actual
+    - operativo: estado operativo con acción
+    - history: últimos 14 días
+    Todo en una sola respuesta para reducir requests.
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT slug, name, city, crop_focus, department, production_share
+                FROM flowerxi_regions
+                ORDER BY production_share DESC NULLS LAST, name ASC;
+            """)
+            regions = cur.fetchall()
+
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                  reg.name AS region_name,
+                  reg.city AS region_city,
+                  reg.crop_focus,
+                  w.observed_on,
+                  w.temp_mean_c,
+                  w.precipitation_mm,
+                  r.fungal_risk,
+                  r.waterlogging_risk,
+                  r.heat_risk,
+                  r.global_risk_level,
+                  rec.title AS recommendation_title,
+                  rec.message AS recommendation_message
+                FROM flowerxi_regions reg
+                JOIN flowerxi_weather_daily w
+                  ON w.region_slug = reg.slug
+                LEFT JOIN flowerxi_risk_signals r
+                  ON r.region_slug = w.region_slug AND r.observed_on = w.observed_on
+                LEFT JOIN flowerxi_recommendations rec
+                  ON rec.region_slug = w.region_slug AND rec.observed_on = w.observed_on
+                WHERE reg.slug = %s
+                ORDER BY w.observed_on DESC
+                LIMIT 1;
+            """, (region,))
+            snapshot = cur.fetchone()
+
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT observed_on, temp_mean_c, precipitation_mm
+                FROM flowerxi_weather_daily w
+                WHERE region_slug = %s
+                ORDER BY w.observed_on DESC
+                LIMIT 14;
+            """, (region,))
+            history_rows = cur.fetchall()
+
+        operativo = None
+        if snapshot:
+            try:
+                cur.execute("""
+                    WITH weather_data AS (
+                      SELECT 
+                        observed_on,
+                        precipitation_mm,
+                        temp_mean_c,
+                        LAG(precipitation_mm) OVER (ORDER BY observed_on DESC) AS prev_precip
+                      FROM flowerxi_weather_daily
+                      WHERE region_slug = %s
+                      ORDER BY observed_on DESC
+                      LIMIT 7
+                    ),
+                    summary AS (
+                      SELECT 
+                        COUNT(*) as days_available,
+                        AVG(precipitation_mm) AS avg_precip,
+                        AVG(temp_mean_c) AS avg_temp,
+                        SUM(CASE WHEN precipitation_mm >= 4 THEN 1 ELSE 0 END)::int AS rainy_days,
+                        SUM(CASE WHEN precipitation_mm > 0 THEN 1 ELSE 0 END)::int AS days_with_precip,
+                        MAX(prev_precip) AS prev_avg_precip,
+                        ARRAY_AGG(precipitation_mm ORDER BY observed_on DESC) as precip_array
+                      FROM weather_data
+                    ),
+                    risk_calc AS (
+                      SELECT 
+                        s.*,
+                        CASE 
+                          WHEN s.avg_precip > (s.prev_avg_precip * 1) AND s.rainy_days >= 3 THEN (s.rainy_days * 15 + s.days_with_precip * 8)::int
+                          WHEN s.rainy_days >= 5 THEN 85
+                          WHEN s.rainy_days >= 4 THEN 72
+                          WHEN s.rainy_days >= 3 AND s.avg_temp BETWEEN 15 AND 22 THEN 68
+                          WHEN s.rainy_days >= 3 AND s.avg_temp < 12 THEN 55
+                          WHEN s.avg_temp > 28 THEN 78
+                          WHEN s.avg_temp < 8 THEN 45
+                          WHEN s.avg_temp <= 12 AND s.rainy_days >= 2 THEN 52
+                          WHEN s.avg_temp >= 22 AND s.days_with_precip > 0 THEN 48
+                          ELSE 22
+                        END AS risk_score
+                      FROM summary s
+                    ),
+                    trend_calc AS (
+                      SELECT 
+                        r.*,
+                        CASE 
+                          WHEN array_length(r.precip_array, 1) >= 7 THEN
+                            CASE 
+                              WHEN (r.precip_array[1] + COALESCE(r.precip_array[2], 0) + COALESCE(r.precip_array[3], 0)) > 
+                                   (COALESCE(r.precip_array[4], 0) + COALESCE(r.precip_array[5], 0) + COALESCE(r.precip_array[6], 0) + COALESCE(r.precip_array[7], 0)) * 1.15
+                              THEN 'up'
+                              WHEN (r.precip_array[1] + COALESCE(r.precip_array[2], 0) + COALESCE(r.precip_array[3], 0)) < 
+                                   (COALESCE(r.precip_array[4], 0) + COALESCE(r.precip_array[5], 0) + COALESCE(r.precip_array[6], 0) + COALESCE(r.precip_array[7], 0)) * 0.85
+                              THEN 'down'
+                              ELSE 'stable'
+                            END
+                          ELSE 'stable'
+                        END AS trend_7d
+                      FROM risk_calc r
+                    )
+                    SELECT 
+                      t.days_available,
+                      t.avg_precip,
+                      t.avg_temp,
+                      t.rainy_days,
+                      t.days_with_precip,
+                      t.prev_avg_precip,
+                      t.risk_score,
+                      t.trend_7d,
+                      CASE 
+                        WHEN t.risk_score <= 30 THEN 'rutina'
+                        WHEN t.risk_score <= 60 THEN 'vigilancia'
+                        ELSE 'accion'
+                      END AS status,
+                      CASE 
+                        WHEN t.rainy_days >= 5 THEN 'Acumulación crítica de lluvia (5+ días)'
+                        WHEN t.rainy_days >= 3 AND t.avg_temp BETWEEN 15 AND 22 THEN 'Humedad + temperatura templada = riesgo fungal elevado'
+                        WHEN t.rainy_days >= 3 AND t.avg_temp < 12 THEN 'Frío + humedad = estrés para las plantas'
+                        WHEN t.rainy_days >= 3 AND t.avg_temp >= 22 THEN 'Lluvia + calor = condiciones favorables para hongos'
+                        WHEN t.avg_precip > (t.prev_avg_precip * 3) THEN 'Aumento crítico de precipitación (300%+)'
+                        WHEN t.avg_temp > 28 THEN 'Temperatura muy alta (>28°C) - estrés térmico'
+                        WHEN t.avg_temp < 8 THEN 'Temperatura muy baja (<8°C) - riesgo de frío'
+                        WHEN t.avg_temp <= 12 AND t.rainy_days >= 2 THEN 'Temperatura baja + humedad = vigilancia por hongos'
+                        ELSE 'Condiciones dentro de rangos normales'
+                      END AS reason,
+                      CASE 
+                        WHEN t.rainy_days >= 5 THEN 'Aplicar fungicida inmediatamente + revisar sistema de drenaje. Registra inspección.'
+                        WHEN t.rainy_days >= 3 AND t.avg_temp BETWEEN 15 AND 22 THEN 'Inspección fitosanitaria prioritaria hoy. Aumenta ventilación 20 min extra.'
+                        WHEN t.rainy_days >= 3 AND t.avg_temp < 12 THEN 'Revisa calefacción o protección anticongelante. Controla condensación.'
+                        WHEN t.rainy_days >= 3 AND t.avg_temp >= 22 THEN 'Aumenta ventilación y revisa sombreado. Monitorea estrés hídrico.'
+                        WHEN t.avg_precip > (t.prev_avg_precip * 3) THEN 'Revisa drenajes inmediatamente. Elimina acumulaciones de agua.'
+                        WHEN t.avg_temp > 28 THEN 'Activa sombreado de emergencia. Aumenta riego por goteo.'
+                        WHEN t.avg_temp < 8 THEN 'Activa protección anticongelante. Revisa estado de plantas sensibles.'
+                        WHEN t.avg_temp <= 12 AND t.rainy_days >= 2 THEN 'Aumenta ventilación para reducir condensación. Controla humedad.'
+                        ELSE 'Mantén rutina habitual. Revisa humedad del suelo.'
+                      END AS action_today,
+                      CASE 
+                        WHEN t.days_available >= 7 THEN 'alta'
+                        WHEN t.days_available >= 4 THEN 'media'
+                        ELSE 'baja'
+                      END AS confidence
+                    FROM trend_calc t;
+                """, (region,))
+                row = cur.fetchone()
+                if row:
+                    operativo = {
+                        "ok": True,
+                        "region": region,
+                        "status": row.get("status") or "rutina",
+                        "status_label": {
+                            "rutina": "Rutina normal",
+                            "vigilancia": "Vigilancia reforzada",
+                            "accion": "Acción requerida",
+                        }.get(row.get("status"), "Rutina normal"),
+                        "score": row.get("risk_score") or 22,
+                        "reason": row.get("reason") or "Condiciones normales",
+                        "action_today": row.get("action_today") or "Mantén rutina habitual",
+                        "trend_7d": row.get("trend_7d") or "stable",
+                        "confidence": row.get("confidence") or "media",
+                    }
+            except Exception:
+                operativo = None
+
+        if not operativo:
+            fungal = to_float(snapshot.get("fungal_risk"), 0.0) if snapshot else 0
+            precip = to_float(snapshot.get("precipitation_mm"), 0.0)
+            score = max(22, min(85, int(fungal * 0.6 + (precip > 4 and precip > 0 and 30 or 0) * 0.4)))
+            operativo = {
+                "ok": True,
+                "region": region,
+                "status": "rutina" if score <= 30 else "vigilancia" if score <= 60 else "accion",
+                "status_label": "Rutina normal" if score <= 30 else "Vigilancia reforzada" if score <= 60 else "Acción requerida",
+                "score": score,
+                "reason": "Estado calculado desde datos disponibles",
+                "action_today": "Mantén rutina de monitoreo",
+                "trend_7d": "stable",
+                "confidence": "baja",
+            }
+
+    history = list(reversed(history_rows)) if history_rows else []
+
+    return {
+        "ok": True,
+        "region": region,
+        "regions": regions,
+        "snapshot": snapshot,
+        "operativo": operativo,
+        "history": history,
+    }
+
+
 @app.get("/api/history")
 def history(region: str = Query(DEFAULT_REGION), limit: int = Query(30, ge=1, le=120)):
     sql = """
