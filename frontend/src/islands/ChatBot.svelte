@@ -13,11 +13,24 @@
   let userQuestion = '';
   let chatOpen = embedded;
   let isAnswering = false;
+  let isModelLoading = false;
+  let modelReady = false;
+  let modelProgress = 0;
+  let modelName = '';
+  let engine = null;
   let region = 'madrid';
   let inputRef;
   let contextCache = null;
   let contextCacheRegion = '';
   let contextCacheAt = 0;
+  let modelModulePromise = null;
+
+  const getModelModule = async () => {
+    if (!modelModulePromise) {
+      modelModulePromise = import('../lib/ai/model.js');
+    }
+    return modelModulePromise;
+  };
 
   const isLegacyRefusal = (value) => {
     const text = String(value || '').toLowerCase();
@@ -108,6 +121,26 @@
     return null;
   };
 
+  const toNumOrNull = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const riskScoreFromSignals = (item) => {
+    const fungal = toNumOrNull(item?.fungal_risk);
+    const water = toNumOrNull(item?.waterlogging_risk);
+    const heat = toNumOrNull(item?.heat_risk);
+    if (fungal === null || water === null || heat === null) return null;
+    return Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
+  };
+
+  const statusLabelFromScore = (score) => {
+    if (score === null) return 'Sin datos';
+    if (score >= 70) return 'Acción requerida';
+    if (score >= 40) return 'Vigilancia reforzada';
+    return 'Rutina normal';
+  };
+
   const loadBackendContext = async (force = false) => {
     const cacheValid =
       !force &&
@@ -126,31 +159,68 @@
     const history = Array.isArray(historyData?.items) ? historyData.items : [];
     const latest = history[0] ?? null;
     const weekly = Array.isArray(weeklyData?.items) ? weeklyData.items : [];
+    const compareEntries = Array.isArray(compareData?.items) ? compareData.items : [];
+    const compareCurrent = compareEntries.find(
+      (item) => String(item?.slug || '').trim().toLowerCase() === region
+    ) ?? null;
 
-    const humidityByRegion = Array.isArray(compareData?.items)
-      ? compareData.items
-          .map((item) => {
-            const waterRisk = Number(item?.waterlogging_risk);
-            return {
-              slug: String(item?.slug || '').trim(),
-              name: String(item?.name || '').trim(),
-              waterRisk: Number.isFinite(waterRisk) ? Math.round(waterRisk) : null,
-            };
-          })
-          .filter((item) => item.slug)
-      : [];
+    const humidityByRegion = compareEntries
+      .map((item) => {
+        const waterRisk = toNumOrNull(item?.waterlogging_risk);
+        return {
+          slug: String(item?.slug || '').trim(),
+          name: String(item?.name || '').trim(),
+          waterRisk: waterRisk === null ? null : Math.round(waterRisk),
+        };
+      })
+      .filter((item) => item.slug);
 
     const humidTop = humidityByRegion
       .filter((item) => item.waterRisk !== null)
       .sort((a, b) => b.waterRisk - a.waterRisk)[0];
 
+    const rawScore = toNumOrNull(operativoData?.score);
+    const latestScore = riskScoreFromSignals(latest);
+    const compareScore = toNumOrNull(compareCurrent?.risk_score) ?? riskScoreFromSignals(compareCurrent);
+    const resolvedScore = rawScore ?? latestScore ?? compareScore;
+    const resolvedStatusLabel = hasUsefulText(operativoData?.status_label)
+      ? operativoData.status_label
+      : statusLabelFromScore(resolvedScore);
+    const resolvedReason = hasUsefulText(operativoData?.reason)
+      ? operativoData.reason
+      : hasUsefulText(latest?.recommendation_message)
+      ? latest.recommendation_message
+      : hasUsefulText(weekly[0]?.message)
+      ? weekly[0].message
+      : 'Sin datos';
+    const resolvedAction = hasUsefulText(operativoData?.action_today)
+      ? operativoData.action_today
+      : hasUsefulText(latest?.recommendation_message)
+      ? latest.recommendation_message
+      : hasUsefulText(weekly[0]?.message)
+      ? weekly[0].message
+      : resolvedScore === null
+      ? 'Sin datos'
+      : resolvedScore >= 70
+      ? 'Ejecuta inspección prioritaria y protocolo fitosanitario hoy.'
+      : resolvedScore >= 40
+      ? 'Refuerza vigilancia de humedad y ventilación durante el turno.'
+      : 'Mantén rutina operativa y monitoreo preventivo.';
+
+    const resolvedOperativo = {
+      status_label: resolvedStatusLabel,
+      score: resolvedScore,
+      reason: resolvedReason,
+      action_today: resolvedAction,
+    };
+
     const contextSummary = {
       region,
       operativo: {
-        status: operativoData?.status_label || 'Sin datos',
-        score: operativoData?.score ?? null,
-        reason: operativoData?.reason || 'Sin datos',
-        action: operativoData?.action_today || 'Sin datos',
+        status: resolvedOperativo.status_label,
+        score: resolvedOperativo.score,
+        reason: resolvedOperativo.reason,
+        action: resolvedOperativo.action_today,
       },
       today: latest
         ? {
@@ -167,7 +237,7 @@
       humidTop: humidTop ? `${humidTop.name} (${humidTop.waterRisk} pts)` : null,
     };
 
-    const payload = { operativo: operativoData, latest, humidTop, contextSummary };
+    const payload = { operativo: resolvedOperativo, latest, humidTop, contextSummary };
     contextCache = payload;
     contextCacheRegion = region;
     contextCacheAt = Date.now();
@@ -183,6 +253,36 @@
       .replace(/\s+/g, ' ')
       .trim();
 
+  const hasUsefulText = (value) => {
+    const text = normalizeText(value);
+    if (!text) return false;
+    return text !== 'sin datos' && text !== 'datos no disponibles' && text !== 'no disponible';
+  };
+
+  const isRefusalAnswer = (answer) => {
+    const text = normalizeText(answer);
+    if (!text) return true;
+    const hasRefusalStart =
+      text.includes('im sorry') ||
+      text.includes('i m sorry') ||
+      text.includes('lo siento');
+    const hasCannotIntent =
+      text.includes('cannot') || text.includes('cant') || text.includes('unable') || text.includes('no puedo');
+    const hasPromptPolicyContext =
+      text.includes('prompt') ||
+      text.includes('instruction') ||
+      text.includes('instructions') ||
+      text.includes('comply') ||
+      text.includes('respond to this');
+    return (
+      hasRefusalStart ||
+      (hasCannotIntent && hasPromptPolicyContext) ||
+      text.includes('cannot help with that') ||
+      text.includes('requires a detailed explanation of the instructions') ||
+      text.includes('no puedo responder a este prompt')
+    );
+  };
+
   const quickAnswer = (question, context) => {
     const q = normalizeText(question);
     const score = context?.operativo?.score;
@@ -193,9 +293,16 @@
     const latest = context?.latest;
 
     if (q.includes('riesgo hoy') || q.includes('riesgo de hoy') || q.includes('como esta el riesgo')) {
-      return score !== null && score !== undefined
-        ? `Hoy en ${region} el riesgo está en ${statusLabel || 'estado operativo'} (${score}).`
-        : 'No tengo datos suficientes del riesgo de hoy.';
+      if (score !== null && score !== undefined) {
+        return `Hoy en ${region} el riesgo está en ${statusLabel || 'estado operativo'} (${score}).`;
+      }
+      if (latest) {
+        return `Aún no tengo score operativo para ${region}. Último dato: lluvia ${latest.precipitation_mm ?? 'N/A'} mm y temperatura ${latest.temp_mean_c ?? 'N/A'} °C.`;
+      }
+      if (humidTop) {
+        return `Aún no tengo score operativo para ${region}. Referencia regional disponible: ${humidTop.name || humidTop.slug} (${humidTop.waterRisk} pts de encharcamiento).`;
+      }
+      return fallbackContextAnswer(context);
     }
 
     const asksTodayAction =
@@ -240,8 +347,46 @@
     const label = context?.operativo?.status_label;
     const action = context?.operativo?.action_today;
     const reason = context?.operativo?.reason;
-    if ((score === null || score === undefined) && !action) return 'No tengo datos suficientes para responder.';
+    if ((score === null || score === undefined) && !hasUsefulText(action) && !hasUsefulText(reason)) {
+      return 'No tengo datos suficientes para responder.';
+    }
     return `Estado actual: ${label || 'Sin datos'} (${score ?? '—'}). ${reason || ''} Acción sugerida: ${action || 'Sin datos'}`.trim();
+  };
+
+  const ensureModel = async () => {
+    if (modelReady || isModelLoading) return;
+    isModelLoading = true;
+    modelProgress = 0;
+    try {
+      const modelModule = await getModelModule();
+      engine = await modelModule.getAIModel((progress) => {
+        const value = Number(progress?.progress ?? 0);
+        if (Number.isFinite(value)) {
+          modelProgress = Math.max(0, Math.min(100, Math.round(value * 100)));
+        }
+      });
+      modelName = modelModule.getLoadedModelId() || 'WebLLM';
+      modelReady = Boolean(engine);
+    } catch (err) {
+      console.error('[flowerxi-chat] webllm init error:', err);
+      modelReady = false;
+    } finally {
+      isModelLoading = false;
+    }
+  };
+
+  const buildMessages = (question, context) => {
+    const systemPrompt =
+      `Eres FlowerxiBot, asistente agronómico para floricultura en Cundinamarca. ` +
+      `Responde en español, breve, sin inventar datos y sin explicar políticas internas. ` +
+      `Si falta un dato, dilo explícitamente. Usa este contexto JSON real: ${JSON.stringify(context.contextSummary)}.`;
+    const messages = [{ role: 'system', content: systemPrompt }];
+    chatHistory.slice(-4).forEach((item) => {
+      messages.push({ role: 'user', content: item.q });
+      messages.push({ role: 'assistant', content: item.a });
+    });
+    messages.push({ role: 'user', content: question });
+    return messages;
   };
 
   const askQuestion = async () => {
@@ -262,7 +407,23 @@
         return;
       }
 
-      appendHistory(question, fallbackContextAnswer(context));
+      await ensureModel();
+      if (!modelReady || !engine) {
+        appendHistory(question, fallbackContextAnswer(context));
+        return;
+      }
+
+      const messages = buildMessages(question, context);
+      const completion = await engine.chat.completions.create({
+        messages,
+        temperature: 0.3,
+        top_p: 0.9,
+        max_tokens: 160,
+        stream: false,
+      });
+      const rawAnswer = completion?.choices?.[0]?.message?.content?.trim() || '';
+      const answer = isRefusalAnswer(rawAnswer) ? fallbackContextAnswer(context) : rawAnswer;
+      appendHistory(question, answer);
     } catch (err) {
       console.error('[flowerxi-chat] error:', err);
       try {
@@ -300,6 +461,15 @@
       region = window.localStorage.getItem(STORAGE_REGION) || region;
       window.addEventListener('openchat', openChat);
       window.addEventListener('regionchange', onRegionChange);
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => {
+          ensureModel();
+        });
+      } else {
+        window.setTimeout(() => {
+          ensureModel();
+        }, 1200);
+      }
     }
     return () => {
       if (typeof window !== 'undefined') {
@@ -321,7 +491,13 @@
         <button class="clear-btn" type="button" on:click={clearHistory}>Limpiar</button>
       </div>
     </header>
-    <p class="status">Respuestas operativas basadas en datos reales del backend.</p>
+    {#if isModelLoading}
+      <p class="status">Cargando modelo local WebLLM{modelProgress ? ` (${modelProgress}%)` : '...'}</p>
+    {:else if modelReady}
+      <p class="status model-ok">Modelo local activo: {modelName || 'WebLLM'}</p>
+    {:else}
+      <p class="status">Respuestas operativas con fallback backend mientras se activa WebLLM.</p>
+    {/if}
 
     <div class="chat-history">
       {#if chatHistory.length === 0}
@@ -444,6 +620,10 @@
     padding: 0.5rem 0.9rem;
     color: var(--text-secondary, #64748b);
     font-size: 0.8rem;
+  }
+
+  .status.model-ok {
+    color: #166534;
   }
 
   .composer {

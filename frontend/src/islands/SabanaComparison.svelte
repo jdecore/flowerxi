@@ -127,6 +127,27 @@
             isCurrent: slug === region,
           };
         });
+
+      if (rows.length > 0 && rows.every((row) => row.score === null)) {
+        const operativoPairs = await Promise.all(
+          rows.map(async (row) => {
+            const operativo = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(row.slug)}`);
+            const status = String(operativo?.status || '').toLowerCase();
+            const scoreRaw = Number(operativo?.score);
+            const score = status !== 'sin_datos' && Number.isFinite(scoreRaw) ? Math.round(scoreRaw) : null;
+            return [row.slug, score];
+          })
+        );
+        const operativoBySlug = new Map(operativoPairs);
+        rows = rows.map((row) => {
+          const score = operativoBySlug.get(row.slug) ?? row.score;
+          return {
+            ...row,
+            score,
+            level: score === null ? 'Sin datos' : riskLabel(score),
+          };
+        });
+      }
     } catch (err) {
       rows = [];
       error = 'Datos no disponibles.';
