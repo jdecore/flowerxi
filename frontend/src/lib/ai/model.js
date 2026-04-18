@@ -21,19 +21,73 @@ async function loadWebLLMModule() {
   return webllmModulePromise;
 }
 
-async function pickModelId() {
+async function listModelCandidates() {
   const { prebuiltAppConfig } = await loadWebLLMModule();
   const modelList = Array.isArray(prebuiltAppConfig?.model_list) ? prebuiltAppConfig.model_list : [];
   const availableIds = modelList.map((item) => item?.model_id).filter(Boolean);
 
-  for (const preferred of PREFERRED_MODELS) {
-    if (availableIds.includes(preferred)) return preferred;
+  const preferredAvailable = PREFERRED_MODELS.filter((preferred) => availableIds.includes(preferred));
+  if (preferredAvailable.length > 0) return preferredAvailable;
+
+  const chatLike = availableIds.filter((id) => isChatLikeModel(id));
+  if (chatLike.length > 0) return chatLike;
+
+  return ['Llama-3.2-1B-Instruct-q4f16_1-MLC', 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC'];
+}
+
+export async function diagnoseWebLLMSupport() {
+  if (typeof window === 'undefined') {
+    return { ok: false, reason: 'solo disponible en navegador' };
+  }
+  if (!window.isSecureContext) {
+    return { ok: false, reason: 'se requiere contexto seguro (HTTPS o localhost)' };
+  }
+  if (!('gpu' in navigator)) {
+    return { ok: false, reason: 'WebGPU no está disponible en este navegador' };
   }
 
-  const fallback = availableIds.find((id) => isChatLikeModel(id));
-  if (fallback) return fallback;
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) return { ok: false, reason: 'no se encontró adaptador GPU compatible' };
+    return { ok: true, reason: '' };
+  } catch {
+    return { ok: false, reason: 'falló la inicialización de WebGPU' };
+  }
+}
 
-  return 'Llama-3.1-8B-Instruct';
+async function createEngineWithFallback(onProgress = null) {
+  const { CreateMLCEngine } = await loadWebLLMModule();
+  const candidates = await listModelCandidates();
+  const errors = [];
+
+  for (const candidate of candidates) {
+    try {
+      if (typeof onProgress === 'function') {
+        onProgress({ progress: 0, text: `Intentando ${candidate}` });
+      }
+      const engine = await CreateMLCEngine(candidate, {
+        initProgressCallback: (progress) => {
+          if (typeof onProgress === 'function') onProgress(progress);
+        },
+      });
+      modelIdLoaded = candidate;
+      return engine;
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err || 'error desconocido');
+      errors.push(`${candidate}: ${detail}`);
+    }
+  }
+
+  throw new Error(errors.length ? errors.join(' | ') : 'no fue posible inicializar WebLLM');
+}
+
+async function pickModelId() {
+  const candidates = await listModelCandidates();
+  for (const preferred of PREFERRED_MODELS) {
+    if (candidates.includes(preferred)) return preferred;
+  }
+
+  return candidates[0] || 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
 }
 
 export async function getAIModel(onProgress = null) {
@@ -41,16 +95,15 @@ export async function getAIModel(onProgress = null) {
   if (engineInstance) return engineInstance;
   if (loadingPromise) return loadingPromise;
 
-  const selectedModel = await pickModelId();
-  modelIdLoaded = selectedModel;
+  const support = await diagnoseWebLLMSupport();
+  if (!support.ok) {
+    throw new Error(support.reason || 'WebLLM no soportado');
+  }
+
+  modelIdLoaded = await pickModelId();
 
   loadingPromise = (async () => {
-    const { CreateMLCEngine } = await loadWebLLMModule();
-    engineInstance = await CreateMLCEngine(selectedModel, {
-      initProgressCallback: (progress) => {
-        if (typeof onProgress === 'function') onProgress(progress);
-      },
-    });
+    engineInstance = await createEngineWithFallback(onProgress);
     return engineInstance;
   })();
 

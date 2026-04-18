@@ -62,7 +62,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    min-height: 200px;
+    min-height: 160px;
     height: 100%;
   }
 

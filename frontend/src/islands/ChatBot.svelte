@@ -31,6 +31,7 @@
   let modelReady = false;
   let modelProgress = 0;
   let modelName = '';
+  let modelError = '';
   let engine = null;
   let region = 'madrid';
   let inputRef;
@@ -472,6 +473,7 @@
     if (modelReady || isModelLoading) return;
     isModelLoading = true;
     modelProgress = 0;
+    modelError = '';
     try {
       const modelModule = await getModelModule();
       engine = await modelModule.getAIModel((progress) => {
@@ -482,9 +484,14 @@
       });
       modelName = modelModule.getLoadedModelId() || 'WebLLM';
       modelReady = Boolean(engine);
+      if (!modelReady && !modelError) {
+        modelError = 'no se pudo inicializar el motor de IA local';
+      }
     } catch (err) {
       console.error('[flowerxi-chat] webllm init error:', err);
       modelReady = false;
+      const message = err instanceof Error ? err.message : String(err || 'error desconocido');
+      modelError = message || 'falló la carga del modelo local';
     } finally {
       isModelLoading = false;
     }
@@ -606,6 +613,8 @@
       <p class="status">Cargando modelo local WebLLM{modelProgress ? ` (${modelProgress}%)` : '...'}</p>
     {:else if modelReady}
       <p class="status model-ok">Modelo local activo: {modelName || 'WebLLM'}</p>
+    {:else if modelError}
+      <p class="status model-warn">WebLLM no disponible: {modelError}. Usando fallback backend.</p>
     {:else}
       <p class="status">Respuestas operativas con fallback backend mientras se activa WebLLM.</p>
     {/if}
@@ -742,6 +751,10 @@
 
   .status.model-ok {
     color: #166534;
+  }
+
+  .status.model-warn {
+    color: #b45309;
   }
 
   .composer {
