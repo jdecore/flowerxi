@@ -16,9 +16,14 @@
   let hoursSinceRain = null;
   let reason = 'Datos no disponibles';
   let actionToday = 'Datos no disponibles.';
-  let explanation = [];
+  let explanation = { dominant: 'Sin datos', lines: [] };
   let latestDay = null;
   let trendSource = 'stable';
+  let trendLabel = '→ estable';
+  let confidencePct = null;
+  let historyDaysUsed = 0;
+  let nextReviewLabel = 'cuando haya datos';
+  let regionalTop = [];
 
   let simulating = false;
   let simulation = null;
@@ -126,13 +131,64 @@
     const fungal = Number(day?.fungal_risk);
     const water = Number(day?.waterlogging_risk);
     const heat = Number(day?.heat_risk);
-    if (!Number.isFinite(fungal) || !Number.isFinite(water) || !Number.isFinite(heat)) return [];
-    const total = fungal + water + heat || 1;
-    return [
-      { label: `Riesgo fúngico ${Math.round(fungal)} pts`, weight: Math.round((fungal / total) * 100) },
-      { label: `Riesgo encharcamiento ${Math.round(water)} pts`, weight: Math.round((water / total) * 100) },
-      { label: `Riesgo térmico ${Math.round(heat)} pts`, weight: Math.round((heat / total) * 100) },
-    ];
+    const temp = Number(day?.temp_mean_c);
+    if (!Number.isFinite(fungal) || !Number.isFinite(water) || !Number.isFinite(heat)) {
+      return { dominant: 'Sin datos', lines: [] };
+    }
+    const dominant =
+      fungal >= water && fungal >= heat
+        ? 'riesgo fúngico'
+        : water >= fungal && water >= heat
+        ? 'encharcamiento'
+        : 'riesgo térmico';
+    const impact = (value) => (value >= 70 ? 'impacto alto' : value >= 40 ? 'impacto medio' : 'impacto bajo');
+    const humidityLabel = fungal >= 70 ? 'Humedad alta' : fungal >= 40 ? 'Humedad moderada' : 'Humedad controlada';
+    const soilLabel = water >= 70 ? 'Suelo saturado' : water >= 40 ? 'Suelo con humedad acumulada' : 'Suelo estable';
+    const tempLabel = Number.isFinite(temp)
+      ? temp <= 12
+        ? 'Temperatura baja'
+        : temp >= 26
+        ? 'Temperatura alta'
+        : 'Temperatura templada'
+      : 'Temperatura sin dato';
+    return {
+      dominant,
+      lines: [
+        { label: humidityLabel, impact: impact(fungal) },
+        { label: soilLabel, impact: impact(water) },
+        { label: tempLabel, impact: impact(heat) },
+      ],
+    };
+  };
+
+  const confidenceFromData = (rawConfidence, historyDays) => {
+    const value = String(rawConfidence || '').toLowerCase();
+    if (value === 'alta') return 78;
+    if (value === 'media') return 64;
+    if (value === 'baja') return 52;
+    if (historyDays >= 14) return 78;
+    if (historyDays >= 7) return 64;
+    if (historyDays > 0) return 52;
+    return null;
+  };
+
+  const trendLabelFromSource = (trend) => {
+    if (trend === 'up') return '↑ en aumento';
+    if (trend === 'down') return '↓ a la baja';
+    return '→ estable';
+  };
+
+  const nextReviewFromWindow = (windowHours) => {
+    if (windowHours === null) return 'cuando haya datos';
+    if (windowHours <= 24) return 'mañana 6:00 AM';
+    if (windowHours <= 48) return 'mañana 2:00 PM';
+    return 'pasado mañana 6:00 AM';
+  };
+
+  const scoreFromCompareItem = (item) => {
+    const direct = Number(item?.risk_score);
+    if (Number.isFinite(direct)) return Math.round(direct);
+    return scoreFromSignals(item);
   };
 
   const persistTodayContext = (day) => {
@@ -153,15 +209,17 @@
     loading = true;
     simulation = null;
     try {
-      const [operativoData, historyData] = await Promise.all([
+      const [operativoData, historyData, compareData] = await Promise.all([
         fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
         fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=14`),
+        fetchJson('/api/municipalities/compare'),
       ]);
 
       const historyDesc = Array.isArray(historyData?.items) ? historyData.items : [];
       const today = historyDesc[0] ?? null;
       const yesterday = historyDesc[1] ?? null;
       latestDay = today;
+      historyDaysUsed = historyDesc.length;
 
       const todaySignalScore = scoreFromSignals(today);
       const yesterdaySignalScore = scoreFromSignals(yesterday);
@@ -172,6 +230,7 @@
       score = operativoData?.score == null ? todaySignalScore : toNum(operativoData?.score, todaySignalScore);
       const fromOperativoLevel = String(operativoData?.status || '').toLowerCase();
       trendSource = String(operativoData?.trend_7d || 'stable');
+      trendLabel = trendLabelFromSource(trendSource);
       const inferredLevel = score === null ? { text: 'SIN DATOS', cls: 'sin-datos' } : levelFromScore(score);
       level =
         fromOperativoLevel === 'accion'
@@ -212,8 +271,23 @@
       }
 
       criticalWindowHours = score === null ? null : score >= 70 || delta >= 10 ? 24 : score >= 40 ? 48 : 72;
+      nextReviewLabel = nextReviewFromWindow(criticalWindowHours);
+      confidencePct = confidenceFromData(operativoData?.confidence, historyDaysUsed);
       hoursSinceRain = hoursFromLastRain(historyDesc);
-      explanation = today ? buildExplanation(today) : [];
+      explanation = today ? buildExplanation(today) : { dominant: 'Sin datos', lines: [] };
+      const compareItems = Array.isArray(compareData?.items) ? compareData.items : [];
+      regionalTop = compareItems
+        .map((item) => {
+          const itemScore = scoreFromCompareItem(item);
+          return {
+            slug: String(item?.slug || '').trim(),
+            name: String(item?.name || '').trim(),
+            score: Number.isFinite(itemScore) ? itemScore : null,
+          };
+        })
+        .filter((item) => item.slug && item.score !== null)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
       persistTodayContext(today);
     } finally {
       loading = false;
@@ -299,6 +373,7 @@
 </script>
 
 <section class="hero-op">
+  <div class="rose-fanion">🌹</div>
   {#if loading}
     <div class="hero-skeleton"></div>
   {:else}
@@ -306,17 +381,21 @@
       <p class="label">RIESGO HOY</p>
       <h2>{level}{score === null ? '' : ` (${score})`}</h2>
       <p class="delta">{score === null ? 'Datos no disponibles.' : `${deltaPrefix} ${Math.abs(delta)} vs ayer`}</p>
+      <p class="trend">📊 Tendencia semanal: {trendLabel}</p>
+      <p class="confidence">Confianza del modelo: {confidencePct === null ? 'Sin datos' : `${confidencePct}%`}</p>
+      <p class="model-base">Modelo basado en clima reciente ({historyDaysUsed > 0 ? Math.min(historyDaysUsed, 14) : 0} días)</p>
       <p class="window">⏱ Próxima ventana crítica: {criticalWindowHours === null ? 'Datos no disponibles' : `${criticalWindowHours}h`}</p>
       <p class="rain">Última lluvia: {hoursSinceRain === null ? 'Datos no disponibles' : `hace ${hoursSinceRain}h`}</p>
     </div>
 
     <div class="hero-why">
       <h3>¿Por qué?</h3>
-      {#if explanation.length === 0}
+      {#if explanation.lines.length === 0}
         <p>Datos no disponibles para explicar factores de riesgo.</p>
       {:else}
-        {#each explanation as item}
-          <p>+ {item.label} ({item.weight}%)</p>
+        <p class="dominant">Factor dominante: {explanation.dominant}</p>
+        {#each explanation.lines as item}
+          <p>+ {item.label} ({item.impact})</p>
         {/each}
       {/if}
       <small>{reason}</small>
@@ -326,7 +405,7 @@
       <h3>🧭 Decisión de hoy</h3>
       <p>✔ {score === null ? 'Datos no disponibles.' : score <= 30 ? 'Mantener operación normal' : 'Mantener vigilancia activa'}</p>
       <p>⚠ {actionToday}</p>
-      <p>⏱ Revisar nuevamente en {criticalWindowHours === null ? 'Datos no disponibles' : `${criticalWindowHours}h`}</p>
+      <p>⏱ Próxima revisión sugerida: {nextReviewLabel}</p>
       <button type="button" on:click={simulateAlert} disabled={simulating}>
         {simulating ? 'Simulando...' : '⚡ Simular alerta automática'}
       </button>
@@ -336,6 +415,17 @@
           <p>{simulation.action || 'Datos no disponibles'}</p>
           <small>Confianza: {Math.round(toNum(simulation.confidence, 0) * 100)}%</small>
         </div>
+      {/if}
+    </div>
+
+    <div class="hero-ranking">
+      <h3>📍 Sabana de Bogotá hoy</h3>
+      {#if regionalTop.length === 0}
+        <p>Sin ranking regional disponible en este momento.</p>
+      {:else}
+        {#each regionalTop as item, idx}
+          <p>{idx + 1}. {item.name} {idx === 0 ? '🔴' : idx === 1 ? '🟠' : '🟡'} {item.score}</p>
+        {/each}
       {/if}
     </div>
   {/if}
@@ -351,6 +441,20 @@
     display: grid;
     grid-template-columns: 1.2fr 1fr 1fr;
     gap: 1rem;
+    position: relative;
+  }
+
+  .rose-fanion {
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    background: linear-gradient(135deg, #7b5ba6 0%, #9d7ccb 100%);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 6px rgba(123, 91, 166, 0.3);
+    z-index: 2;
   }
 
   .hero-main h2 {
@@ -368,6 +472,9 @@
   }
 
   .delta,
+  .trend,
+  .confidence,
+  .model-base,
   .window,
   .rain {
     margin: 0.2rem 0 0;
@@ -395,6 +502,12 @@
     margin: 0.38rem 0 0;
     font-size: 0.84rem;
     color: var(--text-secondary, #475569);
+  }
+
+  .hero-why .dominant {
+    margin-top: 0.45rem;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
   }
 
   .hero-why small {
@@ -444,6 +557,26 @@
     margin-top: 0.3rem;
     color: var(--text-tertiary, #94a3b8);
     font-size: 0.74rem;
+  }
+
+  .hero-ranking {
+    grid-column: 1 / -1;
+    background: var(--bg-app, #f8fafc);
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    border-radius: 12px;
+    padding: 0.85rem;
+  }
+
+  .hero-ranking h3 {
+    margin: 0;
+    font-size: 0.94rem;
+    color: var(--text-primary, #1f2937);
+  }
+
+  .hero-ranking p {
+    margin: 0.38rem 0 0;
+    font-size: 0.84rem;
+    color: var(--text-secondary, #475569);
   }
 
   .hero-skeleton {
