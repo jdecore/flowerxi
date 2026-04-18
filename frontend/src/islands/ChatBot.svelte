@@ -349,6 +349,7 @@
 
   const quickAnswer = (question, context) => {
     const q = normalizeText(question);
+    const compact = q.replace(/\s+/g, '');
     const score = context?.operativo?.score;
     const statusLabel = context?.operativo?.status_label;
     const action = context?.operativo?.action_today;
@@ -369,8 +370,13 @@
       q.includes('para que sirves') ||
       q.includes('en que ayudas') ||
       q.includes('como me ayudas') ||
+      q.includes('que haces') ||
       q === 'ayuda' ||
-      q === 'help';
+      q === 'help' ||
+      compact.includes('quehaces') ||
+      ((compact.includes('que') || compact.includes('q')) &&
+        compact.includes('pue') &&
+        (compact.includes('hacer') || compact.includes('hace')));
     const asksRecommendation =
       q.includes('recom') ||
       q.includes('suger') ||
@@ -459,7 +465,7 @@
   const noModelFallbackAnswer = (question, context) => {
     const quick = quickAnswer(question, context);
     if (quick) return quick;
-    return 'Estoy cargando el modelo de IA local. Mientras termina, pregúntame por riesgo hoy, acción recomendada, lluvia/temperatura o municipios disponibles.';
+    return fallbackContextAnswer(context);
   };
 
   const ensureModel = async () => {

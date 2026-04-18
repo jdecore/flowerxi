@@ -165,9 +165,9 @@
 
    .skeleton-grid {
      display: grid;
-     grid-template-columns: repeat(4, minmax(0, 1fr));
-     gap: 0.75rem;
-     min-height: 200px;
+     grid-template-columns: 1fr;
+     gap: 1rem;
+     min-height: 400px;
    }
 
    .skeleton-card {
@@ -212,9 +212,9 @@
 
    .spark-grid {
      display: grid;
-     grid-template-columns: repeat(4, minmax(0, 1fr));
-     gap: 0.75rem;
-     min-height: 160px;
+     grid-template-columns: 1fr;
+     gap: 1rem;
+     min-height: 400px;
    }
 
    .updated {

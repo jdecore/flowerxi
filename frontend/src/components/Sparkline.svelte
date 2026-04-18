@@ -15,12 +15,12 @@
     return `${r},${g},${b}`;
   };
 
-  // Calcular puntos del gráfico (normalizado a 0-100 en X, 0-60 en Y)
+  // Calcular puntos del gráfico (normalizado a 0-100 en X, 0-80 en Y)
   $: maxVal = Math.max(...data, 1);
   $: areaFill = `rgba(${hexToRgb(color)}, 0.16)`;
   $: points = data.map((val, i) => {
     const x = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
-    const y = 60 - ((val / maxVal) * 60);
+    const y = 80 - ((val / maxVal) * 80);
     return `${x},${y}`;
   }).join(' ');
 
@@ -33,9 +33,9 @@
   {/if}
 
    {#if data.length > 1}
-     <svg viewBox="0 0 100 60" class="spark-svg">
+     <svg viewBox="0 0 100 80" class="spark-svg">
        <!-- Área -->
-       <polygon points="0,60 {points} 100,60" fill={areaFill} />
+       <polygon points="0,80 {points} 100,80" fill={areaFill} />
        <!-- Línea -->
        <polyline points={points} fill="none" stroke={color} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
      </svg>
@@ -58,11 +58,11 @@
     background: var(--bg-surface, #fff);
     border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 12px;
-    padding: 0.5rem;
+    padding: 0.6rem;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    min-height: 120px;
+    gap: 0.4rem;
+    min-height: 200px;
     height: 100%;
   }
 
@@ -75,13 +75,13 @@
     letter-spacing: 0.05em;
   }
 
-   .spark-svg {
-     font-family: var(--font-sans);
-     width: 100%;
-     aspect-ratio: 100/60;
-     border-radius: 6px;
-     background: linear-gradient(180deg, color-mix(in srgb, var(--bg-app, #f8fafc) 60%, #fff), var(--bg-app, #f1f5f9));
-   }
+  .spark-svg {
+    font-family: var(--font-sans);
+    width: 100%;
+    aspect-ratio: 100/80;
+    border-radius: 6px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg-app, #f8fafc) 60%, #fff), var(--bg-app, #f1f5f9));
+  }
 
   .spark-svg polygon, .spark-svg polyline {
     vector-effect: non-scaling-stroke;
@@ -89,7 +89,7 @@
 
   .spark-last {
     font-family: var(--font-sans);
-    font-size: var(--text-base);
+    font-size: var(--text-lg);
     font-weight: 600;
     color: var(--text-primary, #1f2937);
     margin-top: auto;
@@ -103,7 +103,7 @@
 
   .spark-skeleton {
     font-family: var(--font-sans);
-    aspect-ratio: 100/60;
+    aspect-ratio: 100/80;
     width: 100%;
     background: linear-gradient(90deg, #e2e8f020, #cbd5e130, #e2e8f020);
     background-size: 200% 100%;
