@@ -1,4 +1,5 @@
 ---
+import StationsList from '../islands/StationsList.svelte';
 import '../styles/index.css';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -46,78 +47,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
             <div class="stations-static">
               <p>Consulta las estaciones meteorologicas del IDEAM que proporcionan datos en tiempo real para la toma de decisiones agronomicas. Cada estacion incluye coordenadas, elevacion y distancia a las zonas de produccion.</p>
             </div>
-            <div class="stations-grid" id="stations-grid">
-              <p class="loading">Cargando estaciones...</p>
-            </div>
+            <StationsList apiUrl={apiUrl} client:load />
           </div>
         </section>
       </section>
     </main>
-
-    <script define:vars={{ apiUrl }}>
-      async function loadStations() {
-        const el = document.getElementById('stations-grid');
-        try {
-          const res = await fetch(`${apiUrl}/api/stations`);
-          const data = await res.json();
-          if (!data.items?.length) {
-            el.innerHTML = '<p class="empty">No hay estaciones.</p>';
-            return;
-          }
-          el.innerHTML = data.items.map(s => `
-            <article class="station-card">
-              <div class="station-header">
-                <span class="station-code">${s.station_code}</span>
-                <span class="station-quality ${s.data_quality}">${s.data_quality}</span>
-              </div>
-              <h3>${s.station_name}</h3>
-              <p class="station-region">${s.region_slug || 'N/A'}</p>
-              <div class="station-details">
-                <div class="detail">
-                  <span class="label">Elevacion</span>
-                  <span class="value">${s.elevation_m} m</span>
-                </div>
-                <div class="detail">
-                  <span class="label">Distancia</span>
-                  <span class="value">${s.distance_km} km</span>
-                </div>
-                <div class="detail">
-                  <span class="label">Lat/Lon</span>
-                  <span class="value">${s.latitude?.toFixed(4)}, ${s.longitude?.toFixed(4)}</span>
-                </div>
-              </div>
-              <p class="station-source">Fuente: ${s.source}</p>
-            </article>
-          `).join('');
-        } catch (e) {
-          el.innerHTML = '<p class="error">Error: ' + e.message + '</p>';
-        }
-      }
-      loadStations();
-    </script>
-
-    <style>
-      .stations-info { margin-bottom: 1rem; }
-      .stations-info h2 { font-size: 1.1rem; margin: 0; color: var(--primary); }
-      .stations-info p { margin: 0.5rem 0 0; color: var(--text-secondary); font-size: 0.9rem; }
-      .stations-static { margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-app); border-radius: 12px; border-left: 3px solid var(--primary); }
-      .stations-static p { margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.5; }
-      .stations-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
-      .station-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 1.25rem; }
-      .station-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-      .station-code { font-family: monospace; font-size: 0.85rem; color: var(--text-secondary); background: var(--bg-app); padding: 0.2rem 0.5rem; border-radius: 4px; }
-      .station-quality { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; }
-      .station-quality.good { background: #EDF0E7; color: #7A8B6F; }
-      .station-quality.moderate { background: #EDE7F0; color: #8B7AA3; }
-      .station-card h3 { margin: 0; font-size: 1rem; color: var(--text-primary); }
-      .station-region { margin: 0.25rem 0 0.75rem; color: var(--primary); font-size: 0.85rem; text-transform: capitalize; }
-      .station-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
-      .detail { text-align: center; }
-      .detail .label { display: block; font-size: 0.7rem; color: var(--text-tertiary); }
-      .detail .value { display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-primary); }
-      .station-source { margin: 0; font-size: 0.75rem; color: var(--text-tertiary); }
-      .loading, .empty, .error { color: var(--text-secondary); text-align: center; padding: 2rem; }
-      .error { color: #C75D5D; }
-    </style>
   </body>
 </html>
