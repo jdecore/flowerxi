@@ -163,63 +163,64 @@
     font-family: var(--font-sans);
   }
 
-  .skeleton-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-  }
+   .skeleton-grid {
+     display: grid;
+     grid-template-columns: repeat(4, minmax(0, 1fr));
+     gap: 0.75rem;
+   }
 
-  .skeleton-card {
-    height: 122px;
-    border-radius: 12px;
-    background: linear-gradient(
-      90deg,
-      var(--border-subtle, #e2e8f0) 25%,
-      var(--bg-app, #f1f5f9) 50%,
-      var(--border-subtle, #e2e8f0) 75%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.4s infinite linear;
-  }
+   .skeleton-card {
+     height: 100px;
+     border-radius: 12px;
+     background: linear-gradient(
+       90deg,
+       var(--border-subtle, #e2e8f0) 25%,
+       var(--bg-app, #f1f5f9) 50%,
+       var(--border-subtle, #e2e8f0) 75%
+     );
+     background-size: 200% 100%;
+     animation: shimmer 1.4s infinite linear;
+   }
 
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
 
-  .empty-state {
-    border: 1px dashed var(--border-medium, #cbd5e1);
-    border-radius: 12px;
-    background: var(--bg-app, #f8fafc);
-    padding: 0.85rem;
-  }
+   .empty-state {
+     border: 1px dashed var(--border-medium, #cbd5e1);
+     border-radius: 12px;
+     background: var(--bg-app, #f8fafc);
+     padding: 0.75rem;
+   }
 
    .empty-state p {
      margin: 0;
      color: var(--text-primary, #1f2937);
      font-family: var(--font-sans);
-     font-size: var(--text-lg);
+     font-size: var(--text-base);
    }
 
    .empty-state small {
      display: block;
-     margin-top: 0.35rem;
+     margin-top: 0.25rem;
      color: var(--text-secondary, #64748b);
      font-family: var(--font-sans);
-     font-size: var(--text-sm);
+     font-size: var(--text-xs);
    }
 
-  .spark-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-  }
+   .spark-grid {
+     display: grid;
+     grid-template-columns: repeat(4, minmax(0, 1fr));
+     gap: 0.75rem;
+   }
 
    .updated {
-     margin: 0.45rem 0 0;
+     margin: 0.25rem 0 0;
      color: var(--text-tertiary, #9ca3af);
      font-family: var(--font-sans);
-     font-size: var(--text-sm);
+     font-size: var(--text-xs);
+     text-align: right;
    }
 
   @media (max-width: 900px) {
