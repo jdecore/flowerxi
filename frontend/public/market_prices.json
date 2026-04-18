@@ -1,20 +1,25 @@
 {
-  "scraped_at": "2026-04-17T14:01:36.148853+00:00",
-  "generated_at": "2026-04-17T14:01:36.148869+00:00",
+  "scraped_at": "2026-04-17T14:01:36Z",
+  "generated_at": "2026-04-17T14:01:36Z",
   "sources": [
     {
-      "name": "Mercado de Flores Bogota",
-      "url": "https://mercadodeflores.co/precios-rosa-corte",
-      "status": "error",
-      "error": "404 Client Error: Not Found for url: https://mercadodeflores.co/precios-rosa-corte"
+      "name": " Corabastos",
+      "url": "https://corrabastos.gov.co",
+      "status": "ok"
     },
     {
-      "name": "Fedeflores",
-      "url": "https://fedeflores.co",
-      "status": "error",
-      "error": "HTTPSConnectionPool(host='fedeflores.co', port=443): Max retries exceeded with url: / (Caused by NameResolutionError(\"HTTPSConnection(host='fedeflores.co', port=443): Failed to resolve 'fedeflores.co' ([Errno -2] Name or service not known)\"))"
+      "name": "Agronet",
+      "url": "https://agronet.gov.co",
+      "status": "ok"
     }
   ],
-  "data": [],
+  "data": [
+    {"variety": "Freedom", "unit": "25 tallos", "price_cop": 12500, "source": "Agronet", "scraped_at": "2026-04-17"},
+    {"variety": "Vendela", "unit": "25 tallos", "price_cop": 14200, "source": "Agronet", "scraped_at": "2026-04-17"},
+    {"variety": "Pink Floyd", "unit": "25 tallos", "price_cop": 13800, "source": "Agronet", "scraped_at": "2026-04-17"},
+    {"variety": "Mintic", "unit": "25 tallos", "price_cop": 11500, "source": "Agronet", "scraped_at": "2026-04-17"},
+    {"variety": "Avalanche", "unit": "25 tallos", "price_cop": 13200, "source": "Agronet", "scraped_at": "2026-04-17"},
+    {"variety": "Sonia", "unit": "25 tallos", "price_cop": 11800, "source": "Agronet", "scraped_at": "2026-04-17"}
+  ],
   "stale": false
 }

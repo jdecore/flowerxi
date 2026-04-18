@@ -8,56 +8,24 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>flowerxi | Comparar Municipios</title>
+    <title>flowerxi | Comparar</title>
   </head>
   <body>
     <main class="be-page">
       <section class="app-shell">
         <aside class="sidebar">
           <div class="sidebar-top">
-            <div class="logo-mark" aria-label="flowerxi">✿</div>
-            <nav class="sidebar-nav" aria-label="Navegacion principal">
-              <a href="/" class="sidebar-icon" aria-label="Inicio">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                  <path d="M3 10.7L12 3l9 7.7" />
-                  <path d="M5.5 9.7V21h13V9.7" />
-                </svg>
-              </a>
-              <a href="/comparar" class="sidebar-icon active" aria-label="Comparar">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                  <path d="M4 18h16" />
-                  <path d="M6 15l4-4 3 2 5-6" />
-                  <circle cx="6" cy="15" r="1.2" />
-                  <circle cx="10" cy="11" r="1.2" />
-                  <circle cx="13" cy="13" r="1.2" />
-                  <circle cx="18" cy="7" r="1.2" />
-                </svg>
-              </a>
-              <a href="/calendario" class="sidebar-icon" aria-label="Calendario">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                  <rect x="3.5" y="5.5" width="17" height="15" rx="2.5" />
-                  <path d="M8 3.5v4M16 3.5v4M3.5 10h17" />
-                </svg>
-              </a>
-              <a href="/municipios" class="sidebar-icon" aria-label="Municipios">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                  <path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z" />
-                  <circle cx="12" cy="10" r="2.8" />
-                </svg>
-              </a>
+            <div class="logo-mark">✿</div>
+            <nav class="sidebar-nav">
+              <a href="/" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 10.7L12 3l9 7.7M5.5 9.7V21h13V9.7"/></svg></a>
+              <a href="/comparar" class="sidebar-icon active"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 18h16M6 15l4-4 3 2 5-6"/><circle cx="6" cy="15" r="1.2"/><circle cx="10" cy="11" r="1.2"/><circle cx="13" cy="13" r="1.2"/><circle cx="18" cy="7" r="1.2"/></svg></a>
+              <a href="/calendario" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"/><path d="M8 3.5v4M16 3.5v4M3.5 10h17"/></svg></a>
+              <a href="/municipios" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.8"/></svg></a>
             </nav>
           </div>
           <div class="sidebar-bottom">
-            <a href="/precios" class="sidebar-icon" aria-label="Precios">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h7a3.5 3.5 0 110 7H6" />
-              </svg>
-            </a>
-            <a href="/exportaciones" class="sidebar-icon" aria-label="Exportaciones">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                <path d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M3 12h18" />
-              </svg>
-            </a>
+            <a href="/precios" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h7a3.5 3.5 0 110 7H6"/></svg></a>
+            <a href="/exportaciones" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M3 12h18"/></svg></a>
           </div>
         </aside>
 
@@ -69,118 +37,58 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
             </div>
           </header>
 
-          <section class="compare-content" id="compare-content">
-            <p class="loading-text">Cargando comparativo...</p>
-          </section>
+          <div id="compare-content"><p class="loading-text">Cargando...</p></div>
         </section>
       </section>
     </main>
 
     <script define:vars={{ apiUrl }}>
-      async function loadCompare() {
-        const container = document.getElementById('compare-content');
+      async function load() {
+        const el = document.getElementById('compare-content');
         try {
           const res = await fetch(`${apiUrl}/api/municipalities/compare`);
           const data = await res.json();
-          if (!data.items || data.items.length === 0) {
-            container.innerHTML = '<p class="empty-text">No hay datos de comparacion.</p>';
+          if (!data.items?.length) {
+            el.innerHTML = '<p class="empty-text">Sin datos.</p>';
             return;
           }
-          const totals = data.totals || { area_ha: 0, workers: 0 };
-          let html = `
-            <div class="compare-totals">
-              <div class="total-card">
-                <span class="total-label">Area Total</span>
-                <span class="total-value">${totals.area_ha?.toFixed(1) ?? '--'} ha</span>
-              </div>
-              <div class="total-card">
-                <span class="total-label">Trabajadores</span>
-                <span class="total-value">${totals.workers ?? '--'}</span>
-              </div>
+          const t = data.totals || {};
+          el.innerHTML = `
+            <div class="totals-row">
+              <div class="total-card"><span class="total-label">Área Total</span><span class="total-value">${t.area_ha?.toFixed(1) ?? '--'} ha</span></div>
+              <div class="total-card"><span class="total-label">Trabajadores</span><span class="total-value">${t.workers ?? '--'}</span></div>
             </div>
             <div class="compare-table">
-              <div class="table-header">
-                <span>Municipio</span>
-                <span>% Area</span>
-                <span>% Trabajadores</span>
-                <span>Fitosanitario</span>
-              </div>
-          `;
-          html += data.items.map(m => `
-            <div class="table-row">
-              <span class="muni-name">${m.name}</span>
-              <span>${m.area_pct ?? '--'}%</span>
-              <span>${m.workers_pct ?? '--'}%</span>
-              <span class="fito">${m.fitosanitary || '--'}</span>
+              <div class="table-header"><span>Municipio</span><span>% Área</span><span>% Workers</span><span>Fitosanitario</span></div>
+              ${data.items.map(m => `
+                <div class="table-row">
+                  <span class="muni-name">${m.name}</span>
+                  <span>${m.area_pct ?? '--'}%</span>
+                  <span>${m.workers_pct ?? '--'}%</span>
+                  <span class="fito">${m.fitosanitary || '--'}</span>
+                </div>
+              `).join('')}
             </div>
-          `).join('');
-          html += '</div>';
-          container.innerHTML = html;
+          `;
         } catch (e) {
-          container.innerHTML = `<p class="error-text">Error: ${e.message}</p>`;
+          el.innerHTML = `<p class="error-text">${e.message}</p>`;
         }
       }
-      loadCompare();
+      load();
     </script>
 
     <style>
-      .compare-content { padding: 1rem; }
-      .compare-totals {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-      }
-      .total-card {
-        background: #F5EEF9;
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        text-align: center;
-      }
-      .total-label {
-        display: block;
-        font-size: 0.8rem;
-        color: var(--text-muted, #6B6B6B);
-      }
-      .total-value {
-        display: block;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--primary, #6B3FA0);
-      }
-      .compare-table {
-        background: #fff;
-        border: 1px solid #ECE3DA;
-        border-radius: 12px;
-        overflow: hidden;
-      }
-      .table-header, .table-row {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr 2fr;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-      }
-      .table-header {
-        background: #F5EEF9;
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: var(--primary, #6B3FA0);
-      }
-      .table-row {
-        border-top: 1px solid #ECE3DA;
-      }
-      .muni-name {
-        font-weight: 600;
-        color: var(--text, #1A1A1A);
-      }
-      .fito {
-        font-size: 0.8rem;
-        color: var(--text-muted, #6B6B6B);
-      }
-      .loading-text, .empty-text, .error-text {
-        color: var(--text-muted, #6B6B6B);
-        text-align: center;
-        padding: 2rem;
-      }
+      .totals-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+      .total-card { background: var(--bg-app); border-radius: 12px; padding: 1rem 1.5rem; text-align: center; }
+      .total-label { display: block; font-size: 0.75rem; color: var(--text-secondary); }
+      .total-value { display: block; font-size: 1.5rem; font-weight: 600; color: var(--primary); }
+      .compare-table { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+      .table-header, .table-row { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr; gap: 0.5rem; padding: 0.75rem 1rem; }
+      .table-header { background: var(--bg-app); font-weight: 600; font-size: 0.8rem; color: var(--primary); }
+      .table-row { border-top: 1px solid var(--border-subtle); font-size: 0.85rem; }
+      .muni-name { font-weight: 500; color: var(--text-primary); }
+      .fito { font-size: 0.8rem; color: var(--text-secondary); }
+      .loading-text, .empty-text, .error-text { color: var(--text-secondary); text-align: center; padding: 2rem; }
     </style>
   </body>
 </html>
