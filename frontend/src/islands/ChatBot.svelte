@@ -12,31 +12,30 @@
   let chatHistory = [];
   let userQuestion = '';
   let chatOpen = embedded;
-  let isModelLoading = false;
   let isAnswering = false;
-  let modelReady = false;
-  let modelProgress = 0;
-  let modelName = '';
-  let engine = null;
   let region = 'madrid';
   let inputRef;
   let contextCache = null;
   let contextCacheRegion = '';
   let contextCacheAt = 0;
-  let modelModulePromise = null;
 
-  const getModelModule = async () => {
-    if (!modelModulePromise) {
-      modelModulePromise = import('../lib/ai/model.js');
-    }
-    return modelModulePromise;
+  const isLegacyRefusal = (value) => {
+    const text = String(value || '').toLowerCase();
+    return (
+      text.includes("i'm sorry") ||
+      text.includes('cannot respond') ||
+      text.includes('requires a detailed explanation of the instructions')
+    );
   };
 
   const loadHistory = () => {
     if (typeof window === 'undefined') return;
     try {
       const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
-      chatHistory = saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      chatHistory = Array.isArray(parsed)
+        ? parsed.filter((item) => !isLegacyRefusal(item?.a))
+        : [];
     } catch {
       chatHistory = [];
     }
@@ -117,18 +116,16 @@
       Date.now() - contextCacheAt < CONTEXT_TTL_MS;
     if (cacheValid) return contextCache;
 
-    const [operativoData, historyData, weeklyData, monthlyData, compareData] = await Promise.all([
+    const [operativoData, historyData, weeklyData, compareData] = await Promise.all([
       fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
       fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=14`),
       fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`),
-      fetchJson(`/api/risk/monthly?region=${encodeURIComponent(region)}&months=12`),
       fetchJson('/api/municipalities/compare'),
     ]);
 
     const history = Array.isArray(historyData?.items) ? historyData.items : [];
     const latest = history[0] ?? null;
     const weekly = Array.isArray(weeklyData?.items) ? weeklyData.items : [];
-    const monthly = Array.isArray(monthlyData?.items) ? monthlyData.items : [];
 
     const humidityByRegion = Array.isArray(compareData?.items)
       ? compareData.items
@@ -167,11 +164,6 @@
           }
         : null,
       weeklyActions: weekly.slice(0, 3).map((item) => item.title || item.message).filter(Boolean),
-      monthlyTrend: monthly.slice(0, 6).map((item) => ({
-        month: item.month_label,
-        score: item.combined_score,
-        level: item.risk_level,
-      })),
       humidTop: humidTop ? `${humidTop.name} (${humidTop.waterRisk} pts)` : null,
     };
 
@@ -252,65 +244,6 @@
     return `Estado actual: ${label || 'Sin datos'} (${score ?? '—'}). ${reason || ''} Acción sugerida: ${action || 'Sin datos'}`.trim();
   };
 
-  const isRefusalAnswer = (answer) => {
-    const text = normalizeText(answer);
-    if (!text) return true;
-    const hasRefusalStart =
-      text.includes('im sorry') ||
-      text.includes('i m sorry') ||
-      text.includes('lo siento');
-    const hasCannotIntent =
-      text.includes('cannot') || text.includes('cant') || text.includes('unable') || text.includes('no puedo');
-    const hasPromptPolicyContext =
-      text.includes('prompt') ||
-      text.includes('instruction') ||
-      text.includes('instructions') ||
-      text.includes('comply') ||
-      text.includes('respond to this');
-    return (
-      hasRefusalStart ||
-      (hasCannotIntent && hasPromptPolicyContext) ||
-      text.includes('cannot help with that') ||
-      text.includes('requires a detailed explanation of the instructions') ||
-      text.includes('no puedo responder a este prompt')
-    );
-  };
-
-  const ensureModel = async () => {
-    if (modelReady || isModelLoading) return;
-    isModelLoading = true;
-    modelProgress = 0;
-    try {
-      const modelModule = await getModelModule();
-      engine = await modelModule.getAIModel((progress) => {
-        const val = Number(progress?.progress ?? 0);
-        if (Number.isFinite(val)) modelProgress = Math.max(0, Math.min(100, Math.round(val * 100)));
-      });
-      modelName = modelModule.getLoadedModelId() || '';
-      modelReady = Boolean(engine);
-    } catch (err) {
-      console.error('[flowerxi-chat] webllm init error:', err);
-      modelReady = false;
-    } finally {
-      isModelLoading = false;
-    }
-  };
-
-  const buildMessages = (question, context) => {
-    const systemPrompt =
-      `Eres FlowerxiBot, asistente agronómico para floricultura en Cundinamarca. ` +
-      `Responde en español, máximo 4 líneas, sin inventar datos y priorizando decisiones operativas. ` +
-      `Si falta dato, dilo explícitamente. Usa este contexto JSON real: ${JSON.stringify(context.contextSummary)}.`;
-
-    const messages = [{ role: 'system', content: systemPrompt }];
-    chatHistory.slice(-4).forEach((item) => {
-      messages.push({ role: 'user', content: item.q });
-      messages.push({ role: 'assistant', content: item.a });
-    });
-    messages.push({ role: 'user', content: question });
-    return messages;
-  };
-
   const askQuestion = async () => {
     const question = userQuestion.trim();
     if (!question || isAnswering) return;
@@ -329,23 +262,7 @@
         return;
       }
 
-      await ensureModel();
-      if (!modelReady || !engine) {
-        appendHistory(question, fallbackContextAnswer(context));
-        return;
-      }
-
-      const messages = buildMessages(question, context);
-      const completion = await engine.chat.completions.create({
-        messages,
-        temperature: 0.4,
-        top_p: 0.9,
-        max_tokens: 180,
-        stream: false,
-      });
-      const rawAnswer = completion?.choices?.[0]?.message?.content?.trim() || '';
-      const answer = isRefusalAnswer(rawAnswer) ? fallbackContextAnswer(context) : rawAnswer;
-      appendHistory(question, answer);
+      appendHistory(question, fallbackContextAnswer(context));
     } catch (err) {
       console.error('[flowerxi-chat] error:', err);
       try {
@@ -404,12 +321,7 @@
         <button class="clear-btn" type="button" on:click={clearHistory}>Limpiar</button>
       </div>
     </header>
-
-    {#if isModelLoading}
-      <p class="status">Cargando WebLLM{modelProgress ? ` (${modelProgress}%)` : '...'}</p>
-    {:else if modelReady}
-      <p class="status model-ok">Modelo local: {modelName || 'WebLLM'}</p>
-    {/if}
+    <p class="status">Respuestas operativas basadas en datos reales del backend.</p>
 
     <div class="chat-history">
       {#if chatHistory.length === 0}
@@ -532,10 +444,6 @@
     padding: 0.5rem 0.9rem;
     color: var(--text-secondary, #64748b);
     font-size: 0.8rem;
-  }
-
-  .status.model-ok {
-    color: #065f46;
   }
 
   .composer {

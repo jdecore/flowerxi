@@ -95,82 +95,38 @@
     loading = true;
     error = '';
     try {
-      const [compareData, regionsData, municipalitiesData] = await Promise.all([
-        fetchJson('/api/municipalities/compare').catch(() => null),
-        fetchJson('/api/regions').catch(() => null),
-        fetchJson('/api/municipalities').catch(() => null),
-      ]);
+      const compareData = await fetchJson('/api/municipalities/compare');
+      let baseItems = Array.isArray(compareData?.items) ? compareData.items : [];
 
-      const compareItems = Array.isArray(compareData?.items) ? compareData.items : [];
-      const regions = Array.isArray(regionsData?.items) ? regionsData.items : [];
-      const municipalityItems = Array.isArray(municipalitiesData?.items) ? municipalitiesData.items : [];
-
-      const regionBySlug = new Map(
-        regions
-          .map((item) => {
-            const slug = normalizeSlug(item?.slug);
-            return slug ? [slug, item] : null;
-          })
-          .filter(Boolean)
-      );
-
-      const compareBySlug = new Map(
-        compareItems
-          .map((item) => {
-            const slug = normalizeSlug(item?.slug);
-            return slug ? [slug, item] : null;
-          })
-          .filter(Boolean)
-      );
-
-      const profileBySlug = new Map(
-        municipalityItems
-          .map((item) => {
-            const slug = normalizeSlug(item?.slug);
-            return slug ? [slug, item] : null;
-          })
-          .filter(Boolean)
-      );
-
-      const baseSlugs = regions.length > 0 ? [...regionBySlug.keys()] : [...compareBySlug.keys()];
-      if (baseSlugs.length === 0) {
-        rows = [];
-        return;
+      if (baseItems.length === 0) {
+        const regionsData = await fetchJson('/api/regions');
+        const regions = Array.isArray(regionsData?.items) ? regionsData.items : [];
+        baseItems = regions.map((item) => ({
+          slug: item?.slug,
+          name: item?.name,
+          city: item?.city,
+        }));
       }
 
-      const baseItems = baseSlugs.map((slug) => {
-        const regionItem = regionBySlug.get(slug) || {};
-        const compareItem = compareBySlug.get(slug) || {};
-        const profileItem = profileBySlug.get(slug) || {};
-        return {
-          ...regionItem,
-          ...compareItem,
-          ...profileItem,
-          slug,
-          name:
-            String(compareItem?.name || regionItem?.name || profileItem?.name || '').trim() ||
-            slug.charAt(0).toUpperCase() + slug.slice(1),
-          city: String(compareItem?.city || regionItem?.city || profileItem?.city || '').trim(),
-          area_ha: compareItem?.area_ha ?? compareItem?.flower_area_ha ?? profileItem?.flower_area_ha,
-          workers: compareItem?.workers ?? profileItem?.workers,
-        };
-      });
-
-      rows = baseItems.map((base) => {
-        const slug = normalizeSlug(base.slug);
-        const score = scoreFromItem(base);
-        return {
-          slug,
-          name: base.name,
-          city: base?.city ?? '',
-          productionShare: toNum(base?.production_share, 0),
-          score,
-          level: score === null ? 'Sin datos' : riskLabel(score),
-          area: toNum(base?.area_ha, 0),
-          workers: toNum(base?.workers, 0),
-          isCurrent: slug === region,
-        };
-      });
+      rows = baseItems
+        .filter((item) => normalizeSlug(item?.slug))
+        .map((base) => {
+          const slug = normalizeSlug(base.slug);
+          const score = scoreFromItem(base);
+          return {
+            slug,
+            name:
+              String(base?.name || '').trim() ||
+              slug.charAt(0).toUpperCase() + slug.slice(1),
+            city: String(base?.city || '').trim(),
+            productionShare: toNum(base?.production_share, 0),
+            score,
+            level: score === null ? 'Sin datos' : riskLabel(score),
+            area: toNum(base?.area_ha ?? base?.flower_area_ha, 0),
+            workers: toNum(base?.workers, 0),
+            isCurrent: slug === region,
+          };
+        });
     } catch (err) {
       rows = [];
       error = 'Datos no disponibles.';

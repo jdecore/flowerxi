@@ -71,10 +71,10 @@ SQL_QUERIES = {
             r.production_share,
             mp.flower_area_ha,
             mp.workers,
-            COALESCE(rs.fungal_risk, wf.fungal_risk) AS fungal_risk,
-            COALESCE(rs.waterlogging_risk, wf.waterlogging_risk) AS waterlogging_risk,
-            COALESCE(rs.heat_risk, wf.heat_risk) AS heat_risk,
-            COALESCE(rs.risk_score, wf.risk_score) AS risk_score
+            COALESCE(rs.fungal_risk, wf.fungal_risk, proxy.fungal_risk) AS fungal_risk,
+            COALESCE(rs.waterlogging_risk, wf.waterlogging_risk, proxy.waterlogging_risk) AS waterlogging_risk,
+            COALESCE(rs.heat_risk, wf.heat_risk, proxy.heat_risk) AS heat_risk,
+            COALESCE(rs.risk_score, wf.risk_score, proxy.risk_score) AS risk_score
         FROM flowerxi_regions r
         LEFT JOIN LATERAL (
             SELECT flower_area_ha, workers
@@ -161,6 +161,40 @@ SQL_QUERIES = {
             FROM summary s
             LEFT JOIN latest l ON TRUE
         ) wf ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT
+                nearby.fungal_risk,
+                nearby.waterlogging_risk,
+                nearby.heat_risk,
+                nearby.risk_score
+            FROM (
+                SELECT
+                    rs2.fungal_risk,
+                    rs2.waterlogging_risk,
+                    rs2.heat_risk,
+                    ROUND((rs2.fungal_risk * 0.5) + (rs2.waterlogging_risk * 0.3) + (rs2.heat_risk * 0.2))::int AS risk_score,
+                    (
+                        SQRT(
+                            POWER(r.latitude - rd.latitude, 2) +
+                            POWER(r.longitude - rd.longitude, 2)
+                        ) * 111.0
+                    ) AS distance_km
+                FROM flowerxi_regions rd
+                JOIN LATERAL (
+                    SELECT
+                        fungal_risk,
+                        waterlogging_risk,
+                        heat_risk
+                    FROM flowerxi_risk_signals rs3
+                    WHERE rs3.region_slug = rd.slug
+                    ORDER BY observed_on DESC
+                    LIMIT 1
+                ) rs2 ON TRUE
+                WHERE rd.department = 'CUNDINAMARCA'
+            ) nearby
+            ORDER BY nearby.distance_km ASC
+            LIMIT 1
+        ) proxy ON TRUE
         WHERE r.department = 'CUNDINAMARCA'
         ORDER BY r.production_share DESC NULLS LAST, r.name ASC;
     """,
