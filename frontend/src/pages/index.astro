@@ -13,12 +13,22 @@ import ImpactoOperacion from '../components/ImpactoOperacion.svelte';
 import ChatBot from '../islands/ChatBot.svelte';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
+const normalizedApiUrl = String(apiUrl ?? '').trim().replace(/\/+$/, '');
+let preconnectApiOrigin = '';
+if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https://')) {
+  try {
+    preconnectApiOrigin = new URL(normalizedApiUrl).origin;
+  } catch {
+    preconnectApiOrigin = '';
+  }
+}
 ---
 <html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>flowerxi | Dashboard Agroclimático</title>
+    {preconnectApiOrigin && <link rel="preconnect" href={preconnectApiOrigin} crossorigin />}
   </head>
   <body>
     <div class="app-root">
@@ -32,8 +42,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
           <p class="topbar-status">Monitoreo operativo de riesgo fitosanitario</p>
         </div>
         <div class="topbar-end">
-          <button class="btn-icon" id="btn-region" title="Cambiar municipio">
+          <button class="btn-region-trigger" id="btn-region" data-region-trigger title="Cambiar municipio">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 21s7-4.35 7-10a7 7 0 10-14 0c0 5.65 7 10 7 10z"/><circle cx="12" cy="11" r="2.5"/></svg>
+            <span>Seleccionar municipio</span>
           </button>
           <button class="btn-icon" id="btn-chat" title="Abrir chat IA">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
@@ -48,6 +59,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       </header>
 
       <StartupRegionModal client:load />
+      <section class="region-priority">
+        <button class="region-priority-btn" type="button" data-region-trigger>
+          Seleccionar municipio para cargar dashboard
+        </button>
+        <p class="region-priority-note">
+          Selecciónalo primero mientras flowerxi prepara los módulos más pesados.
+        </p>
+      </section>
 
       <!-- Layout principal -->
       <div class="main-layout">
@@ -66,33 +85,33 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
             <!-- Chat operativo (4 cols) -->
             <aside class="col-4">
               <h2 class="section-head">Chat IA operativo</h2>
-              <ChatBot {apiUrl} embedded={true} client:load />
+              <ChatBot {apiUrl} embedded={true} client:idle />
             </aside>
           </div>
 
           <!-- Calendario ampliado -->
           <div class="one-col-row">
-            <RiskHeatmap {apiUrl} region="madrid" client:load />
+            <RiskHeatmap {apiUrl} region="madrid" client:visible />
           </div>
 
           <!-- Fila de negocio -->
           <div class="two-col-row">
-            <ImpactoOperacion {apiUrl} region="madrid" client:load />
-            <CommercialIntelCard {apiUrl} initialRegion="madrid" client:load />
+            <ImpactoOperacion {apiUrl} region="madrid" client:visible />
+            <CommercialIntelCard {apiUrl} initialRegion="madrid" client:visible />
           </div>
 
           <!-- Contexto Sabana -->
           <div class="one-col-row">
             <section class="comparison-card">
               <h3 class="section-head">Comparativa Sabana</h3>
-              <SabanaComparison {apiUrl} initialRegion="madrid" client:load />
+              <SabanaComparison {apiUrl} initialRegion="madrid" client:visible />
             </section>
           </div>
 
           <div class="one-col-row station-row">
             <section class="station-card">
               <h3 class="section-head">Estación de referencia</h3>
-              <ClosestStationFooter {apiUrl} initialRegion="madrid" client:load />
+              <ClosestStationFooter {apiUrl} initialRegion="madrid" client:visible />
               <p class="made-by">Hecho por Juan Enriquez- 2026</p>
             </section>
           </div>
@@ -117,17 +136,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
           })();
 
           // Abrir selector de municipio
-          document.getElementById('btn-region').addEventListener('click', () => {
+          const openRegionSelector = () => {
             window.dispatchEvent(new Event('open-region-selector'));
+          };
+          document.querySelectorAll('[data-region-trigger]').forEach((trigger) => {
+            trigger.addEventListener('click', openRegionSelector);
           });
 
           // Abrir chat
-          document.getElementById('btn-chat').addEventListener('click', () => {
+          document.getElementById('btn-chat')?.addEventListener('click', () => {
             window.dispatchEvent(new Event('openchat'));
           });
 
           // Refresh datos
-          document.getElementById('btn-refresh').addEventListener('click', () => {
+          document.getElementById('btn-refresh')?.addEventListener('click', () => {
             window.dispatchEvent(new Event('refreshdata'));
             window.dispatchEvent(new Event('flowerxi:refresh'));
           });
@@ -175,6 +197,51 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       .topbar-end { display: flex; align-items: center; gap: 0.5rem; }
       .btn-icon { padding: 0.5rem; border: none; background: var(--bg-app); color: var(--text-secondary); border-radius: var(--radius); cursor: pointer; transition: all 150ms; }
       .btn-icon:hover { background: var(--border); color: var(--primary); }
+      .btn-region-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border: none;
+        border-radius: 999px;
+        background: var(--primary, #7b5ba6);
+        color: #fff;
+        padding: 0.46rem 0.72rem;
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-region-trigger:hover {
+        background: var(--primary-hover, #6b4f92);
+      }
+      .btn-region-trigger span {
+        line-height: 1;
+      }
+      .region-priority {
+        max-width: 1440px;
+        margin: 0 auto;
+        width: 100%;
+        padding: 0.75rem 1.5rem 0;
+        display: grid;
+        gap: 0.3rem;
+      }
+      .region-priority-btn {
+        justify-self: start;
+        border: 1px solid var(--primary, #7b5ba6);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--primary, #7b5ba6) 12%, #fff);
+        color: var(--primary, #7b5ba6);
+        font: inherit;
+        font-size: 0.86rem;
+        font-weight: 600;
+        padding: 0.52rem 0.75rem;
+        cursor: pointer;
+      }
+      .region-priority-note {
+        margin: 0;
+        font-size: 0.78rem;
+        color: var(--text-tertiary, #94a3b8);
+      }
 
       /* Layout principal */
       .main-layout { padding: 1.5rem; max-width: 1440px; margin: 0 auto; width: 100%; }
@@ -245,6 +312,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       @media (max-width: 768px) {
         .main-layout { padding: 1rem; }
         .topbar { padding: 0.6rem 1rem; }
+        .btn-region-trigger span { display: none; }
+        .region-priority { padding: 0.65rem 1rem 0; }
         .topbar-center { order: 3; width: 100%; justify-content: flex-start; }
         .topbar-end { flex: 1; justify-content: flex-end; }
         .dashboard-12 { gap: 1rem; }

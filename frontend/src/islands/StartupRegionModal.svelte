@@ -3,10 +3,12 @@
   import { regions as fallbackRegions, setRegion } from '../stores/region';
 
   const STORAGE_REGION = 'flowerxi_region';
+  const REGIONS_CACHE_KEY = 'flowerxi_regions_cache';
+  const REGIONS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
   const API_URL = import.meta.env.PUBLIC_API_URL ?? '';
 
   let selectedRegion = 'madrid';
-  let open = false;
+  let open = true;
   let availableRegions = fallbackRegions.map((region) => ({ id: region.id, name: region.name }));
 
   const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
@@ -49,16 +51,50 @@
     return null;
   };
 
-  const loadRegions = async () => {
-    const data = await fetchJson('/api/regions');
-    const items = Array.isArray(data?.items) ? data.items : [];
-    if (items.length === 0) return;
-    availableRegions = items
+  const normalizeRegions = (items) =>
+    items
       .map((item) => ({
         id: String(item?.slug || '').trim(),
         name: String(item?.name || '').trim(),
       }))
       .filter((item) => item.id && item.name);
+
+  const readRegionsCache = () => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem(REGIONS_CACHE_KEY);
+      if (!raw) return [];
+      const payload = JSON.parse(raw);
+      if (!Array.isArray(payload?.items) || !Number.isFinite(Number(payload?.updatedAt))) return [];
+      if (Date.now() - Number(payload.updatedAt) > REGIONS_CACHE_TTL_MS) return [];
+      return normalizeRegions(payload.items);
+    } catch {
+      return [];
+    }
+  };
+
+  const writeRegionsCache = (items) => {
+    if (typeof window === 'undefined' || items.length === 0) return;
+    window.localStorage.setItem(
+      REGIONS_CACHE_KEY,
+      JSON.stringify({
+        updatedAt: Date.now(),
+        items,
+      })
+    );
+  };
+
+  const loadRegions = async () => {
+    const cached = readRegionsCache();
+    if (cached.length > 0) {
+      availableRegions = cached;
+    }
+
+    const data = await fetchJson('/api/regions');
+    const items = normalizeRegions(Array.isArray(data?.items) ? data.items : []);
+    if (items.length === 0) return;
+    availableRegions = items;
+    writeRegionsCache(items);
   };
 
   const isValidRegion = (value) => availableRegions.some((region) => region.id === value);
@@ -74,10 +110,6 @@
     open = false;
   };
 
-  const handleRegionChange = () => {
-    applyRegion(selectedRegion);
-  };
-
   const openSelector = () => {
     if (typeof window !== 'undefined') {
       const savedRegion = window.localStorage.getItem(STORAGE_REGION);
@@ -91,16 +123,23 @@
   onMount(() => {
     if (typeof window === 'undefined') return;
     (async () => {
-      await loadRegions();
       const savedRegion = window.localStorage.getItem(STORAGE_REGION);
-      if (savedRegion && isValidRegion(savedRegion)) {
+      if (savedRegion) {
         selectedRegion = savedRegion;
-      } else if (!isValidRegion(selectedRegion)) {
-        selectedRegion = availableRegions[0]?.id || 'madrid';
       }
+      if (!isValidRegion(selectedRegion)) selectedRegion = availableRegions[0]?.id || 'madrid';
       applyRegion(selectedRegion);
       window.addEventListener('open-region-selector', openSelector);
-      open = true;
+      await loadRegions();
+
+      const latestSavedRegion = window.localStorage.getItem(STORAGE_REGION);
+      if (latestSavedRegion && isValidRegion(latestSavedRegion) && latestSavedRegion !== selectedRegion) {
+        selectedRegion = latestSavedRegion;
+        applyRegion(selectedRegion);
+      } else if (!isValidRegion(selectedRegion)) {
+        selectedRegion = availableRegions[0]?.id || 'madrid';
+        applyRegion(selectedRegion);
+      }
     })();
   });
 
@@ -118,7 +157,7 @@
 
       <label>
         <span>Municipio</span>
-        <select bind:value={selectedRegion} on:change={handleRegionChange}>
+        <select bind:value={selectedRegion}>
           {#each availableRegions as region}
             <option value={region.id}>{region.name}</option>
           {/each}

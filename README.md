@@ -76,6 +76,7 @@ backend/
 
 ### 📊 Dashboard Interactivo
 - ✅ Selector inicial de municipio (modal) con actualización inmediata del dashboard
+- ✅ Botón primario de selección de municipio visible al inicio para priorizar contexto antes de cargar todo
 - ✅ Estado diario de riesgo con recomendación accionable
 - ✅ Evidencia de 14 días (lluvia, temperatura y señales de riesgo reales)
 - ✅ Chat IA operativo embebido en home con contexto real del backend
@@ -89,6 +90,7 @@ backend/
 ### 🧩 Arquitectura de UI (actual)
 - **Astro**: estructura estática, layout principal y topbar
 - **Islas Svelte**: datos vivos y eventos (`StartupRegionModal`, `OperationalHero`, `EvidenceSparklines`, `RiskHeatmap`, `ImpactoOperacion`, `SabanaComparison`, `ChatBot`)
+- **Hidratación diferida**: módulos no críticos con carga `client:visible` / `client:idle` para mejorar tiempo inicial
 - Integración tolerante a fallos: si un endpoint no responde, los widgets derivan desde `/api/history` (sin datos estáticos inventados)
 
 ### 🤖 Asistente IA
