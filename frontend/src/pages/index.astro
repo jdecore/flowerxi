@@ -3,7 +3,7 @@ import Dashboard from '../components/Dashboard.svelte';
 import ChatBot from '../islands/ChatBot.svelte';
 import '../styles/index.css';
 
-const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
+const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
 ---
 
 <html lang="es">
@@ -71,11 +71,76 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
             </div>
           </header>
 
+          <section class="static-decision-grid">
+            <article class="static-card">
+              <p class="static-step">Marco de decisión</p>
+              <h2>Riesgo = prioridad de atención hoy para el cultivo</h2>
+              <p>
+                No diagnostica plagas. Indica cuándo reforzar vigilancia y protocolos con base en clima reciente.
+              </p>
+            </article>
+
+            <article class="static-card">
+              <p class="static-step">Escala operativa</p>
+              <div class="static-scale">
+                <p><strong>Rutina:</strong> no hacer nada extra, mantener recorrido normal.</p>
+                <p><strong>Vigilancia:</strong> revisar hoy humedad, drenaje y ventilación.</p>
+                <p><strong>Acción:</strong> inspección en campo + registro fitosanitario + acción preventiva.</p>
+              </div>
+            </article>
+          </section>
+
           <Dashboard apiUrl={apiUrl} client:load />
         </section>
       </section>
       <ChatBot client:idle />
     </main>
+
+    <style>
+      .static-decision-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .static-card {
+        background: linear-gradient(180deg, #302742 0%, #261d36 100%);
+        border: 1px solid rgba(164, 127, 202, 0.3);
+        border-radius: 18px;
+        padding: 1.1rem 1.2rem;
+        color: #f7f4ff;
+      }
+
+      .static-step {
+        margin: 0;
+        text-transform: uppercase;
+        font-size: 0.74rem;
+        letter-spacing: 0.07em;
+        color: #bda6dc;
+      }
+
+      .static-card h2 {
+        margin: 0.35rem 0 0;
+        font-size: 1.05rem;
+      }
+
+      .static-card p {
+        margin: 0.55rem 0 0;
+        color: #e8ddf8;
+        line-height: 1.4;
+      }
+
+      .static-scale p {
+        margin-top: 0.45rem;
+      }
+
+      @media (max-width: 1020px) {
+        .static-decision-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
 
     <script is:inline>
       (() => {

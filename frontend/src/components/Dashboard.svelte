@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import TrendChart from './TrendChart.svelte';
 
-  export let apiUrl;
+  export let apiUrl = '';
 
   const FALLBACK_REGIONS = [
     { slug: 'madrid', name: 'Madrid' },
@@ -10,34 +10,14 @@
     { slug: 'funza', name: 'Funza' },
   ];
 
-  const STATUS_CONFIG = {
-    rutina: {
-      key: 'rutina',
-      title: 'Rutina',
-      decision: 'Hoy no hay alarma crítica, pero revisa humedad y ventilación en el recorrido normal.',
-      impact: 'Mantener la rutina evita sobreintervenir y conserva recursos sin perder control del cultivo.',
-    },
-    vigilancia: {
-      key: 'vigilancia',
-      title: 'Vigilancia',
-      decision: 'Subió la presión climática: revisa hoy humedad, drenaje y ventilación.',
-      impact: 'Corregir hoy reduce la probabilidad de brotes y evita escalar a acción crítica.',
-    },
-    accion: {
-      key: 'accion',
-      title: 'Acción',
-      decision: 'Riesgo alto hoy: inspección en campo, registro fitosanitario y acción preventiva.',
-      impact: 'Actuar hoy minimiza daño operativo y protege calidad de corte y cumplimiento fitosanitario.',
-    },
-    sin_datos: {
-      key: 'sin_datos',
-      title: 'Sin datos',
-      decision: 'No hay información suficiente para priorizar acción hoy.',
-      impact: 'Sin datos recientes, aplica protocolo base y valida captura climática.',
-    },
+  const STATUS_UI = {
+    rutina: { label: 'Rutina', tone: 'rutina' },
+    vigilancia: { label: 'Vigilancia', tone: 'vigilancia' },
+    accion: { label: 'Acción', tone: 'accion' },
+    sin_datos: { label: 'Sin datos', tone: 'sin-datos' },
   };
 
-  const TREND_CONFIG = {
+  const TREND_UI = {
     up: 'Subiendo',
     down: 'Bajando',
     stable: 'Estable',
@@ -52,6 +32,26 @@
   let snapshot = null;
   let history = [];
   let lastUpdated = null;
+
+  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
+  $: baseUrl = normalizeBaseUrl(apiUrl);
+
+  const endpoint = (path) => `${baseUrl}${path}`;
+
+  const fetchJson = async (path, label) => {
+    try {
+      const response = await fetch(endpoint(path), {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error(`${label} (${response.status})`);
+      return await response.json();
+    } catch (err) {
+      if (err instanceof TypeError) {
+        throw new Error('No se pudo conectar con el backend. Revisa PUBLIC_API_URL.');
+      }
+      throw err;
+    }
+  };
 
   const toNumberOrNull = (value) => {
     if (value === null || value === undefined) return null;
@@ -69,69 +69,62 @@
     const t = toNumberOrNull(temp);
     const p = toNumberOrNull(precip);
     if (t === null || p === null) return null;
-
     const estimate = 64 + p * 2.2 - Math.max(0, t - 20) * 1.4;
     return Math.max(35, Math.min(95, Math.round(estimate)));
   };
 
-  const loadRegions = async () => {
-    const response = await fetch(`${apiUrl}/api/regions`);
-    if (!response.ok) throw new Error('No se pudieron cargar municipios');
+  const hydrateRegions = async () => {
+    if (regions.length > 0) return;
 
-    const payload = await response.json();
-    const items = Array.isArray(payload?.items) ? payload.items : [];
-    if (!items.length) return;
-
-    regions = items;
-    if (!regions.some((region) => region.slug === selectedRegion)) {
-      selectedRegion = regions[0].slug;
+    try {
+      const payload = await fetchJson('/api/regions', 'No se pudieron cargar municipios');
+      const items = Array.isArray(payload?.items) ? payload.items : [];
+      if (items.length > 0) {
+        regions = items;
+        if (!regions.some((region) => region.slug === selectedRegion)) {
+          selectedRegion = regions[0].slug;
+        }
+      }
+    } catch {
+      // Si falla, seguimos con fallback local para no bloquear el dashboard.
+      regions = [...FALLBACK_REGIONS];
     }
   };
 
-  const loadDashboard = async () => {
-    const [operativoRes, dashboardRes, historyRes] = await Promise.all([
-      fetch(`${apiUrl}/api/risk/operativo?region=${encodeURIComponent(selectedRegion)}`),
-      fetch(`${apiUrl}/api/dashboard?region=${encodeURIComponent(selectedRegion)}`),
-      fetch(`${apiUrl}/api/history?region=${encodeURIComponent(selectedRegion)}&limit=14`),
-    ]);
-
-    if (!operativoRes.ok) {
-      throw new Error(`No se pudo cargar estado operativo (${operativoRes.status})`);
-    }
-    if (!dashboardRes.ok) {
-      throw new Error(`No se pudo cargar resumen del día (${dashboardRes.status})`);
-    }
-    if (!historyRes.ok) {
-      throw new Error(`No se pudo cargar evidencia climática (${historyRes.status})`);
-    }
-
+  const loadLiveData = async () => {
     const [operativoPayload, dashboardPayload, historyPayload] = await Promise.all([
-      operativoRes.json(),
-      dashboardRes.json(),
-      historyRes.json(),
+      fetchJson(
+        `/api/risk/operativo?region=${encodeURIComponent(selectedRegion)}`,
+        'No se pudo cargar estado operativo'
+      ),
+      fetchJson(
+        `/api/dashboard?region=${encodeURIComponent(selectedRegion)}`,
+        'No se pudo cargar resumen del día'
+      ),
+      fetchJson(
+        `/api/history?region=${encodeURIComponent(selectedRegion)}&limit=14`,
+        'No se pudo cargar evidencia climática'
+      ),
     ]);
 
     operativo = operativoPayload?.ok ? operativoPayload : null;
     snapshot = dashboardPayload?.snapshot ?? null;
-    history = Array.isArray(historyPayload?.items)
-      ? [...historyPayload.items].reverse()
-      : [];
+    history = Array.isArray(historyPayload?.items) ? [...historyPayload.items].reverse() : [];
   };
 
   const refreshAll = async () => {
     loading = true;
     error = '';
+
     try {
-      if (!regions.length) {
-        await loadRegions();
-      }
-      await loadDashboard();
+      await hydrateRegions();
+      await loadLiveData();
       lastUpdated = new Date().toLocaleString('es-CO', {
         dateStyle: 'medium',
         timeStyle: 'short',
       });
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Error al cargar dashboard';
+      error = err instanceof Error ? err.message : 'Error al cargar dashboard en vivo';
     } finally {
       loading = false;
     }
@@ -146,7 +139,12 @@
       const slug = String(region?.slug ?? '').toLowerCase();
       const name = String(region?.name ?? '').toLowerCase();
       const city = String(region?.city ?? '').toLowerCase();
-      return slug === normalized || slug.includes(normalized) || name.includes(normalized) || city.includes(normalized);
+      return (
+        slug === normalized ||
+        slug.includes(normalized) ||
+        name.includes(normalized) ||
+        city.includes(normalized)
+      );
     });
   };
 
@@ -176,52 +174,50 @@
     }
   });
 
-  $: activeStatus = STATUS_CONFIG[operativo?.status ?? 'sin_datos'] ?? STATUS_CONFIG.sin_datos;
-  $: trendLabel = TREND_CONFIG[operativo?.trend_7d ?? 'stable'] ?? TREND_CONFIG.stable;
+  $: statusUi = STATUS_UI[operativo?.status ?? 'sin_datos'] ?? STATUS_UI.sin_datos;
+  $: trendLabel = TREND_UI[operativo?.trend_7d ?? 'stable'] ?? TREND_UI.stable;
   $: confidenceLabel = String(operativo?.confidence ?? 'media').toUpperCase();
-  $: selectedRegionName = (regions.length ? regions : FALLBACK_REGIONS).find((region) => region.slug === selectedRegion)?.name ?? selectedRegion;
+  $: regionName = (regions.length ? regions : FALLBACK_REGIONS).find(
+    (region) => region.slug === selectedRegion
+  )?.name ?? selectedRegion;
   $: humidityEstimate = estimateHumidity(snapshot?.temp_mean_c, snapshot?.precipitation_mm);
 </script>
 
-<section class="dashboard-grid">
+<section class="live-grid">
   {#if loading}
-    <article class="decision-card full-width">
-      <p class="state-message">Cargando estado operativo...</p>
+    <article class="live-card full-width">
+      <p class="state-message">Cargando estado en vivo...</p>
     </article>
   {:else if error}
-    <article class="decision-card full-width">
+    <article class="live-card full-width">
       <p class="state-message error">{error}</p>
     </article>
   {:else}
-    <article class="decision-card status-card {activeStatus.key}">
-      <p class="card-step">1. Estado hoy</p>
-      <h2>{activeStatus.title}</h2>
-      <p class="card-copy">{activeStatus.decision}</p>
-      <div class="status-badges">
-        <span>Municipio: {selectedRegionName}</span>
+    <article class="live-card status-card {statusUi.tone}">
+      <p class="live-kicker">Estado en vivo</p>
+      <h2>{statusUi.label}</h2>
+      <p class="live-copy">{operativo?.reason ?? 'Sin razón principal disponible.'}</p>
+      <div class="live-badges">
+        <span>Municipio: {regionName}</span>
         <span>Puntaje: {toNumberOrNull(operativo?.score) ?? 'Sin dato'}</span>
       </div>
     </article>
 
-    <article class="decision-card">
-      <p class="card-step">2. Razón principal</p>
-      <p class="reason-text">{operativo?.reason ?? 'Sin razón principal disponible hoy.'}</p>
-      <p class="impact-text">{activeStatus.impact}</p>
-    </article>
-
-    <article class="decision-card">
-      <p class="card-step">3. Qué hacer hoy</p>
-      <p class="action-text">{operativo?.action_today ?? 'Mantén el protocolo base y monitorea el siguiente corte de datos.'}</p>
+    <article class="live-card">
+      <p class="live-kicker">Qué hacer hoy</p>
+      <p class="action-copy">
+        {operativo?.action_today ?? 'Mantén protocolo base y espera el siguiente corte de datos.'}
+      </p>
       {#if operativo?.attention}
-        <p class="attention-text">{operativo.attention}</p>
+        <p class="attention-copy">{operativo.attention}</p>
       {/if}
     </article>
 
-    <article class="decision-card evidence-card">
+    <article class="live-card evidence-card full-width">
       <div class="evidence-head">
         <div>
-          <p class="card-step">4. Evidencia</p>
-          <h3>Lluvia, temperatura, humedad y tendencia de 7 días</h3>
+          <p class="live-kicker">Evidencia en vivo</p>
+          <h3>Lluvia, temperatura, humedad y tendencia (14 días)</h3>
         </div>
         {#if lastUpdated}
           <span>Actualizado: {lastUpdated}</span>
@@ -254,26 +250,17 @@
         <p class="state-message">Sin historial disponible para el municipio seleccionado.</p>
       {/if}
     </article>
-
-    <details class="methodology-card">
-      <summary>Metodología</summary>
-      <div>
-        <p><strong>Riesgo = prioridad de atención hoy para el cultivo.</strong></p>
-        <p>No diagnostica plagas; indica cuándo reforzar vigilancia y protocolos.</p>
-        <p>Se calcula con clima reciente y reglas de manejo de microclima en invernadero.</p>
-      </div>
-    </details>
   {/if}
 </section>
 
 <style>
-  .dashboard-grid {
+  .live-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
   }
 
-  .decision-card {
+  .live-card {
     background: linear-gradient(180deg, #302742 0%, #261d36 100%);
     border: 1px solid rgba(164, 127, 202, 0.3);
     border-radius: 18px;
@@ -281,13 +268,11 @@
     color: #f7f4ff;
   }
 
-  .full-width,
-  .evidence-card,
-  .methodology-card {
+  .full-width {
     grid-column: 1 / -1;
   }
 
-  .card-step {
+  .live-kicker {
     margin: 0;
     text-transform: uppercase;
     font-size: 0.74rem;
@@ -297,28 +282,8 @@
 
   .status-card h2 {
     margin-top: 0.35rem;
+    margin-bottom: 0;
     font-size: 1.5rem;
-  }
-
-  .card-copy {
-    margin: 0.55rem 0 0;
-    line-height: 1.4;
-    color: #eee4ff;
-  }
-
-  .status-badges {
-    margin-top: 0.75rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-  }
-
-  .status-badges span {
-    background: rgba(189, 166, 220, 0.2);
-    color: #d8c7ef;
-    border-radius: 999px;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.76rem;
   }
 
   .status-card.rutina {
@@ -333,26 +298,41 @@
     border-color: rgba(199, 93, 93, 0.65);
   }
 
-  .reason-text,
-  .action-text {
-    margin: 0.5rem 0 0;
+  .status-card.sin-datos {
+    border-color: rgba(189, 166, 220, 0.45);
+  }
+
+  .live-copy,
+  .action-copy {
+    margin: 0.55rem 0 0;
     line-height: 1.45;
     color: #efe7ff;
   }
 
-  .impact-text,
-  .attention-text {
-    margin: 0.75rem 0 0;
-    font-size: 0.86rem;
-    line-height: 1.4;
-    color: #d4c4e8;
+  .live-badges {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
   }
 
-  .attention-text {
+  .live-badges span {
+    background: rgba(189, 166, 220, 0.2);
+    color: #d8c7ef;
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.76rem;
+  }
+
+  .attention-copy {
+    margin-top: 0.75rem;
     padding: 0.65rem 0.75rem;
     border-radius: 10px;
     border: 1px solid rgba(245, 158, 11, 0.3);
     background: rgba(245, 158, 11, 0.12);
+    color: #d4c4e8;
+    font-size: 0.86rem;
+    line-height: 1.4;
   }
 
   .evidence-head {
@@ -406,28 +386,6 @@
     color: #bda6dc;
   }
 
-  .methodology-card {
-    margin: 0;
-    border-radius: 16px;
-    border: 1px solid rgba(164, 127, 202, 0.24);
-    padding: 0.95rem 1rem;
-    background: rgba(38, 29, 54, 0.78);
-    color: #d4c4e8;
-  }
-
-  .methodology-card summary {
-    cursor: pointer;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #f0e7ff;
-  }
-
-  .methodology-card p {
-    margin: 0.45rem 0 0;
-    font-size: 0.84rem;
-    line-height: 1.35;
-  }
-
   .state-message {
     margin: 0;
     color: #d9c9f1;
@@ -438,7 +396,7 @@
   }
 
   @media (max-width: 1020px) {
-    .dashboard-grid {
+    .live-grid {
       grid-template-columns: 1fr;
     }
 
