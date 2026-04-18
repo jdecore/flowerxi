@@ -346,29 +346,29 @@
     gap: 0.55rem;
   }
 
-  .timeline-row {
-    border: 1px solid var(--border-subtle, #e2e8f0);
-    border-radius: 12px;
-    padding: 0.68rem;
-    display: grid;
-    gap: 0.55rem;
-    background: #fff;
-  }
+   .timeline-row {
+     border: 1px solid var(--border-subtle, #e2e8f0);
+     border-radius: 12px;
+     padding: 0.68rem;
+     display: grid;
+     gap: 0.55rem;
+     background: var(--bg-app, #f8fafc);
+   }
 
-  .timeline-row.routine {
-    background: #ecfdf5;
-    border-color: #a7f3d0;
-  }
+   .timeline-row.routine {
+     background: var(--status-rutina-bg, #ecfdf5);
+     border-color: var(--status-rutina, #a7f3d0);
+   }
 
-  .timeline-row.watch {
-    background: #fffbeb;
-    border-color: #fde68a;
-  }
+   .timeline-row.watch {
+     background: var(--status-vigilancia-bg, #fffbeb);
+     border-color: var(--status-vigilancia, #fde68a);
+   }
 
-  .timeline-row.action {
-    background: #fef2f2;
-    border-color: #fecaca;
-  }
+   .timeline-row.action {
+     background: var(--status-accion-bg, #fef2f2);
+     border-color: var(--status-accion, #fecaca);
+   }
 
   .row-top {
     display: flex;

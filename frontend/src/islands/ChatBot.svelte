@@ -10,6 +10,18 @@
   const CONTEXT_TTL_MS = 60_000;
   const NO_DATA_ANSWER =
     'No pude cargar datos operativos en este momento. Verifica conexión al backend e intenta nuevamente en 1-2 minutos.';
+  const DEFAULT_REGIONS = [
+    { slug: 'madrid', name: 'Madrid' },
+    { slug: 'facatativa', name: 'Facatativá' },
+    { slug: 'funza', name: 'Funza' },
+    { slug: 'el-rosal', name: 'El Rosal' },
+    { slug: 'tocancipa', name: 'Tocancipá' },
+    { slug: 'chia', name: 'Chía' },
+    { slug: 'mosquera', name: 'Mosquera' },
+    { slug: 'sopo', name: 'Sopó' },
+    { slug: 'bojaca', name: 'Bojacá' },
+    { slug: 'cachipay', name: 'Cachipay' },
+  ];
 
   let chatHistory = [];
   let userQuestion = '';
@@ -143,6 +155,14 @@
     return 'Rutina normal';
   };
 
+  const labelFromSlug = (slug) =>
+    String(slug || '')
+      .trim()
+      .split('-')
+      .filter(Boolean)
+      .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+      .join(' ');
+
   const loadBackendContext = async (force = false) => {
     const cacheValid =
       !force &&
@@ -151,17 +171,19 @@
       Date.now() - contextCacheAt < CONTEXT_TTL_MS;
     if (cacheValid) return contextCache;
 
-    const [operativoData, historyData, weeklyData, compareData] = await Promise.all([
+    const [operativoData, historyData, weeklyData, compareData, regionsData] = await Promise.all([
       fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
       fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=14`),
       fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`),
       fetchJson('/api/municipalities/compare'),
+      fetchJson('/api/regions'),
     ]);
 
     const history = Array.isArray(historyData?.items) ? historyData.items : [];
     const latest = history[0] ?? null;
     const weekly = Array.isArray(weeklyData?.items) ? weeklyData.items : [];
     const compareEntries = Array.isArray(compareData?.items) ? compareData.items : [];
+    const regionEntriesFromApi = Array.isArray(regionsData?.items) ? regionsData.items : [];
     const compareCurrent = compareEntries.find(
       (item) => String(item?.slug || '').trim().toLowerCase() === region
     ) ?? null;
@@ -180,6 +202,31 @@
     const humidTop = humidityByRegion
       .filter((item) => item.waterRisk !== null)
       .sort((a, b) => b.waterRisk - a.waterRisk)[0];
+
+    const regionsBySlug = new Map();
+    [...regionEntriesFromApi, ...compareEntries, ...DEFAULT_REGIONS].forEach((item) => {
+      const slug = String(item?.slug || '').trim().toLowerCase();
+      if (!slug) return;
+      const name = String(item?.name || '').trim();
+      const city = String(item?.city || '').trim();
+      const previous = regionsBySlug.get(slug);
+      if (!previous) {
+        regionsBySlug.set(slug, {
+          slug,
+          name: name || labelFromSlug(slug),
+          city,
+        });
+        return;
+      }
+      regionsBySlug.set(slug, {
+        ...previous,
+        name: previous.name || name || labelFromSlug(slug),
+        city: previous.city || city,
+      });
+    });
+    const regions = [...regionsBySlug.values()].sort((a, b) =>
+      String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' })
+    );
 
     const rawScore = toNumOrNull(operativoData?.score);
     const latestScore = riskScoreFromSignals(latest);
@@ -237,9 +284,10 @@
         : null,
       weeklyActions: weekly.slice(0, 3).map((item) => item.title || item.message).filter(Boolean),
       humidTop: humidTop ? `${humidTop.name} (${humidTop.waterRisk} pts)` : null,
+      municipalities: regions.map((item) => item.name),
     };
 
-    const payload = { operativo: resolvedOperativo, latest, humidTop, contextSummary };
+    const payload = { operativo: resolvedOperativo, latest, humidTop, regions, contextSummary };
     contextCache = payload;
     contextCacheRegion = region;
     contextCacheAt = Date.now();
@@ -285,6 +333,17 @@
     );
   };
 
+  const municipalitiesAnswer = (context) => {
+    const regions = Array.isArray(context?.regions) ? context.regions.filter((item) => item?.slug) : [];
+    if (regions.length === 0) {
+      return 'No pude cargar la lista de municipios en este momento. Intenta de nuevo en unos segundos.';
+    }
+    const names = regions.map((item) => String(item?.name || labelFromSlug(item?.slug)).trim()).filter(Boolean);
+    const selected = regions.find((item) => String(item?.slug || '').trim().toLowerCase() === region);
+    const selectedName = selected?.name || labelFromSlug(region) || 'sin selección';
+    return `Aquí tienes ${regions.length} municipios disponibles: ${names.join(', ')}. Municipio actual: ${selectedName}.`;
+  };
+
   const quickAnswer = (question, context) => {
     const q = normalizeText(question);
     const score = context?.operativo?.score;
@@ -293,6 +352,18 @@
     const reason = context?.operativo?.reason;
     const humidTop = context?.humidTop;
     const latest = context?.latest;
+    const asksMunicipalities =
+      q.includes('municipio') &&
+      (q.includes('hay') ||
+        q.includes('aqui') ||
+        q.includes('disponible') ||
+        q.includes('lista') ||
+        q.includes('cuales') ||
+        q.includes('cuantos'));
+
+    if (asksMunicipalities) {
+      return municipalitiesAnswer(context);
+    }
 
     if (q.includes('riesgo hoy') || q.includes('riesgo de hoy') || q.includes('como esta el riesgo')) {
       if (score !== null && score !== undefined) {
@@ -363,6 +434,15 @@
     return `Estado actual: ${label || 'Sin datos'} (${score ?? '—'}). ${reason || ''} Acción sugerida: ${action || 'Sin datos'}`.trim();
   };
 
+  const noModelFallbackAnswer = (question, context) => {
+    const q = normalizeText(question);
+    if (q.includes('municipio')) return municipalitiesAnswer(context);
+    if (q.includes('riesgo') || q.includes('accion') || q.includes('hoy') || q.includes('lluvia') || q.includes('temperatura')) {
+      return fallbackContextAnswer(context);
+    }
+    return 'Estoy cargando el modelo de IA local. Mientras termina, pregúntame por riesgo hoy, acción recomendada, lluvia/temperatura o municipios disponibles.';
+  };
+
   const ensureModel = async () => {
     if (modelReady || isModelLoading) return;
     isModelLoading = true;
@@ -414,7 +494,7 @@
 
       await ensureModel();
       if (!modelReady || !engine) {
-        appendHistory(question, fallbackContextAnswer(context));
+        appendHistory(question, noModelFallbackAnswer(question, context));
         return;
       }
 
@@ -427,13 +507,13 @@
         stream: false,
       });
       const rawAnswer = completion?.choices?.[0]?.message?.content?.trim() || '';
-      const answer = isRefusalAnswer(rawAnswer) ? fallbackContextAnswer(context) : rawAnswer;
+      const answer = isRefusalAnswer(rawAnswer) ? noModelFallbackAnswer(question, context) : rawAnswer;
       appendHistory(question, answer);
     } catch (err) {
       console.error('[flowerxi-chat] error:', err);
       try {
         const context = await loadBackendContext(true);
-        appendHistory(question, fallbackContextAnswer(context));
+        appendHistory(question, noModelFallbackAnswer(question, context));
       } catch {
         appendHistory(question, 'No tengo datos suficientes para responder en este momento.');
       }
