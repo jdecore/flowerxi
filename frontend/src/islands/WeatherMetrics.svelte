@@ -165,14 +165,16 @@
 
   .metrics-header h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-xl);
     font-weight: 600;
     color: #1e293b;
   }
 
   .metrics-subtitle {
     margin: 0.2rem 0 0;
-    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
     color: #64748b;
   }
 
@@ -209,7 +211,8 @@
 
   .metric-label {
     margin: 0;
-    font-size: 0.8rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -217,7 +220,8 @@
   }
 
   .metric-value {
-    font-size: 1.5rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-3xl);
     font-weight: 700;
     color: #1e293b;
     letter-spacing: -0.02em;
@@ -229,13 +233,15 @@
   .metric-card.days .metric-icon { background: #fef3c7; color: #d97706; }
 
   .error {
+    font-family: var(--font-sans);
     color: #dc2626;
     padding: 1rem;
     text-align: center;
-    font-size: 0.9rem;
+    font-size: var(--text-base);
   }
 
   .skeleton p, .skeleton strong {
+    font-family: var(--font-sans);
     color: #94a3b8;
   }
 
@@ -247,7 +253,8 @@
 
   .history-chart h4 {
     margin: 0 0 1rem;
-    font-size: 0.9rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
     font-weight: 600;
     color: #475569;
   }
@@ -292,7 +299,8 @@
   }
 
   .bar-label {
-    font-size: 0.7rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
     color: #64748b;
   }
 
@@ -301,7 +309,8 @@
     justify-content: center;
     gap: 1.5rem;
     margin-top: 0.75rem;
-    font-size: 0.75rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
     color: #64748b;
   }
 

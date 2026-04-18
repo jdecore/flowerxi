@@ -72,7 +72,11 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
       <!-- Layout principal -->
       <div class="main-layout">
         <main class="main-col">
-          <OperationalHero {apiUrl} initialRegion="madrid" client:load />
+          <section class="hero-shell">
+            <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
+            <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual.</p>
+            <OperationalHero {apiUrl} initialRegion="madrid" client:load />
+          </section>
 
           <!-- Grid 12 columnas -->
           <div class="dashboard-12">
@@ -191,54 +195,6 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
       </script>
     </div>
 
-    <style is:global>
-      /* Sistema tipográfico unificado */
-      :root {
-        /* Familias */
-        --font-sans: 'Sora', system-ui, -apple-system, sans-serif;
-        
-        /* Tamaños base (usar rem) */
-        --text-xs: 0.7rem;      /* metadata muy pequeña */
-        --text-sm: 0.75rem;     /* labels, kickers, small */
-        --text-base: 0.875rem;  /* cuerpo normal */
-        --text-lg: 0.95rem;     /* texto destacado body */
-        --text-xl: 1.1rem;      /* títulos de card/sección */
-        --text-2xl: 1.25rem;    /* subtítulos principales */
-        --text-3xl: 1.5rem;     /* títulos hero/grande */
-        --text-4xl: 1.65rem;    /* valores numéricos principales */
-        
-        /* Pesos */
-        --font-normal: 400;
-        --font-medium: 500;
-        --font-semibold: 600;
-        --font-bold: 700;
-        
-        /* Alturas de línea */
-        --leading-none: 1;
-        --leading-tight: 1.2;
-        --leading-normal: 1.5;
-        --leading-relaxed: 1.6;
-      }
-
-      [data-theme="dark"] {
-        --bg-app: #111827;
-        --bg-surface: #1F2937;
-        --bg-sidebar: #111827;
-        --primary: #A78BCC;
-        --primary-hover: #C4B5E0;
-        --text-primary: #F9FAFB;
-        --text-secondary: #D1D5DB;
-        --text-tertiary: #9CA3AF;
-        --border: #374151;
-        --status-rutina: #34D399;
-        --status-rutina-bg: #064E3B;
-        --status-vigilancia: #FBBF24;
-        --status-vigilancia-bg: #78350F;
-        --status-accion: #F87171;
-        --status-accion-bg: #7F1D1D;
-      }
-    </style>
-
     <style>
       /* App root */
       .app-root { min-height: 100vh; display: flex; flex-direction: column; }
@@ -291,8 +247,8 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
       .region-priority {
         max-width: 1440px; margin: 0 auto; width: 100%;
         padding: 0.75rem 1.5rem 0.75rem;
-        display: flex; align-items: flex-end; justify-content: space-between;
-        gap: 0.3rem;
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 0.75rem;
       }
       .region-info-left { display: flex; flex-direction: column; gap: 0.1rem; }
       .region-priority-btn {
@@ -320,6 +276,27 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
       /* Layout principal */
       .main-layout { padding: 1.5rem; max-width: 1440px; margin: 0 auto; width: 100%; }
       .main-col { display: flex; flex-direction: column; gap: 1.5rem; }
+      .hero-shell {
+        display: grid;
+        gap: 0.5rem;
+      }
+      .hero-shell-kicker {
+        margin: 0;
+        width: max-content;
+        font-family: var(--font-sans);
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: #fff;
+        border-radius: 999px;
+        padding: 0.24rem 0.62rem;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+      }
+      .hero-shell-sub {
+        margin: -0.05rem 0 0.1rem;
+        font-family: var(--font-sans);
+        font-size: var(--text-sm);
+        color: var(--text-tertiary);
+      }
 
       /* Dashboard 12 cols */
       .dashboard-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; }
@@ -392,6 +369,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
         .topbar { padding: 0.6rem 1rem; }
         .btn-region-trigger span { display: none; }
         .region-priority { padding: 0.65rem 1rem 0.65rem; }
+        .hero-shell-sub { margin-top: 0; }
         .topbar-center { order: 3; width: 100%; justify-content: flex-start; }
         .topbar-end { flex: 1; justify-content: flex-end; }
         .dashboard-12 { gap: 1rem; }

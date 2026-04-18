@@ -421,7 +421,6 @@
 </script>
 
 <section class="hero-op">
-  <div class="rose-fanion">🌹</div>
   {#if loading}
     <div class="hero-skeleton"></div>
   {:else}
@@ -484,25 +483,11 @@
     background: var(--bg-surface, #fff);
     border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 20px;
-    padding: 1rem;
+    padding: 1.25rem;
     box-shadow: var(--shadow-sm, 0 1px 3px rgba(31, 41, 55, 0.06));
     display: grid;
     grid-template-columns: 1.2fr 1fr 1fr;
-    gap: 1rem;
-    position: relative;
-  }
-
-  .rose-fanion {
-    position: absolute;
-    top: -12px;
-    left: 20px;
-    background: linear-gradient(135deg, #7b5ba6 0%, #9d7ccb 100%);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    box-shadow: 0 2px 6px rgba(123, 91, 166, 0.3);
-    z-index: 2;
+    gap: 1.25rem;
   }
 
   .hero-main h2 {
