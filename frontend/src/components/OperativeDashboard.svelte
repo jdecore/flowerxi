@@ -2,46 +2,19 @@
   import { onMount } from 'svelte';
 
   export let apiUrl;
-  export let region = 'madrid';
+  export let selectedRegion = 'madrid';
 
-  const COLORS = {
-    rutina: '#7A8B6F',
-    vigilancia: '#F59E0B',
-    accion: '#C75D5D',
-    up: '#C75D5D',
-    down: '#7A8B6F',
-    stable: '#8B7AA3',
-  };
-
-  const STATUS_ICONS = {
-    rutina: '✓',
-    vigilancia: '⚠',
-    accion: '🚨',
-  };
-
-  const TREND_LABELS = {
-    up: 'Subiendo',
-    down: 'Bajando',
-    stable: 'Estable',
-  };
-
-  const CONFIDENCE_LABELS = {
-    alta: 'Alta',
-    media: 'Media',
-    baja: 'Baja',
-  };
-
+  let operativo = null;
   let loading = true;
   let error = '';
-  let data = null;
 
-  const fetchOperative = async () => {
+  const fetchOperativo = async () => {
     loading = true;
     error = '';
     try {
-      const res = await fetch(`${apiUrl}/api/risk/operativo?region=${encodeURIComponent(region)}`);
-      if (!res.ok) throw new Error('Error al cargar estado operativo');
-      data = await res.json();
+      const res = await fetch(`${apiUrl}/api/risk/operativo?region=${encodeURIComponent(selectedRegion)}`);
+      if (!res.ok) throw new Error('Error fetching operativo');
+      operativo = await res.json();
     } catch (e) {
       error = e.message;
     } finally {
@@ -49,113 +22,141 @@
     }
   };
 
+  export const refresh = () => fetchOperativo();
+
   onMount(() => {
-    fetchOperative();
+    fetchOperativo();
   });
 
-  $: statusColor = data?.status ? COLORS[data.status] : COLORS.rutina;
-  $: trendColor = data?.trend_7d ? COLORS[data.trend_7d] : COLORS.stable;
+  $: statusConfig = operativo ? {
+    rutina: { label: 'Rutina normal', icon: '✓', color: '#7A8B6F', bg: '#f0f4ed' },
+    vigilancia: { label: 'Vigilancia reforzada', icon: '⚠', color: '#F59E0B', bg: '#fef3e2' },
+    accion: { label: 'Acción requerida', icon: '🚨', color: '#C75D5D', bg: '#fef2f2' },
+  }[operativo.status] : null;
+
+  $: trendConfig = operativo?.trend_7d ? {
+    up: { label: 'Subiendo', icon: '↑', color: '#C75D5D' },
+    down: { label: 'Bajando', icon: '↓', color: '#7A8B6F' },
+    stable: { label: 'Estable', icon: '→', color: '#8B7AA3' },
+  }[operativo.trend_7d] : null;
+
+  $: confidenceConfig = operativo?.confidence ? {
+    alta: { label: 'Alta', color: '#7A8B6F' },
+    media: { label: 'Media', color: '#F59E0B' },
+    baja: { label: 'Baja', color: '#C75D5D' },
+  }[operativo.confidence] : null;
 </script>
 
-<div class="operative-dashboard">
-  {#if loading}
-    <div class="operative-loading">
-      <p>Cargando estado operativo...</p>
-    </div>
-  {:else if error}
-    <div class="operative-error">
-      <p>{error}</p>
-      <button on:click={fetchOperative}>Reintentar</button>
-    </div>
-  {:else if data}
-    <!-- Estado Principal -->
-    <div class="operative-status" style="--status-color: {statusColor}">
-      <div class="status-header">
-        <span class="status-icon">{STATUS_ICONS[data.status] || '?'}</span>
+{#if loading}
+  <div class="operative-loading">
+    <div class="spinner"></div>
+    <span>Cargando estado operativo...</span>
+  </div>
+{:else if error}
+  <div class="operative-error">
+    <span>⚠️ {error}</span>
+    <button on:click={fetchOperativo}>Reintentar</button>
+  </div>
+{:else if operativo && statusConfig}
+  <article class="operative-dashboard">
+    <header class="operativo-header" style="background: {statusConfig.bg}; border-left: 4px solid {statusConfig.color};">
+      <div class="operativo-status-row">
+        <span class="status-icon" style="color: {statusConfig.color};">{statusConfig.icon}</span>
         <div class="status-text">
-          <h2>Estado hoy: {data.status_label}</h2>
-          <span class="status-score">Nivel {data.score}</span>
+          <span class="status-label" style="color: {statusConfig.color};">Estado hoy: {statusConfig.label}</span>
+          <span class="status-score">Nivel {operativo.score}</span>
         </div>
       </div>
-      
-      <p class="status-reason">{data.reason}</p>
-      
-      <div class="action-box">
-        <h3>Haz hoy:</h3>
-        <p>{data.action_today}</p>
+      <p class="operativo-reason">{operativo.reason}</p>
+    </header>
+
+    <div class="operativo-action">
+      <div class="action-badge">
+        <span class="action-icon">💡</span>
+        <span class="action-label">Haz hoy:</span>
       </div>
-      
-      {#if data.attention}
-        <div class="attention-box">
-          <span class="attention-icon">ℹ</span>
-          <p>{data.attention}</p>
-        </div>
-      {/if}
+      <p class="action-text">{operativo.action_today}</p>
     </div>
 
-    <!-- Métricas secundarias -->
-    <div class="operative-metrics">
-      <div class="metric">
-        <span class="metric-label">Motivo</span>
-        <span class="metric-value reason-value">
-          {#if data.details?.rainy_days > 0}
-            Lluvia {data.details.rainy_days}d
-          {/if}
-          {#if data.details?.avg_temp}
-            , {data.details.avg_temp}°C
-          {/if}
-        </span>
+    {#if operativo.attention}
+      <div class="operativo-attention">
+        <span class="attention-icon">📢</span>
+        <p>{operativo.attention}</p>
       </div>
-      
-      <div class="metric">
-        <span class="metric-label">Evolución 7d</span>
-        <span class="metric-value trend-value" style="color: {trendColor}">
-          {TREND_LABELS[data.trend_7d] || 'Estable'}
-        </span>
+    {/if}
+
+    <div class="operativo-metrics">
+      <div class="metric-block">
+        <span class="metric-label">Evolución 7 días</span>
+        {#if trendConfig}
+          <span class="metric-value" style="color: {trendConfig.color};">
+            {trendConfig.icon} {trendConfig.label}
+          </span>
+        {/if}
       </div>
-      
-      <div class="metric">
+      <div class="metric-block">
         <span class="metric-label">Confianza</span>
-        <span class="metric-value confidence-{data.confidence}">
-          {CONFIDENCE_LABELS[data.confidence]} ({data.details?.days_available || 0}/7)
-        </span>
+        {#if confidenceConfig}
+          <span class="metric-value" style="color: {confidenceConfig.color};">
+            ● {confidenceConfig.label} ({operativo.details?.days_available}/7)
+          </span>
+        {/if}
       </div>
     </div>
-  {/if}
-</div>
+  </article>
+{:else}
+  <div class="operative-empty">
+    <span>Sin datos operativos disponibles</span>
+  </div>
+{/if}
 
 <style>
-  .operative-dashboard {
+  .operative-loading, .operative-error, .operative-empty {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-  }
-
-  .operative-loading, .operative-error {
-    text-align: center;
+    align-items: center;
+    justify-content: center;
     padding: 2rem;
     color: var(--text-secondary, #666);
+    font-size: 0.9rem;
+    gap: 0.5rem;
+  }
+
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-subtle, #eee);
+    border-top-color: var(--primary, #756A85);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 
   .operative-error button {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
     background: var(--primary, #756A85);
-    color: white;
+    color: #fff;
     border: none;
-    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 0.8rem;
   }
 
-  /* Estado Principal */
-  .operative-status {
+  .operative-dashboard {
     background: var(--bg-surface, #fff);
-    border: 2px solid var(--status-color);
+    border: 1px solid var(--border-subtle, #eee);
     border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .operativo-header {
     padding: 1.25rem;
   }
 
-  .status-header {
+  .operativo-status-row {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -164,119 +165,105 @@
 
   .status-icon {
     font-size: 1.5rem;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--status-color);
-    border-radius: 50%;
-    color: white;
+    line-height: 1;
   }
 
-  .status-text h2 {
-    margin: 0;
+  .status-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .status-label {
     font-size: 1.1rem;
-    color: var(--text-primary, #222);
+    font-weight: 600;
   }
 
   .status-score {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-secondary, #666);
   }
 
-  .status-reason {
-    margin: 0 0 1rem;
-    font-size: 0.95rem;
+  .operativo-reason {
+    font-size: 0.9rem;
     color: var(--text-primary, #222);
-    line-height: 1.5;
-  }
-
-  .action-box {
-    background: rgba(117, 106, 133, 0.08);
-    border-left: 4px solid var(--status-color);
-    padding: 0.85rem 1rem;
-    border-radius: 0 10px 10px 0;
-  }
-
-  .action-box h3 {
-    margin: 0 0 0.35rem;
-    font-size: 0.8rem;
-    color: var(--primary, #756A85);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .action-box p {
     margin: 0;
-    font-size: 0.95rem;
-    color: var(--text-primary, #222);
-    font-weight: 500;
+    line-height: 1.4;
   }
 
-  .attention-box {
-    margin-top: 0.85rem;
-    padding: 0.65rem 0.85rem;
-    background: rgba(245, 158, 11, 0.1);
-    border-radius: 8px;
+  .operativo-action {
+    padding: 1rem 1.25rem;
+    background: var(--bg-app, #f8f8f8);
+    border-top: 1px solid var(--border-subtle, #eee);
+  }
+
+  .action-badge {
     display: flex;
-    gap: 0.5rem;
-    align-items: flex-start;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
   }
 
-  .attention-icon {
-    color: #F59E0B;
+  .action-icon {
     font-size: 1rem;
   }
 
-  .attention-box p {
+  .action-label {
+    font-size: 0.75rem;
+    color: var(--primary, #756A85);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .action-text {
+    font-size: 0.95rem;
+    color: var(--text-primary, #222);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .operativo-attention {
+    padding: 0.85rem 1.25rem;
+    background: rgba(245, 158, 11, 0.1);
+    border-top: 1px solid rgba(245, 158, 11, 0.2);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .attention-icon {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  .operativo-attention p {
     margin: 0;
     font-size: 0.85rem;
     color: var(--text-secondary, #666);
     line-height: 1.4;
   }
 
-  /* Métricas */
-  .operative-metrics {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
+  .operativo-metrics {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border-subtle, #eee);
+    background: var(--bg-app, #f8f8f8);
   }
 
-  .metric {
-    background: var(--bg-surface, #fff);
-    border: 1px solid var(--border-subtle, #eee);
-    border-radius: 12px;
-    padding: 0.85rem;
-    text-align: center;
+  .metric-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   .metric-label {
-    display: block;
     font-size: 0.7rem;
-    color: var(--text-tertiary, #9590A3);
+    color: var(--text-secondary, #666);
     text-transform: uppercase;
-    letter-spacing: 0.3px;
-    margin-bottom: 0.35rem;
   }
 
   .metric-value {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary, #222);
-  }
-
-  .reason-value {
-    font-size: 0.8rem;
-  }
-
-  .confidence-alta { color: #7A8B6F; }
-  .confidence-media { color: #8B7AA3; }
-  .confidence-baja { color: #C75D5D; }
-
-  @media (max-width: 600px) {
-    .operative-metrics {
-      grid-template-columns: 1fr;
-    }
+    font-size: 0.85rem;
+    font-weight: 500;
   }
 </style>
