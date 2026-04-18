@@ -91,14 +91,14 @@
 </article>
 
 <style>
-  .weekly-kpis { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
-  .weekly-kpis h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #1f2937; }
+  .weekly-kpis { background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(31,41,55,0.06)); }
+  .weekly-kpis h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary, #1f2937); }
 
   .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
 
   .kpi-card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--bg-app, #f8fafc);
+    border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 12px;
     padding: 0.85rem;
     display: flex;
@@ -106,17 +106,17 @@
     gap: 0.5rem;
   }
 
-  .skeleton-line { height: 12px; width: 60%; background: #e2e8f0; border-radius: 4px; }
+  .skeleton-line { height: 12px; width: 60%; background: var(--border-subtle, #e2e8f0); border-radius: 4px; }
   .skeleton-bar { height: 16px; width: 40%; background: linear-gradient(90deg, #7B5BA620, #A78BCC30, #7B5BA620); border-radius: 4px; animation: shimmer 1.5s infinite linear; background-size: 200% 100%; }
   @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
   .kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; }
   .kpi-icon.surveillance { background: var(--status-vigilancia-bg); color: var(--status-vigilancia); }
   .kpi-icon.score { background: var(--status-rutina-bg); color: var(--status-rutina); }
-  .kpi-icon.action { background: #DBEAFE; color: #2563EB; }
+  .kpi-icon.action { background: color-mix(in srgb, var(--primary, #7B5BA6) 12%, #fff); color: var(--primary, #7B5BA6); }
   .kpi-icon svg { width: 18px; height: 18px; }
 
-  .kpi-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
-  .kpi-value { font-size: 1.1rem; font-weight: 700; color: #1f2937; line-height: 1.2; }
+  .kpi-label { font-size: 0.75rem; color: var(--text-secondary, #64748b); text-transform: uppercase; letter-spacing: 0.05em; }
+  .kpi-value { font-size: 1.1rem; font-weight: 700; color: var(--text-primary, #1f2937); line-height: 1.2; }
   .kpi-value.small { font-size: 0.8rem; }
 </style>

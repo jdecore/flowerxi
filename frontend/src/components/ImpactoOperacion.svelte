@@ -31,7 +31,7 @@
       const res = await fetch(`${apiUrl}/api/risk/operativo?region=${region}`);
       if (res.ok) {
         const data = await res.json();
-        const score = data?.operativo?.score ?? 22;
+        const score = Number(data?.score ?? data?.operativo?.score ?? 22);
         updateImpact(score);
       }
     } catch (e) { console.error(e); }
@@ -99,17 +99,17 @@
 </article>
 
 <style>
-  .impacto-operacion { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+  .impacto-operacion { background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(31,41,55,0.06)); }
   .impact-header { display: flex; justify-content: space-between; align-items: center; }
-  .impact-header h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #1f2937; }
+  .impact-header h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary, #1f2937); }
   .impact-badge { font-size: 1.2rem; }
-  .impact-intro { margin: 0; font-size: 0.9rem; color: #4b5563; line-height: 1.4; }
-  .impact-intro strong { color: #1f2937; }
+  .impact-intro { margin: 0; font-size: 0.9rem; color: var(--text-secondary, #4b5563); line-height: 1.4; }
+  .impact-intro strong { color: var(--text-primary, #1f2937); }
   .impact-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
-  .impact-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
+  .impact-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: var(--bg-app, #f8fafc); border-radius: 10px; border: 1px solid var(--border-subtle, #e2e8f0); }
   .impact-icon { font-size: 1.2rem; flex-shrink: 0; }
-  .impact-list strong { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; }
-  .value { font-size: 0.9rem; color: #1f2937; }
-  .value.action { color: #059669; font-weight: 500; }
-  .impact-note { margin: 0; font-size: 0.75rem; color: #6b7280; line-height: 1.4; padding: 0.5rem 0.75rem; background: #fef3c7; border-radius: 8px; border-left: 3px solid #F59E0B; }
+  .impact-list strong { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary, #374151); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; }
+  .value { font-size: 0.9rem; color: var(--text-primary, #1f2937); }
+  .value.action { color: var(--status-rutina, #059669); font-weight: 500; }
+  .impact-note { margin: 0; font-size: 0.75rem; color: var(--text-secondary, #6b7280); line-height: 1.4; padding: 0.5rem 0.75rem; background: var(--status-vigilancia-bg, #fef3c7); border-radius: 8px; border-left: 3px solid var(--status-vigilancia, #F59E0B); }
 </style>

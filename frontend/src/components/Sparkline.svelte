@@ -5,8 +5,19 @@
   export let color = '#7B5BA6';
   export let height = 60;
 
+  const hexToRgb = (hex) => {
+    const normalized = String(hex ?? '').replace('#', '').trim();
+    if (normalized.length !== 6) return '123,91,166';
+    const r = Number.parseInt(normalized.slice(0, 2), 16);
+    const g = Number.parseInt(normalized.slice(2, 4), 16);
+    const b = Number.parseInt(normalized.slice(4, 6), 16);
+    if ([r, g, b].some(Number.isNaN)) return '123,91,166';
+    return `${r},${g},${b}`;
+  };
+
   // Calcular puntos del gráfico (normalizado a 0-100)
   $: maxVal = Math.max(...data, 1);
+  $: areaFill = `rgba(${hexToRgb(color)}, 0.16)`;
   $: points = data.map((val, i) => {
     const x = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
     const y = 100 - ((val / maxVal) * 100);
@@ -24,7 +35,7 @@
   {#if data.length > 1}
     <svg viewBox="0 0 100 40" class="spark-svg" preserveAspectRatio="none">
       <!-- Área -->
-      <polygon points="0,40 {points} 100,40" fill="rgba(var(--rgb), 0.15)" />
+      <polygon points="0,40 {points} 100,40" fill={areaFill} />
       <!-- Línea -->
       <polyline points={points} fill="none" stroke={color} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
@@ -43,8 +54,8 @@
 
 <style>
   .sparkline-card {
-    background: white;
-    border: 1px solid #e2e8f0;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 12px;
     padding: 0.75rem;
     display: flex;
@@ -56,7 +67,7 @@
   .spark-title {
     font-size: 0.75rem;
     font-weight: 500;
-    color: #64748b;
+    color: var(--text-secondary, #64748b);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -65,7 +76,7 @@
     width: 100%;
     height: 60px;
     border-radius: 6px;
-    background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg-app, #f8fafc) 60%, #fff), var(--bg-app, #f1f5f9));
   }
 
   .spark-svg polygon, .spark-svg polyline {
@@ -79,7 +90,7 @@
   }
   .spark-last small {
     font-weight: 400;
-    color: #6b7280;
+    color: var(--text-tertiary, #6b7280);
     font-size: 0.75rem;
   }
 

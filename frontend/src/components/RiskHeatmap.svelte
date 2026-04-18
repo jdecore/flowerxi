@@ -81,9 +81,9 @@
 </article>
 
 <style>
-  .risk-heatmap { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
-  .risk-heatmap h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #1f2937; }
-  .subtitle { margin: 0; font-size: 0.8rem; color: #64748b; }
+  .risk-heatmap { background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(31,41,55,0.06)); }
+  .risk-heatmap h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary, #1f2937); }
+  .subtitle { margin: 0; font-size: 0.8rem; color: var(--text-secondary, #64748b); }
   .heatmap-wrapper { min-height: 200px; }
 
   .heatmap-skeleton {
@@ -94,7 +94,7 @@
   }
   .skeleton-month {
     height: 32px;
-    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+    background: linear-gradient(90deg, var(--border-subtle, #e2e8f0) 25%, var(--bg-app, #f1f5f9) 50%, var(--border-subtle, #e2e8f0) 75%);
     background-size: 200% 100%;
     border-radius: 6px;
     animation: shimmer 1.5s infinite linear;
