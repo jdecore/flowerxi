@@ -122,7 +122,7 @@
       }
     } catch (e) {
       monthly = [];
-      error = 'No se pudo cargar el calendario de riesgo.';
+      error = 'Datos no disponibles.';
       console.error(e);
     } finally {
       loading = false;

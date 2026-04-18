@@ -3,12 +3,12 @@ import '../styles/index.css';
 
 // Componentes
 import DashboardControls from '../islands/DashboardControls.svelte';
+import OperationalHero from '../islands/OperationalHero.svelte';
 import EvidenceSparklines from '../islands/EvidenceSparklines.svelte';
 import TodayChecklist from '../islands/TodayChecklist.svelte';
 import CommercialIntelCard from '../islands/CommercialIntelCard.svelte';
 import SabanaComparison from '../islands/SabanaComparison.svelte';
 import ClosestStationFooter from '../islands/ClosestStationFooter.svelte';
-import RiskBadge from '../components/RiskBadge.svelte';
 import WeeklyKPIs from '../components/WeeklyKPIs.svelte';
 import RiskHeatmap from '../components/RiskHeatmap.svelte';
 import ImpactoOperacion from '../components/ImpactoOperacion.svelte';
@@ -46,14 +46,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       <!-- Layout principal -->
       <div class="main-layout">
         <main class="main-col">
-          <!-- Hero KPI -->
-          <section class="hero-kpi">
-            <RiskBadge score={24} level="Rutina" client:load />
-            <div class="hero-text">
-              <p class="greeting">Buenos días, Don José. En <strong>Madrid</strong> hoy estamos en <span class="badge-rutina">Rutina</span>.</p>
-              <p class="subtext">No diagnostica plagas. Te dice cuándo mirar más de cerca según clima reciente.</p>
-            </div>
-          </section>
+          <OperationalHero {apiUrl} initialRegion="madrid" client:load />
 
           <!-- Controles rápidos -->
           <DashboardControls client:load />
@@ -182,21 +175,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       .main-layout { padding: 1.5rem; max-width: 1440px; margin: 0 auto; width: 100%; }
       .main-col { display: flex; flex-direction: column; gap: 1.5rem; }
 
-      /* Hero KPI */
-      .hero-kpi {
-        background: linear-gradient(135deg, var(--status-rutina-bg) 0%, #fff 100%);
-        border: 2px solid var(--status-rutina);
-        border-radius: 20px;
-        padding: 1.25rem;
-        display: flex; align-items: center; gap: 1.25rem;
-        box-shadow: 0 8px 24px rgba(16,185,129,0.15);
-      }
-      .hero-text { flex: 1; }
-      .greeting { margin: 0; font-size: 1.15rem; font-weight: 500; line-height: 1.4; }
-      .greeting strong { color: var(--secondary); }
-      .badge-rutina { color: var(--status-rutina); font-weight: 700; }
-      .subtext { margin: 0.4rem 0 0; font-size: 0.85rem; color: var(--text-secondary); }
-
       /* Dashboard 12 cols */
       .dashboard-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; }
       .col-8 { grid-column: span 8; }
@@ -265,7 +243,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
         .topbar { padding: 0.6rem 1rem; }
         .topbar-center { order: 3; width: 100%; justify-content: flex-start; }
         .topbar-end { flex: 1; justify-content: flex-end; }
-        .hero-kpi { flex-direction: column; text-align: center; }
         .dashboard-12 { gap: 1rem; }
       }
     </style>

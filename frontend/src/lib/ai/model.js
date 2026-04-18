@@ -1,8 +1,12 @@
+import { env } from '@huggingface/transformers';
+
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+const MODEL_ID = 'onnx-community/SmolLM-135M-ONNX';
+
 let modelInstance = null;
 let loadingPromise = null;
-
-const MODEL_TASK = 'text-generation';
-const MODEL_ID = 'onnx-community/LFM2.5-350M-ONNX';
 
 export async function getAIModel() {
   if (typeof window === 'undefined') {
@@ -18,40 +22,42 @@ export async function getAIModel() {
   }
 
   loadingPromise = (async () => {
-    const { pipeline } = await import('@xenova/transformers');
-    
+    const { pipeline, Env } = await import('@huggingface/transformers');
+
     let device = 'webgpu';
     let dtype = 'q4';
-    
+
     try {
-      const test = await pipeline(MODEL_TASK, MODEL_ID, {
+      console.log('[flowerxi-ai] Loading model:', MODEL_ID);
+      modelInstance = await pipeline('text-generation', MODEL_ID, {
         dtype,
         device,
         progress_callback: (event) => {
           if (event?.status === 'progress') {
-            console.debug(`[flowerxi-ai] loading ${Math.round(event.progress)}%`);
+            console.log(`[flowerxi-ai] Loading ${Math.round(event.progress * 100)}%`);
           }
         },
       });
-      modelInstance = test;
+      console.log('[flowerxi-ai] Model loaded successfully');
     } catch (webgpuError) {
       console.warn('[flowerxi-ai] WebGPU failed, trying CPU fallback:', webgpuError?.message || webgpuError);
       try {
-        const cpuFallback = await pipeline(MODEL_TASK, MODEL_ID, {
+        modelInstance = await pipeline('text-generation', MODEL_ID, {
           dtype: 'q4',
           device: 'cpu',
           progress_callback: (event) => {
             if (event?.status === 'progress') {
-              console.debug(`[flowerxi-ai] loading (CPU) ${Math.round(event.progress)}%`);
+              console.log(`[flowerxi-ai] Loading (CPU) ${Math.round(event.progress * 100)}%`);
             }
           },
         });
-        modelInstance = cpuFallback;
+        console.log('[flowerxi-ai] Model loaded on CPU');
       } catch (cpuError) {
+        console.error('[flowerxi-ai] All backends failed:', cpuError);
         throw new Error(`No se pudo cargar el modelo (WebGPU: ${webgpuError?.message}, CPU: ${cpuError?.message})`);
       }
     }
-    
+
     return modelInstance;
   })();
 
@@ -66,4 +72,3 @@ export function resetAIModel() {
   modelInstance = null;
   loadingPromise = null;
 }
-

@@ -23,9 +23,10 @@ Ya creada en `/home/juan/lab/flowerxi`:
 
 Tecnologias:
 
-- Frontend: `astro`, `@astrojs/svelte`, `svelte`
+- Frontend: `astro`, `@astrojs/svelte`, `svelte`, `@insforge/sdk` (AI chat)
 - Backend: `fastapi`, `uvicorn`, `psycopg`
 - DB: InsForge Postgres (proyecto `glovar`)
+- AI: InsForge AI (`deepseek/deepseek-v3.2`) para ChatBot
 
 ### 2) Backend - Estructura modular (actualizada)
 

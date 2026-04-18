@@ -110,7 +110,7 @@
         exportsSummary = exportsData.summary;
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'No se pudo cargar inteligencia comercial';
+      error = 'Datos no disponibles.';
     } finally {
       loading = false;
     }

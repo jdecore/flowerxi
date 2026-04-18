@@ -90,7 +90,7 @@
     try {
       const payload = await fetchJson(
         `/api/history?region=${encodeURIComponent(region)}&limit=14`,
-        'No se pudo cargar evidencia climática'
+        'Datos no disponibles'
       );
 
       const items = Array.isArray(payload?.items) ? payload.items : [];
@@ -98,7 +98,7 @@
       updatedAt = new Date().toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
     } catch (err) {
       history = [];
-      error = err instanceof Error ? err.message : 'Error al cargar evidencia';
+      error = 'Datos no disponibles.';
     } finally {
       loading = false;
     }

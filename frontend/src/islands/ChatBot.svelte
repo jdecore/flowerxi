@@ -2,6 +2,14 @@
   import { onMount } from 'svelte';
   import { getAIModel } from '../lib/ai/model.js';
 
+  export let apiUrl = '';
+
+  const STORAGE_REGION = 'flowerxi_region';
+  const CHAT_STORAGE_KEY = 'flowerxi_chat';
+  const TODAY_STORAGE_KEY = 'flowerxi_today';
+  const MAX_MESSAGES = 20;
+  const trackedRegions = ['madrid', 'facatativa', 'funza'];
+
   let chatHistory = [];
   let userQuestion = '';
   let chatOpen = false;
@@ -10,10 +18,7 @@
   let modelReady = false;
   let modelError = '';
   let model = null;
-
-  const CHAT_STORAGE_KEY = 'flowerxi_chat';
-  const TODAY_STORAGE_KEY = 'flowerxi_today';
-  const MAX_MESSAGES = 20;
+  let region = 'madrid';
 
   const loadHistory = () => {
     if (typeof window === 'undefined') return;
@@ -52,6 +57,109 @@
     }
   };
 
+  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
+
+  const buildApiBases = (raw) => {
+    const configured = normalizeBaseUrl(raw);
+    const candidates = [];
+    if (configured) candidates.push(configured);
+
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        candidates.push(`${window.location.protocol}//${host}:8000`);
+        candidates.push('http://localhost:8000');
+        candidates.push('http://127.0.0.1:8000');
+      }
+    }
+
+    candidates.push('');
+    return [...new Set(candidates)];
+  };
+
+  const endpoint = (base, path) => {
+    if (!base) return path;
+    if (base.endsWith('/api') && path.startsWith('/api/')) return `${base}${path.slice(4)}`;
+    return `${base}${path}`;
+  };
+
+  const fetchJson = async (path) => {
+    const apiBases = buildApiBases(apiUrl);
+    for (const base of apiBases) {
+      try {
+        const res = await fetch(endpoint(base, path), { headers: { Accept: 'application/json' } });
+        if (!res.ok) continue;
+        return await res.json();
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  };
+
+  const estimateHumidity = (temp, precip) => {
+    const t = Number(temp);
+    const p = Number(precip);
+    if (!Number.isFinite(t) && !Number.isFinite(p)) return null;
+    const estimate = 64 + (Number.isFinite(p) ? p : 0) * 2.2 - Math.max(0, (Number.isFinite(t) ? t : 0) - 20) * 1.4;
+    return Math.max(35, Math.min(95, Math.round(estimate)));
+  };
+
+  const loadBackendContext = async () => {
+    const [operativoData, historyData] = await Promise.all([
+      fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
+      fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=7`),
+    ]);
+
+    const history = Array.isArray(historyData?.items) ? historyData.items : [];
+    const latest = history[0] ?? null;
+
+    const humidityByRegion = await Promise.all(
+      trackedRegions.map(async (slug) => {
+        const data = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
+        const day = Array.isArray(data?.items) ? data.items[0] : null;
+        return { slug, humidity: estimateHumidity(day?.temp_mean_c, day?.precipitation_mm) };
+      })
+    );
+
+    const humidTop = humidityByRegion
+      .filter((item) => item.humidity !== null)
+      .sort((a, b) => b.humidity - a.humidity)[0];
+
+    return { operativo: operativoData, latest, humidTop };
+  };
+
+  const quickAnswer = (question, context) => {
+    const q = question.toLowerCase();
+    const score = context?.operativo?.score;
+    const statusLabel = context?.operativo?.status_label;
+    const action = context?.operativo?.action_today;
+    const reason = context?.operativo?.reason;
+    const humidTop = context?.humidTop;
+
+    if (q.includes('riesgo hoy') || q.includes('como esta el riesgo') || q.includes('cómo está el riesgo')) {
+      return score
+        ? `Hoy en ${region} el riesgo está en ${statusLabel || 'estado operativo'} (${score}).`
+        : 'Datos no disponibles para el riesgo de hoy.';
+    }
+
+    if (q.includes('que debo hacer') || q.includes('qué debo hacer') || q.includes('recomendacion')) {
+      return action ? `Acción recomendada hoy: ${action}` : 'Datos no disponibles para recomendación operativa.';
+    }
+
+    if (q.includes('donde hay mas humedad') || q.includes('dónde hay más humedad')) {
+      return humidTop
+        ? `Hoy la mayor humedad estimada está en ${humidTop.slug} (${humidTop.humidity}%).`
+        : 'Datos no disponibles para comparar humedad entre municipios.';
+    }
+
+    if (q.includes('por que') || q.includes('por qué')) {
+      return reason ? `El riesgo sube por: ${reason}` : 'Datos no disponibles para explicar el riesgo.';
+    }
+
+    return '';
+  };
+
   const loadModel = async () => {
     if (modelReady || isModelLoading) return;
     isModelLoading = true;
@@ -60,7 +168,8 @@
       model = await getAIModel();
       if (!model) throw new Error('No fue posible inicializar el modelo');
       modelReady = true;
-    } catch {
+    } catch (err) {
+      console.error('[flowerxi-chat] init error:', err);
       modelError = 'No fue posible cargar la IA en este momento.';
     } finally {
       isModelLoading = false;
@@ -81,18 +190,19 @@
     if (!text) return '';
     const cleaned = text.replace(/^assistant:\s*/i, '').trim();
     if (cleaned.length < 3 || cleaned.toLowerCase().includes('cannot respond')) {
-      return 'Lo siento, no puedo responder eso. Intenta otra pregunta.';
+      return 'Datos no disponibles.';
     }
     return cleaned;
   };
 
-  const buildMessages = (question) => {
+  const buildMessages = (question, context) => {
     const today = getTodayContext();
     const systemPrompt =
       `Eres FlowerxiBot, asesor agronomico para rosa de corte en Colombia. ` +
       `Responde en español, maximo tres lineas, sin inventar datos. ` +
-      `Contexto actual: municipio=${today.region || 'desconocido'}, temp=${today.temp || 'N/A'}, ` +
-      `precip=${today.precip || 'N/A'}, riesgo=${today.risk_fungico || 'N/A'}.`;
+      `Contexto actual: municipio=${today.region || region}, temp=${today.temp || 'N/A'}, ` +
+      `precip=${today.precip || 'N/A'}, riesgo=${today.risk_fungico || context?.operativo?.score || 'N/A'}, ` +
+      `accion=${context?.operativo?.action_today || 'N/A'}.`;
 
     const messages = [{ role: 'system', content: systemPrompt }];
     chatHistory.slice(-3).forEach((item) => {
@@ -105,11 +215,24 @@
 
   const askQuestion = async () => {
     const question = userQuestion.trim();
-    if (!question || !modelReady || isAnswering) return;
+    if (!question || isAnswering) return;
     userQuestion = '';
     isAnswering = true;
     try {
-      const messages = buildMessages(question);
+      const context = await loadBackendContext();
+      const quick = quickAnswer(question, context);
+      if (quick) {
+        appendHistory(question, quick);
+        return;
+      }
+
+      if (!modelReady) await loadModel();
+      if (!modelReady) {
+        appendHistory(question, 'Datos no disponibles.');
+        return;
+      }
+
+      const messages = buildMessages(question, context);
       const result = await model(messages, {
         max_new_tokens: 120,
         temperature: 0.7,
@@ -119,11 +242,11 @@
       const answerText = Array.isArray(generated)
         ? generated.at(-1)?.content || generated.at(-1)
         : generated;
-      const answer = cleanModelAnswer(answerText) || 'No tengo respuesta.';
+      const answer = cleanModelAnswer(answerText) || 'Datos no disponibles.';
       appendHistory(question, answer);
     } catch (err) {
       console.error('[flowerxi-chat] error:', err);
-      appendHistory(question, 'Error. Intenta de nuevo.');
+      appendHistory(question, 'Datos no disponibles.');
     } finally {
       isAnswering = false;
     }
@@ -138,15 +261,23 @@
     if (!modelReady) await loadModel();
   };
 
+  const onRegionChange = (event) => {
+    if (!event?.detail) return;
+    region = event.detail;
+  };
+
   onMount(() => {
     loadHistory();
     if (typeof window !== 'undefined') {
+      region = window.localStorage.getItem(STORAGE_REGION) || region;
       window.addEventListener('openchat', openFromSidebar);
+      window.addEventListener('regionchange', onRegionChange);
     }
 
     return () => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('openchat', openFromSidebar);
+        window.removeEventListener('regionchange', onRegionChange);
       }
     };
   });
@@ -197,9 +328,9 @@
           bind:value={userQuestion}
           on:keydown={handleKeydown}
           placeholder="Ej: ¿Qué riesgo hay hoy en mi lote?"
-          disabled={!modelReady || isAnswering}
+          disabled={isAnswering}
         ></textarea>
-        <button type="button" on:click={askQuestion} disabled={!modelReady || isAnswering}>
+        <button type="button" on:click={askQuestion} disabled={isAnswering}>
           {isAnswering ? '...' : 'Enviar'}
         </button>
       </div>

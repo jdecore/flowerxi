@@ -89,7 +89,7 @@
         updateImpact(score);
       }
     } catch (e) {
-      error = 'No se pudo cargar impacto operativo.';
+      error = 'Datos no disponibles.';
       console.error(e);
     }
     finally { loading = false; }

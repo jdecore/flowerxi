@@ -1,7 +1,8 @@
 import logging
 from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
@@ -427,6 +428,79 @@ def alerts_today(region: str = Query(DEFAULT_REGION)):
             "recommendation_message": row.get("recommendation_message"),
             "message": message,
         },
+    }
+
+
+@app.post("/api/alerts/simulate")
+def alerts_simulate(payload: dict[str, Any] = Body(default={})):
+    region = str(payload.get("region") or DEFAULT_REGION).strip().lower() or DEFAULT_REGION
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(SQL_QUERIES["dashboard_snapshot"], (region,))
+            snapshot = cur.fetchone()
+            cur.execute(SQL_QUERIES["risk_operativo"], (region,))
+            operativo = cur.fetchone()
+
+    if not snapshot:
+        return {
+            "ok": True,
+            "region": region,
+            "alert": "Datos no disponibles",
+            "action": "No hay datos suficientes para simular una alerta.",
+            "confidence": 0.3,
+            "score_today": None,
+            "score_tomorrow": None,
+            "delta": None,
+        }
+
+    score_today = int((operativo or {}).get("risk_score") or 22)
+    temp = to_float(snapshot.get("temp_mean_c"), 0.0)
+    precip = to_float(snapshot.get("precipitation_mm"), 0.0)
+    trend = (operativo or {}).get("trend_7d") or "stable"
+
+    tomorrow_score = float(score_today)
+    if precip >= 4:
+        tomorrow_score += 14
+    elif precip > 0:
+        tomorrow_score += 8
+
+    if 15 <= temp <= 22 and precip > 0:
+        tomorrow_score += 10
+    elif temp < 12:
+        tomorrow_score += 6
+    elif temp > 26:
+        tomorrow_score += 8
+
+    if trend == "up":
+        tomorrow_score += 6
+    elif trend == "down":
+        tomorrow_score -= 4
+
+    tomorrow_score = max(12, min(95, int(round(tomorrow_score))))
+    delta = tomorrow_score - score_today
+    level = risk_level_from_score(tomorrow_score)
+
+    action = (
+        "Revisar drenaje hoy antes de las 10am y dejar registro fitosanitario."
+        if level == "alto"
+        else "Reforzar vigilancia de humedad y ventilación durante la mañana."
+        if level == "medio"
+        else "Mantener rutina normal y revisar nuevamente en 24h."
+    )
+
+    confidence_raw = (operativo or {}).get("confidence") or "media"
+    confidence = 0.78 if confidence_raw == "alta" else 0.64 if confidence_raw == "media" else 0.52
+
+    return {
+        "ok": True,
+        "region": region,
+        "alert": f"Riesgo {level} mañana",
+        "action": action,
+        "confidence": round(confidence, 2),
+        "score_today": score_today,
+        "score_tomorrow": tomorrow_score,
+        "delta": delta,
     }
 
 
