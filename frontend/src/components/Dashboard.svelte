@@ -457,6 +457,46 @@
       </article>
       {/if}
 
+      <!-- Risk Info -->
+      <article class="card risk-info-card">
+        <header class="card-head">
+          <div>
+            <h2>¿Qué es este riesgo?</h2>
+            <p>Indicador proxy, no diagnóstico</p>
+          </div>
+        </header>
+        <div class="risk-info-content">
+          <p class="risk-info-main">
+            El riesgo es una <strong>alerta agroclimática</strong> que mide la probabilidad de condiciones favorables a problemas en el cultivo. <strong>No es un diagnóstico de plaga o enfermedad</strong>.
+          </p>
+          <div class="risk-types">
+            <div class="risk-type">
+              <span class="type-icon fungal">●</span>
+              <span class="type-name">Fúngico</span>
+              <span class="type-desc">Humedad alta + temperatura templada</span>
+            </div>
+            <div class="risk-type">
+              <span class="type-icon water">●</span>
+              <span class="type-name">Exceso agua</span>
+              <span class="type-desc">Saturación del suelo por lluvias</span>
+            </div>
+            <div class="risk-type">
+              <span class="type-icon heat">●</span>
+              <span class="type-name">Estrés térmico</span>
+              <span class="type-desc">Temperaturas extremas (>28°C o &lt;8°C)</span>
+            </div>
+          </div>
+          <div class="risk-scale">
+            <span class="scale-item low"><span class="scale-dot"></span> 0-30: Bajo</span>
+            <span class="scale-item med"><span class="scale-dot"></span> 31-60: Medio</span>
+            <span class="scale-item high"><span class="scale-dot"></span> 61-100: Alto</span>
+          </div>
+          <p class="risk-disclaimer">
+            ⚠️ Este indicador no reemplaza la inspección técnica en campo. Use esta información como guía complementaria.
+          </p>
+        </div>
+      </article>
+
       <!-- Metodología -->
       {#if modelVersion?.version}
       <article class="card method-card">
@@ -720,6 +760,80 @@
     font-size: 0.8rem;
     color: var(--primary, #756A85);
     font-weight: 500;
+  }
+
+  /* Risk Info */
+  .risk-info-card { grid-area: riskinfo; }
+
+  .risk-info-content { margin-top: 0.5rem; }
+
+  .risk-info-main {
+    font-size: 0.9rem;
+    color: var(--text-primary, #222);
+    line-height: 1.5;
+    margin: 0 0 1rem;
+  }
+
+  .risk-types {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .risk-type {
+    display: grid;
+    grid-template-columns: 24px 1fr 2fr;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    background: var(--bg-app, #f8f8f8);
+    border-radius: 10px;
+    font-size: 0.8rem;
+  }
+
+  .type-icon.fungal { color: #C75D5D; }
+  .type-icon.water { color: #5D8FC7; }
+  .type-icon.heat { color: #D4875D; }
+
+  .type-name { font-weight: 500; color: var(--text-primary, #222); }
+  .type-desc { color: var(--text-secondary, #666); font-size: 0.75rem; }
+
+  .risk-scale {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+    padding: 0.65rem 0;
+    border-top: 1px solid var(--border-subtle, #eee);
+    border-bottom: 1px solid var(--border-subtle, #eee);
+  }
+
+  .scale-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #666);
+  }
+
+  .scale-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .scale-item.low .scale-dot { background: #7A8B6F; }
+  .scale-item.med .scale-dot { background: #8B7AA3; }
+  .scale-item.high .scale-dot { background: #C75D5D; }
+
+  .risk-disclaimer {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #666);
+    background: rgba(117, 106, 133, 0.08);
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    margin: 0;
+    border-left: 3px solid var(--primary, #756A85);
   }
 
   /* Explain */

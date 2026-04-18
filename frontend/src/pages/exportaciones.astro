@@ -8,7 +8,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>flowerxi | Exportaciones</title>
+    <title>flowerxi | Comercial</title>
   </head>
   <body>
     <main class="be-page">
@@ -18,14 +18,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
             <div class="logo-mark">✿</div>
             <nav class="sidebar-nav">
               <a href="/" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 10.7L12 3l9 7.7M5.5 9.7V21h13V9.7"/></svg></a>
-              <a href="/comparar" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 18h16M6 15l4-4 3 2 5-6"/><circle cx="6" cy="15" r="1.2"/><circle cx="10" cy="11" r="1.2"/><circle cx="13" cy="13" r="1.2"/><circle cx="18" cy="7" r="1.2"/></svg></a>
-              <a href="/calendario" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"/><path d="M8 3.5v4M16 3.5v4M3.5 10h17"/></svg></a>
               <a href="/municipios" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.8"/></svg></a>
+              <a href="/exportaciones" class="sidebar-icon active"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M3 12h18"/></svg></a>
+              <a href="/estaciones" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></a>
             </nav>
           </div>
           <div class="sidebar-bottom">
-            <a href="/precios" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h7a3.5 3.5 0 110 7H6"/></svg></a>
-            <a href="/exportaciones" class="sidebar-icon active"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M3 12h18"/></svg></a>
+            <button class="sidebar-icon chat-toggle" aria-label="Chat AI">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </button>
           </div>
         </aside>
 
@@ -33,68 +34,130 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
           <header class="top-header">
             <div class="brand-block">
               <p class="brand-logo">flowerxi</p>
-              <h1>Exportaciones (DANE proxy)</h1>
+              <h1>Comercial: Exportaciones y Precios</h1>
             </div>
           </header>
 
-          <div id="exports-content"><p class="loading-text">Cargando...</p></div>
+          <section class="comercial-section">
+            <div class="section-block">
+              <h2>Precios de Mercado</h2>
+              <div class="prices-summary" id="prices-summary">
+                <p class="loading">Cargando...</p>
+              </div>
+              <div class="prices-grid" id="prices-grid"></div>
+            </div>
+
+            <div class="section-block">
+              <h2>Exportaciones (DANE proxy)</h2>
+              <div class="exports-grid" id="exports-grid">
+                <p class="loading">Cargando...</p>
+              </div>
+            </div>
+          </section>
         </section>
       </section>
     </main>
 
     <script define:vars={{ apiUrl }}>
-      async function load() {
-        const el = document.getElementById('exports-content');
+      const formatCOP = (v) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(v));
+      const formatDate = (d) => d ? new Date(d).toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' }) : 'Sin datos';
+
+      async function loadPrices() {
+        const summaryEl = document.getElementById('prices-summary');
+        const gridEl = document.getElementById('prices-grid');
+        try {
+          const res = await fetch('/market_prices.json');
+          const data = await res.json();
+          const valid = (data.data ?? []).filter(p => Number(p.price_cop) > 0);
+          const avg = valid.length ? Math.round(valid.reduce((a, p) => a + Number(p.price_cop), 0) / valid.length) : 0;
+          const lastUpdate = data.scraped_at ?? data.generated_at;
+
+          summaryEl.innerHTML = `
+            <div class="summary-card"><span class="label">Última actualización</span><span class="value">${formatDate(lastUpdate)}</span></div>
+            <div class="summary-card"><span class="label">Variedades</span><span class="value">${valid.length}</span></div>
+            <div class="summary-card"><span class="label">Precio promedio</span><span class="value">${valid.length ? '$' + formatCOP(avg) : 'N/A'}</span></div>
+          `;
+
+          if (valid.length === 0) {
+            gridEl.innerHTML = '<p class="empty">No hay precios disponibles.</p>';
+          } else {
+            gridEl.innerHTML = valid.map(p => `
+              <div class="price-card">
+                <div class="price-header">${p.variety}</div>
+                <div class="price-unit">${p.unit}</div>
+                <div class="price-value">$${formatCOP(p.price_cop)} <span class="currency">COP</span></div>
+                <div class="price-source">${p.source}</div>
+              </div>
+            `).join('');
+          }
+        } catch (e) {
+          summaryEl.innerHTML = '<p class="error">Error cargando precios.</p>';
+        }
+      }
+
+      async function loadExports() {
+        const el = document.getElementById('exports-grid');
         try {
           const res = await fetch(`${apiUrl}/api/exports?months=12`);
           const data = await res.json();
           if (!data.items?.length) {
-            el.innerHTML = '<p class="empty-text">Sin datos.</p>';
+            el.innerHTML = '<p class="empty">Sin datos.</p>';
             return;
           }
           const s = data.summary || {};
           el.innerHTML = `
-            <div class="summary-grid">
-              <div class="summary-card"><span class="sum-label">Valor FOB</span><span class="sum-value">$${(s.total_fob_usd/1e6).toFixed(1)}M</span></div>
-              <div class="summary-card"><span class="sum-label">Volumen</span><span class="sum-value">${(s.total_net_tons/1e3).toFixed(1)}K</span></div>
-              <div class="summary-card"><span class="sum-label">Precio/kg</span><span class="sum-value">$${s.avg_price_per_kg?.toFixed(2)}</span></div>
-              <div class="summary-card"><span class="sum-label">Meses</span><span class="sum-value">${s.months_count}</span></div>
+            <div class="exports-summary">
+              <div class="sum-card"><span class="l">Valor FOB</span><span class="v">$${(s.total_fob_usd/1e6).toFixed(1)}M</span></div>
+              <div class="sum-card"><span class="l">Volumen</span><span class="v">${(s.total_net_tons/1e3).toFixed(1)}K</span></div>
+              <div class="sum-card"><span class="l">$/kg</span><span class="v">$${s.avg_price_per_kg?.toFixed(2)}</span></div>
             </div>
             <div class="exports-table">
-              <div class="table-header"><span>Mes</span><span>Destino</span><span>FOB USD</span><span>Kg</span><span>$/kg</span></div>
-              ${Object.keys(data.by_month || {}).sort().reverse().slice(0,6).map(m => `
-                <div class="table-month">${m}</div>
-                ${data.items.filter(i => i.year_month === m).slice(0,5).map(i => `
-                  <div class="table-row">
-                    <span></span><span class="dest">${i.country_dest}</span>
-                    <span>$${(i.fob_usd/1e6).toFixed(2)}M</span>
-                    <span>${(i.net_tons/1e3).toFixed(2)}K</span>
-                    <span>$${i.unit_value}</span>
-                  </div>
+              <div class="table-h"><span>Mes</span><span>Destino</span><span>FOB</span><span>Kg</span></div>
+              ${Object.keys(data.by_month || {}).sort().reverse().slice(0,4).map(m => `
+                ${data.items.filter(i => i.year_month === m).slice(0,3).map(i => `
+                  <div class="table-r"><span></span><span class="dest">${i.country_dest}</span><span>$${(i.fob_usd/1e6).toFixed(1)}M</span><span>${(i.net_tons/1e3).toFixed(1)}K</span></div>
                 `).join('')}
               `).join('')}
             </div>
           `;
         } catch (e) {
-          el.innerHTML = `<p class="error-text">${e.message}</p>`;
+          el.innerHTML = '<p class="error">' + e.message + '</p>';
         }
       }
-      load();
+
+      loadPrices();
+      loadExports();
     </script>
 
     <style>
-      .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-      .summary-card { background: linear-gradient(135deg, rgba(117,106,133,0.12), rgba(117,106,133,0.06)); border: 1px solid rgba(117,106,133,0.25); border-radius: 14px; padding: 1rem; text-align: center; }
-      .sum-label { display: block; font-size: 0.75rem; color: var(--text-secondary); }
-      .sum-value { display: block; font-size: 1.2rem; font-weight: 600; color: var(--primary); margin-top: 0.25rem; }
+      .comercial-section { padding: 0.5rem 0; }
+      .section-block { margin-bottom: 2rem; }
+      .section-block h2 { font-size: 1.1rem; color: var(--primary); margin: 0 0 1rem; }
+      .prices-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+      .summary-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem; text-align: center; }
+      .summary-card .label { display: block; font-size: 0.75rem; color: var(--text-secondary); }
+      .summary-card .value { display: block; font-size: 1rem; font-weight: 600; color: var(--primary); margin-top: 0.25rem; }
+      .prices-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+      .price-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem; }
+      .price-header { font-weight: 600; color: var(--primary); }
+      .price-unit { font-size: 0.8rem; color: var(--text-secondary); }
+      .price-value { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin: 0.5rem 0; }
+      .price-value .currency { font-size: 0.9rem; font-weight: 400; }
+      .price-source { font-size: 0.75rem; color: var(--text-tertiary); }
+      .exports-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+      .sum-card { background: linear-gradient(135deg, rgba(117,106,133,0.12), rgba(117,106,133,0.05)); border: 1px solid rgba(117,106,133,0.2); border-radius: 12px; padding: 1rem; text-align: center; }
+      .sum-card .l { display: block; font-size: 0.75rem; color: var(--text-secondary); }
+      .sum-card .v { display: block; font-size: 1.2rem; font-weight: 600; color: var(--primary); margin-top: 0.25rem; }
       .exports-table { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
-      .table-header, .table-row, .table-month { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr 0.8fr; gap: 0.5rem; padding: 0.6rem 1rem; }
-      .table-header { background: var(--bg-app); font-weight: 600; font-size: 0.75rem; color: var(--primary); }
-      .table-month { background: #F0EDF3; font-weight: 600; color: var(--primary); border-top: 1px solid var(--border-subtle); }
-      .table-month:first-child { border-top: none; }
-      .table-row { border-top: 1px solid var(--border-subtle); font-size: 0.8rem; }
-      .dest { font-weight: 500; color: var(--text-primary); }
-      .loading-text, .empty-text, .error-text { color: var(--text-secondary); text-align: center; padding: 2rem; }
+      .table-h, .table-r { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr; gap: 0.5rem; padding: 0.6rem 1rem; }
+      .table-h { background: var(--bg-app); font-weight: 600; font-size: 0.75rem; color: var(--primary); }
+      .table-r { border-top: 1px solid var(--border-subtle); font-size: 0.8rem; }
+      .dest { font-weight: 500; }
+      .loading, .empty, .error { color: var(--text-secondary); text-align: center; padding: 2rem; }
+      .error { color: #C75D5D; }
+      @media (max-width: 768px) {
+        .prices-summary, .exports-summary { grid-template-columns: 1fr; }
+      }
     </style>
   </body>
 </html>
