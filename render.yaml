@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: flowerxi-backend
+    runtime: python
+    rootDirectory: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        # Configure en el dashboard de Render con la conexión InsForge
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: APP_PORT
+        value: 8000
