@@ -80,17 +80,16 @@ def municipality_detail(slug: str):
     SELECT 
       r.slug,
       r.name,
-      r.city,
       mp.flower_area_ha,
-      mp.greenhouse_area_ha,
-      mp.workers,
-      mp.workers_female,
-      mp.workers_male,
-      mp.fisanicitary_context,
-      mp.waste_management,
-      mp.main_varieties
+      mp.workers
     FROM flowerxi_regions r
-    LEFT JOIN flowerxi_municipality_profile mp ON mp.region_slug = r.slug
+    LEFT JOIN LATERAL (
+      SELECT flower_area_ha, workers
+      FROM flowerxi_municipality_profile
+      WHERE region_slug = r.slug
+      ORDER BY year DESC NULLS LAST
+      LIMIT 1
+    ) mp ON TRUE
     WHERE r.slug = %s;
     """
     with get_conn() as conn:
@@ -367,9 +366,13 @@ def recommendations_week(
             rows = cur.fetchall()
 
     if not rows:
-        raise HTTPException(
-            status_code=404, detail=f"No recommendations for region '{region}'"
-        )
+        return {
+            "ok": True,
+            "region": region,
+            "days": days,
+            "risk_distribution": {"alto": 0, "medio": 0, "bajo": 0},
+            "items": [],
+        }
 
     level_counts = {"alto": 0, "medio": 0, "bajo": 0}
     for item in rows:

@@ -17,6 +17,8 @@
   let reason = 'Datos no disponibles';
   let actionToday = 'Datos no disponibles.';
   let explanation = [];
+  let latestDay = null;
+  let trendSource = 'stable';
 
   let simulating = false;
   let simulation = null;
@@ -32,6 +34,34 @@
     const heat = Number(day?.heat_risk);
     if (!Number.isFinite(fungal) || !Number.isFinite(water) || !Number.isFinite(heat)) return null;
     return Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
+  };
+
+  const statusFromScore = (riskScore) => {
+    if (riskScore === null) return 'sin_datos';
+    if (riskScore >= 70) return 'accion';
+    if (riskScore >= 40) return 'vigilancia';
+    return 'rutina';
+  };
+
+  const reasonFromSignals = (day) => {
+    const fungal = Number(day?.fungal_risk);
+    const water = Number(day?.waterlogging_risk);
+    const heat = Number(day?.heat_risk);
+    if (!Number.isFinite(fungal) || !Number.isFinite(water) || !Number.isFinite(heat)) {
+      return 'Datos no disponibles.';
+    }
+    if (fungal >= water && fungal >= heat) return 'El factor dominante hoy es riesgo fúngico.';
+    if (water >= fungal && water >= heat) return 'El factor dominante hoy es riesgo por encharcamiento.';
+    return 'El factor dominante hoy es riesgo térmico.';
+  };
+
+  const actionFromSignals = (day, riskScore) => {
+    const fromRecommendation = String(day?.recommendation_message || '').trim();
+    if (fromRecommendation) return fromRecommendation;
+    if (riskScore === null) return 'Datos no disponibles.';
+    if (riskScore >= 70) return 'Realiza inspección en campo y registra protocolo fitosanitario hoy.';
+    if (riskScore >= 40) return 'Refuerza ventilación, drenaje y monitoreo de humedad en el turno.';
+    return 'Mantén rutina normal y continúa monitoreo preventivo.';
   };
 
   const levelFromScore = (riskScore) => {
@@ -131,12 +161,17 @@
       const historyDesc = Array.isArray(historyData?.items) ? historyData.items : [];
       const today = historyDesc[0] ?? null;
       const yesterday = historyDesc[1] ?? null;
+      latestDay = today;
 
       const todaySignalScore = scoreFromSignals(today);
       const yesterdaySignalScore = scoreFromSignals(yesterday);
+      const fallbackStatus = statusFromScore(todaySignalScore);
+      const fallbackReason = reasonFromSignals(today);
+      const fallbackAction = actionFromSignals(today, todaySignalScore);
 
       score = operativoData?.score == null ? todaySignalScore : toNum(operativoData?.score, todaySignalScore);
       const fromOperativoLevel = String(operativoData?.status || '').toLowerCase();
+      trendSource = String(operativoData?.trend_7d || 'stable');
       const inferredLevel = score === null ? { text: 'SIN DATOS', cls: 'sin-datos' } : levelFromScore(score);
       level =
         fromOperativoLevel === 'accion'
@@ -144,6 +179,12 @@
           : fromOperativoLevel === 'vigilancia'
           ? 'MEDIO'
           : fromOperativoLevel === 'rutina'
+          ? 'BAJO'
+          : fallbackStatus === 'accion'
+          ? 'ALTO'
+          : fallbackStatus === 'vigilancia'
+          ? 'MEDIO'
+          : fallbackStatus === 'rutina'
           ? 'BAJO'
           : inferredLevel.text;
       levelClass =
@@ -153,10 +194,16 @@
           ? 'medio'
           : fromOperativoLevel === 'rutina'
           ? 'bajo'
+          : fallbackStatus === 'accion'
+          ? 'alto'
+          : fallbackStatus === 'vigilancia'
+          ? 'medio'
+          : fallbackStatus === 'rutina'
+          ? 'bajo'
           : inferredLevel.cls;
 
-      reason = operativoData?.reason || 'Datos no disponibles';
-      actionToday = operativoData?.action_today || 'Datos no disponibles.';
+      reason = operativoData?.reason || fallbackReason;
+      actionToday = operativoData?.action_today || fallbackAction;
 
       if (todaySignalScore !== null && yesterdaySignalScore !== null) {
         delta = todaySignalScore - yesterdaySignalScore;
@@ -181,10 +228,42 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ region }),
       });
-      simulation = response || {
-        alert: 'Datos no disponibles',
-        action: 'No se pudo simular la alerta.',
-        confidence: 0,
+      if (response?.alert) {
+        simulation = response;
+        return;
+      }
+
+      const baseScore = Number.isFinite(score) ? score : scoreFromSignals(latestDay);
+      const temp = toNum(latestDay?.temp_mean_c, null);
+      const precip = toNum(latestDay?.precipitation_mm, null);
+      if (baseScore === null || temp === null || precip === null) {
+        simulation = {
+          alert: 'Datos no disponibles',
+          action: 'No se pudo simular la alerta.',
+          confidence: 0,
+        };
+        return;
+      }
+
+      let tomorrowScore = Number(baseScore);
+      if (precip >= 4) tomorrowScore += 14;
+      else if (precip > 0) tomorrowScore += 8;
+      if (temp < 12) tomorrowScore += 6;
+      else if (temp > 26) tomorrowScore += 8;
+      if (trendSource === 'up') tomorrowScore += 6;
+      else if (trendSource === 'down') tomorrowScore -= 4;
+      tomorrowScore = Math.max(12, Math.min(95, Math.round(tomorrowScore)));
+
+      const nextLevel = tomorrowScore >= 70 ? 'alto' : tomorrowScore >= 40 ? 'medio' : 'bajo';
+      simulation = {
+        alert: `Riesgo ${nextLevel} mañana`,
+        action:
+          nextLevel === 'alto'
+            ? 'Revisar drenaje hoy antes de las 10am y dejar registro fitosanitario.'
+            : nextLevel === 'medio'
+            ? 'Reforzar vigilancia de humedad y ventilación durante la mañana.'
+            : 'Mantener rutina normal y revisar nuevamente en 24h.',
+        confidence: 0.52,
       };
     } finally {
       simulating = false;

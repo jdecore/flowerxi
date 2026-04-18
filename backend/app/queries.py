@@ -47,22 +47,21 @@ SQL_QUERIES = {
         LIMIT %s;
     """,
     "municipalities": """
-        SELECT 
+        SELECT
             r.slug,
             r.name,
-            r.city,
             mp.flower_area_ha,
-            mp.greenhouse_area_ha,
-            mp.workers,
-            mp.workers_female,
-            mp.workers_male,
-            mp.fisanicitary_context,
-            mp.waste_management,
-            mp.main_varieties
+            mp.workers
         FROM flowerxi_regions r
-        LEFT JOIN flowerxi_municipality_profile mp ON mp.region_slug = r.slug
-        WHERE r.department = 'CUNDINAMARCA'
-        ORDER BY r.production_share DESC NULLS LAST;
+        LEFT JOIN LATERAL (
+            SELECT flower_area_ha, workers
+            FROM flowerxi_municipality_profile
+            WHERE region_slug = r.slug
+            ORDER BY year DESC NULLS LAST
+            LIMIT 1
+        ) mp ON TRUE
+        WHERE r.slug IN ('madrid', 'facatativa', 'funza')
+        ORDER BY r.name ASC;
     """,
     "exports": """
         SELECT 
@@ -237,16 +236,29 @@ SQL_QUERIES = {
     """,
     "recommendations_week": """
         SELECT
-          rec.title,
-          rec.message,
+          COALESCE(rec.title,
+            CASE
+              WHEN COALESCE(r.fungal_risk, 0) >= COALESCE(r.waterlogging_risk, 0)
+                   AND COALESCE(r.fungal_risk, 0) >= COALESCE(r.heat_risk, 0)
+                THEN 'Control fungico en rosa'
+              WHEN COALESCE(r.waterlogging_risk, 0) >= COALESCE(r.fungal_risk, 0)
+                   AND COALESCE(r.waterlogging_risk, 0) >= COALESCE(r.heat_risk, 0)
+                THEN 'Drenaje prioritario'
+              ELSE 'Manejo termico de invernadero'
+            END
+          ) AS title,
+          COALESCE(rec.message, 'Mantener monitoreo operativo diario.') AS message,
           r.global_risk_level,
           r.fungal_risk,
-          r.waterlogging_risk
-        FROM flowerxi_recommendations rec
+          r.waterlogging_risk,
+          r.heat_risk
+        FROM flowerxi_weather_daily w
         LEFT JOIN flowerxi_risk_signals r
-          ON r.region_slug = rec.region_slug AND r.observed_on = rec.observed_on
-        WHERE rec.region_slug = %s
-        ORDER BY rec.observed_on DESC
+          ON r.region_slug = w.region_slug AND r.observed_on = w.observed_on
+        LEFT JOIN flowerxi_recommendations rec
+          ON rec.region_slug = w.region_slug AND rec.observed_on = w.observed_on
+        WHERE w.region_slug = %s
+        ORDER BY w.observed_on DESC
         LIMIT %s;
     """,
 }

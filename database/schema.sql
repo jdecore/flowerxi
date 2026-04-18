@@ -16,12 +16,7 @@ CREATE TABLE IF NOT EXISTS flowerxi_weather_daily (
   region_slug TEXT NOT NULL,
   observed_on DATE NOT NULL,
   temp_mean_c DOUBLE PRECISION,
-  temp_max_c DOUBLE PRECISION,
-  temp_min_c DOUBLE PRECISION,
   precipitation_mm DOUBLE PRECISION,
-  source TEXT NOT NULL,
-  source_url TEXT NOT NULL,
-  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(region_slug, observed_on)
 );
 
@@ -33,8 +28,6 @@ CREATE TABLE IF NOT EXISTS flowerxi_risk_signals (
   waterlogging_risk INTEGER NOT NULL,
   heat_risk INTEGER NOT NULL,
   global_risk_level TEXT NOT NULL,
-  source TEXT NOT NULL,
-  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(region_slug, observed_on)
 );
 
@@ -44,8 +37,6 @@ CREATE TABLE IF NOT EXISTS flowerxi_recommendations (
   observed_on DATE NOT NULL,
   title TEXT NOT NULL,
   message TEXT NOT NULL,
-  source TEXT NOT NULL,
-  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(region_slug, observed_on)
 );
 
@@ -68,9 +59,6 @@ CREATE TABLE IF NOT EXISTS flowerxi_exports_monthly (
   country_dest TEXT NOT NULL,
   fob_usd DECIMAL(15,2),
   net_tons DECIMAL(12,2),
-  unit_value DECIMAL(10,4),
-  source TEXT DEFAULT 'minagricultura',
-  fetched_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(year_month, subpartida, country_dest)
 );
 
@@ -83,13 +71,6 @@ CREATE TABLE IF NOT EXISTS flowerxi_municipality_profile (
   flower_area_ha DECIMAL(10,2),
   greenhouse_area_ha DECIMAL(8,2),
   workers INTEGER,
-  workers_female INTEGER,
-  workers_male INTEGER,
-  fisanicitary_context TEXT,
-  waste_management TEXT,
-  main_varieties TEXT[],
-  source TEXT,
-  fetched_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(region_slug, year)
 );
 
@@ -98,13 +79,7 @@ CREATE TABLE IF NOT EXISTS flowerxi_weather_stations (
   station_code TEXT NOT NULL,
   station_name TEXT NOT NULL,
   region_slug TEXT NOT NULL,
-  elevation_m INTEGER,
-  latitude DOUBLE PRECISION,
-  longitude DOUBLE PRECISION,
   distance_km DOUBLE PRECISION,
-  data_quality TEXT DEFAULT 'good',
-  source TEXT,
-  fetched_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(station_code)
 );
 
@@ -137,3 +112,45 @@ ALTER TABLE flowerxi_risk_signals
   ADD COLUMN IF NOT EXISTS humidity_risk INTEGER,
   ADD COLUMN IF NOT EXISTS temperature_risk INTEGER,
   ADD COLUMN IF NOT EXISTS combined_score INTEGER;
+
+-- Cleanup de columnas no usadas por el frontend activo
+ALTER TABLE flowerxi_weather_daily
+  DROP COLUMN IF EXISTS temp_max_c,
+  DROP COLUMN IF EXISTS temp_min_c,
+  DROP COLUMN IF EXISTS source,
+  DROP COLUMN IF EXISTS source_url,
+  DROP COLUMN IF EXISTS fetched_at;
+
+ALTER TABLE flowerxi_risk_signals
+  DROP COLUMN IF EXISTS source,
+  DROP COLUMN IF EXISTS fetched_at,
+  DROP COLUMN IF EXISTS precipitation_risk,
+  DROP COLUMN IF EXISTS humidity_risk,
+  DROP COLUMN IF EXISTS temperature_risk,
+  DROP COLUMN IF EXISTS combined_score;
+
+ALTER TABLE flowerxi_recommendations
+  DROP COLUMN IF EXISTS source,
+  DROP COLUMN IF EXISTS fetched_at;
+
+ALTER TABLE flowerxi_exports_monthly
+  DROP COLUMN IF EXISTS unit_value,
+  DROP COLUMN IF EXISTS source,
+  DROP COLUMN IF EXISTS fetched_at;
+
+ALTER TABLE flowerxi_municipality_profile
+  DROP COLUMN IF EXISTS workers_female,
+  DROP COLUMN IF EXISTS workers_male,
+  DROP COLUMN IF EXISTS fisanicitary_context,
+  DROP COLUMN IF EXISTS waste_management,
+  DROP COLUMN IF EXISTS main_varieties,
+  DROP COLUMN IF EXISTS source,
+  DROP COLUMN IF EXISTS fetched_at;
+
+ALTER TABLE flowerxi_weather_stations
+  DROP COLUMN IF EXISTS elevation_m,
+  DROP COLUMN IF EXISTS latitude,
+  DROP COLUMN IF EXISTS longitude,
+  DROP COLUMN IF EXISTS data_quality,
+  DROP COLUMN IF EXISTS source,
+  DROP COLUMN IF EXISTS fetched_at;

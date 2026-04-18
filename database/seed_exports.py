@@ -5,7 +5,6 @@ Run from project root: python database/seed_exports.py
 """
 import os
 import sys
-from datetime import datetime
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
@@ -67,18 +66,14 @@ def main():
     for data in EXPORTS_DATA:
         cur.execute("""
             INSERT INTO flowerxi_exports_monthly (
-                year_month, subpartida, country_dest, fob_usd, net_tons, unit_value, source, fetched_at
+                year_month, subpartida, country_dest, fob_usd, net_tons
             ) VALUES (
-                %(year_month)s, %(subpartida)s, %(country_dest)s, %(fob_usd)s, %(net_tons)s, 
-                %(unit_value)s, %(source)s, %(fetched_at)s
+                %(year_month)s, %(subpartida)s, %(country_dest)s, %(fob_usd)s, %(net_tons)s
             )
             ON CONFLICT (year_month, subpartida, country_dest) DO UPDATE SET
                 fob_usd = EXCLUDED.fob_usd,
-                net_tons = EXCLUDED.net_tons,
-                unit_value = EXCLUDED.unit_value,
-                source = EXCLUDED.source,
-                fetched_at = EXCLUDED.fetched_at
-        """, {**data, "source": "DANE (proxy)", "fetched_at": datetime.now()})
+                net_tons = EXCLUDED.net_tons
+        """, data)
         
         print(f"  Upserted: {data['year_month']} -> {data['country_dest']}")
     

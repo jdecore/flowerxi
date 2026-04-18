@@ -59,23 +59,43 @@
   const fetchKPIs = async () => {
     loading = true;
     try {
-      const data = await fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`);
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const fungalSamples = items
-        .map((r) => Number(r?.fungal_risk))
-        .filter((value) => Number.isFinite(value));
-      const surveillanceDays = items.filter(r => {
-        const level = (r.global_risk_level || '').toLowerCase();
-        return level === 'alto' || level === 'medio';
-      }).length;
-      const avgScore = fungalSamples.length
-        ? Math.round(fungalSamples.reduce((sum, value) => sum + value, 0) / fungalSamples.length)
-        : 0;
-      const topRecommendation = items.length > 0 ? items[0].title || 'Sin recomendaciones' : 'Sin datos';
-      kpis = { surveillanceDays, avgScore, topRecommendation, observedDays: items.length };
-      guidanceMessage = items.length < 7
-        ? `Necesitamos una semana completa para tu promedio. Hoy es día ${Math.max(items.length, 1)}.`
-        : '';
+      try {
+        const data = await fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`);
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const fungalSamples = items
+          .map((r) => Number(r?.fungal_risk))
+          .filter((value) => Number.isFinite(value));
+        const surveillanceDays = items.filter(r => {
+          const level = (r.global_risk_level || '').toLowerCase();
+          return level === 'alto' || level === 'medio';
+        }).length;
+        const avgScore = fungalSamples.length
+          ? Math.round(fungalSamples.reduce((sum, value) => sum + value, 0) / fungalSamples.length)
+          : 0;
+        const topRecommendation = items.length > 0 ? items[0].title || 'Sin recomendaciones' : 'Sin datos';
+        kpis = { surveillanceDays, avgScore, topRecommendation, observedDays: items.length };
+        guidanceMessage = items.length < 7
+          ? `Necesitamos una semana completa para tu promedio. Hoy es día ${Math.max(items.length, 1)}.`
+          : '';
+      } catch {
+        const history = await fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=7`);
+        const items = Array.isArray(history?.items) ? history.items : [];
+        const fungalSamples = items
+          .map((r) => Number(r?.fungal_risk))
+          .filter((value) => Number.isFinite(value));
+        const surveillanceDays = items.filter((item) => {
+          const level = String(item?.global_risk_level || '').toLowerCase();
+          return level === 'alto' || level === 'medio';
+        }).length;
+        const avgScore = fungalSamples.length
+          ? Math.round(fungalSamples.reduce((sum, value) => sum + value, 0) / fungalSamples.length)
+          : 0;
+        const topRecommendation = items[0]?.recommendation_title || 'Sin recomendaciones';
+        kpis = { surveillanceDays, avgScore, topRecommendation, observedDays: items.length };
+        guidanceMessage = items.length < 7
+          ? `Necesitamos una semana completa para tu promedio. Hoy es día ${Math.max(items.length, 1)}.`
+          : '';
+      }
     } catch (e) {
       kpis = { surveillanceDays: 0, avgScore: 0, topRecommendation: 'Sin datos', observedDays: 0 };
       guidanceMessage = 'No hay datos suficientes para mostrar KPIs semanales.';

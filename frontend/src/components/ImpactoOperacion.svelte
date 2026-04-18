@@ -69,21 +69,43 @@ export let region = 'madrid';
     observedDays = null;
     recommendation = 'Datos no disponibles.';
     try {
-      const [operativo, weekly] = await Promise.all([
-        fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
-        fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`),
+      const [operativo, weekly, history] = await Promise.all([
+        fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`).catch(() => null),
+        fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`).catch(() => null),
+        fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=7`).catch(() => null),
       ]);
 
       currentScore = Number.isFinite(Number(operativo?.score)) ? Number(operativo.score) : null;
       currentStatus = operativo?.status_label || 'Sin datos';
-      recommendation = operativo?.action_today || 'Datos no disponibles.';
+      recommendation = operativo?.action_today || recommendation;
 
       const items = Array.isArray(weekly?.items) ? weekly.items : [];
-      observedDays = items.length;
-      surveillanceDays = items.filter((item) => {
+      const historyItems = Array.isArray(history?.items) ? history.items : [];
+      const sourceItems = items.length > 0 ? items : historyItems;
+      observedDays = sourceItems.length;
+      surveillanceDays = sourceItems.filter((item) => {
         const level = String(item?.global_risk_level || '').toLowerCase();
         return level === 'alto' || level === 'medio';
       }).length;
+
+      if (currentScore === null && historyItems.length > 0) {
+        const latest = historyItems[0];
+        const fungal = Number(latest?.fungal_risk);
+        const water = Number(latest?.waterlogging_risk);
+        const heat = Number(latest?.heat_risk);
+        if ([fungal, water, heat].every(Number.isFinite)) {
+          currentScore = Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
+          currentStatus = currentScore >= 70 ? 'Acción requerida' : currentScore >= 40 ? 'Vigilancia reforzada' : 'Rutina normal';
+        }
+      }
+
+      if (recommendation === 'Datos no disponibles.') {
+        recommendation = items[0]?.message || historyItems[0]?.recommendation_message || recommendation;
+      }
+
+      if (currentScore === null && observedDays === 0) {
+        error = 'Datos no disponibles.';
+      }
     } catch (e) {
       error = 'Datos no disponibles.';
       console.error(e);

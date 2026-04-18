@@ -117,6 +117,59 @@ REGIONS = [
     },
 ]
 
+MUNICIPALITY_PROFILES = [
+    {
+        "region_slug": "madrid",
+        "city": "Madrid",
+        "department": "CUNDINAMARCA",
+        "year": 2026,
+        "flower_area_ha": 580.0,
+        "workers": 1850,
+        "greenhouse_area_ha": 245.0,
+    },
+    {
+        "region_slug": "facatativa",
+        "city": "Facatativa",
+        "department": "CUNDINAMARCA",
+        "year": 2026,
+        "flower_area_ha": 720.0,
+        "workers": 2340,
+        "greenhouse_area_ha": 310.0,
+    },
+    {
+        "region_slug": "funza",
+        "city": "Funza",
+        "department": "CUNDINAMARCA",
+        "year": 2026,
+        "flower_area_ha": 410.0,
+        "workers": 1420,
+        "greenhouse_area_ha": 185.0,
+    },
+]
+
+EXPORTS_DATA = [
+    {"year_month": "2025-11", "subpartida": "06031100", "country_dest": "EE.UU.", "fob_usd": 19200000, "net_tons": 1300.0},
+    {"year_month": "2025-11", "subpartida": "06031100", "country_dest": "PAISES BAJOS", "fob_usd": 8500000, "net_tons": 600.0},
+    {"year_month": "2025-11", "subpartida": "06031100", "country_dest": "CANADA", "fob_usd": 3000000, "net_tons": 202.0},
+    {"year_month": "2025-10", "subpartida": "06031100", "country_dest": "EE.UU.", "fob_usd": 20100000, "net_tons": 1355.0},
+    {"year_month": "2025-10", "subpartida": "06031100", "country_dest": "PAISES BAJOS", "fob_usd": 8800000, "net_tons": 620.0},
+    {"year_month": "2025-10", "subpartida": "06031100", "country_dest": "CANADA", "fob_usd": 3100000, "net_tons": 209.0},
+    {"year_month": "2025-09", "subpartida": "06031100", "country_dest": "EE.UU.", "fob_usd": 21500000, "net_tons": 1450.0},
+    {"year_month": "2025-09", "subpartida": "06031100", "country_dest": "PAISES BAJOS", "fob_usd": 9200000, "net_tons": 650.0},
+    {"year_month": "2025-09", "subpartida": "06031100", "country_dest": "CANADA", "fob_usd": 3200000, "net_tons": 216.0},
+    {"year_month": "2025-08", "subpartida": "06031100", "country_dest": "EE.UU.", "fob_usd": 22200000, "net_tons": 1500.0},
+    {"year_month": "2025-08", "subpartida": "06031100", "country_dest": "PAISES BAJOS", "fob_usd": 9500000, "net_tons": 670.0},
+    {"year_month": "2025-08", "subpartida": "06031100", "country_dest": "CANADA", "fob_usd": 3300000, "net_tons": 223.0},
+]
+
+WEATHER_STATIONS_DATA = [
+    {"station_code": "IDEAM-MAD-01", "station_name": "Madrid", "region_slug": "madrid", "distance_km": 2.1},
+    {"station_code": "IDEAM-FAC-01", "station_name": "Facatativa", "region_slug": "facatativa", "distance_km": 3.5},
+    {"station_code": "IDEAM-FUN-01", "station_name": "Funza", "region_slug": "funza", "distance_km": 1.8},
+    {"station_code": "IDEAM-BOG-01", "station_name": "Bogota", "region_slug": "madrid", "distance_km": 12.4},
+    {"station_code": "IDEAM-ZIP-01", "station_name": "Zipaquira", "region_slug": "madrid", "distance_km": 18.2},
+]
+
 
 def build_open_meteo_url(latitude: float, longitude: float) -> str:
     return (
@@ -207,7 +260,10 @@ def build_data_rows():
 
             fungal = clamp(round((precip * 7.0) + max(0.0, 19.0 - temp_mean) * 2.2))
             water = clamp(round(precip * 9.0))
-            heat = clamp(round(max(0.0, temp_mean - 20.0) * 12.0))
+            # Riesgo termico considera estres por frio (<13C) y calor (>22C)
+            cold_stress = max(0.0, 13.0 - temp_mean) * 6.0
+            heat_stress = max(0.0, temp_mean - 22.0) * 10.0
+            heat = clamp(round(cold_stress + heat_stress))
             risk_level = get_risk_level(fungal, water, heat)
             rec_title, rec_message = get_recommendation(fungal, water, heat)
 
@@ -218,11 +274,7 @@ def build_data_rows():
                         f"'{region_slug}'",
                         f"'{day}'",
                         f"{temp_mean:.2f}",
-                        f"{temp_max:.2f}",
-                        f"{temp_min:.2f}",
                         f"{precip:.2f}",
-                        "'open-meteo-archive'",
-                        f"'{weather_url}'",
                     ]
                 )
                 + ")"
@@ -238,7 +290,6 @@ def build_data_rows():
                         str(water),
                         str(heat),
                         f"'{risk_level}'",
-                        "'flowerxi-risk-model-v1'",
                     ]
                 )
                 + ")"
@@ -252,7 +303,6 @@ def build_data_rows():
                         f"'{day}'",
                         f"'{sql_escape(rec_title)}'",
                         f"'{sql_escape(rec_message)}'",
-                        "'flowerxi-rules-2026'",
                     ]
                 )
                 + ")"
@@ -327,39 +377,39 @@ def apply_seed() -> None:
         run_insforge_query(
             """
             INSERT INTO flowerxi_weather_daily
-              (region_slug, observed_on, temp_mean_c, temp_max_c, temp_min_c, precipitation_mm, source, source_url)
+              (region_slug, observed_on, temp_mean_c, precipitation_mm)
             VALUES
             """.strip()
             + "\n"
             + ",\n".join(chunk)
             + "\nON CONFLICT (region_slug, observed_on) DO UPDATE SET\n"
-            + "temp_mean_c = EXCLUDED.temp_mean_c, temp_max_c = EXCLUDED.temp_max_c, temp_min_c = EXCLUDED.temp_min_c, precipitation_mm = EXCLUDED.precipitation_mm, source = EXCLUDED.source, source_url = EXCLUDED.source_url, fetched_at = NOW();"
+            + "temp_mean_c = EXCLUDED.temp_mean_c, precipitation_mm = EXCLUDED.precipitation_mm;"
         )
 
     for chunk in chunked(rows_risk, 30):
         run_insforge_query(
             """
             INSERT INTO flowerxi_risk_signals
-              (region_slug, observed_on, fungal_risk, waterlogging_risk, heat_risk, global_risk_level, source)
+              (region_slug, observed_on, fungal_risk, waterlogging_risk, heat_risk, global_risk_level)
             VALUES
             """.strip()
             + "\n"
             + ",\n".join(chunk)
             + "\nON CONFLICT (region_slug, observed_on) DO UPDATE SET\n"
-            + "fungal_risk = EXCLUDED.fungal_risk, waterlogging_risk = EXCLUDED.waterlogging_risk, heat_risk = EXCLUDED.heat_risk, global_risk_level = EXCLUDED.global_risk_level, source = EXCLUDED.source, fetched_at = NOW();"
+            + "fungal_risk = EXCLUDED.fungal_risk, waterlogging_risk = EXCLUDED.waterlogging_risk, heat_risk = EXCLUDED.heat_risk, global_risk_level = EXCLUDED.global_risk_level;"
         )
 
     for chunk in chunked(rows_recommendations, 30):
         run_insforge_query(
             """
             INSERT INTO flowerxi_recommendations
-              (region_slug, observed_on, title, message, source)
+              (region_slug, observed_on, title, message)
             VALUES
             """.strip()
             + "\n"
             + ",\n".join(chunk)
             + "\nON CONFLICT (region_slug, observed_on) DO UPDATE SET\n"
-            + "title = EXCLUDED.title, message = EXCLUDED.message, source = EXCLUDED.source, fetched_at = NOW();"
+            + "title = EXCLUDED.title, message = EXCLUDED.message;"
         )
 
     for chunk in chunked(rows_holidays, 20):
@@ -375,12 +425,108 @@ def apply_seed() -> None:
             + "local_name = EXCLUDED.local_name, source = EXCLUDED.source, source_url = EXCLUDED.source_url, fetched_at = NOW();"
         )
 
+    municipality_rows = [
+        "("
+        + ",".join(
+            [
+                f"'{item['region_slug']}'",
+                f"'{item['city']}'",
+                f"'{item['department']}'",
+                str(item["year"]),
+                f"{item['flower_area_ha']:.2f}",
+                f"{item['greenhouse_area_ha']:.2f}",
+                str(item["workers"]),
+            ]
+        )
+        + ")"
+        for item in MUNICIPALITY_PROFILES
+    ]
+    run_insforge_query(
+        """
+        INSERT INTO flowerxi_municipality_profile
+          (region_slug, city, department, year, flower_area_ha, greenhouse_area_ha, workers)
+        VALUES
+        """.strip()
+        + "\n"
+        + ",\n".join(municipality_rows)
+        + """
+        ON CONFLICT (region_slug, year) DO UPDATE SET
+          city = EXCLUDED.city,
+          department = EXCLUDED.department,
+          flower_area_ha = EXCLUDED.flower_area_ha,
+          greenhouse_area_ha = EXCLUDED.greenhouse_area_ha,
+          workers = EXCLUDED.workers;
+        """.rstrip()
+    )
+
+    exports_rows = [
+        "("
+        + ",".join(
+            [
+                f"'{item['year_month']}'",
+                f"'{item['subpartida']}'",
+                f"'{item['country_dest']}'",
+                f"{item['fob_usd']:.2f}",
+                f"{item['net_tons']:.2f}",
+            ]
+        )
+        + ")"
+        for item in EXPORTS_DATA
+    ]
+    for chunk in chunked(exports_rows, 30):
+        run_insforge_query(
+            """
+            INSERT INTO flowerxi_exports_monthly
+              (year_month, subpartida, country_dest, fob_usd, net_tons)
+            VALUES
+            """.strip()
+            + "\n"
+            + ",\n".join(chunk)
+            + """
+            ON CONFLICT (year_month, subpartida, country_dest) DO UPDATE SET
+              fob_usd = EXCLUDED.fob_usd,
+              net_tons = EXCLUDED.net_tons;
+            """.rstrip()
+        )
+
+    stations_rows = [
+        "("
+        + ",".join(
+            [
+                f"'{item['station_code']}'",
+                f"'{item['station_name']}'",
+                f"'{item['region_slug']}'",
+                f"{item['distance_km']:.2f}",
+            ]
+        )
+        + ")"
+        for item in WEATHER_STATIONS_DATA
+    ]
+    run_insforge_query(
+        """
+        INSERT INTO flowerxi_weather_stations
+          (station_code, station_name, region_slug, distance_km)
+        VALUES
+        """.strip()
+        + "\n"
+        + ",\n".join(stations_rows)
+        + """
+        ON CONFLICT (station_code) DO UPDATE SET
+          station_name = EXCLUDED.station_name,
+          region_slug = EXCLUDED.region_slug,
+          distance_km = EXCLUDED.distance_km;
+        """.rstrip()
+    )
+
     print("Seed completed:")
     print(f"- regions: {len(REGIONS)}")
     print(f"- weather rows: {len(rows_weather)}")
     print(f"- risk rows: {len(rows_risk)}")
     print(f"- recommendation rows: {len(rows_recommendations)}")
     print(f"- market calendar rows: {len(rows_holidays)}")
+    print(f"- municipality profiles: {len(MUNICIPALITY_PROFILES)}")
+    print(f"- exports rows: {len(EXPORTS_DATA)}")
+    print(f"- weather stations: {len(WEATHER_STATIONS_DATA)}")
 
 
 def main() -> None:
@@ -408,6 +554,9 @@ def main() -> None:
                     "risk_rows": len(rows_risk),
                     "recommendation_rows": len(rows_recommendations),
                     "market_calendar_rows": len(rows_holidays),
+                    "municipality_profiles": len(MUNICIPALITY_PROFILES),
+                    "exports_rows": len(EXPORTS_DATA),
+                    "weather_stations": len(WEATHER_STATIONS_DATA),
                     "weather_sources": weather_sources,
                     "calendar_source": HOLIDAYS_URL,
                 },

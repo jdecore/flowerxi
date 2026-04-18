@@ -82,13 +82,16 @@ Seed cargado con datos de internet 2026 (`database/seed_from_web.py`) usando:
 - Open-Meteo Archive API (Bogota, 2026)
 - Nager.Date Public Holidays API (Colombia 2026)
 
-Conteos validados en InsForge:
+Conteos validados en InsForge (seed 2026 + complementos operativos):
 
-- `flowerxi_regions`: 1
-- `flowerxi_weather_daily`: 105
-- `flowerxi_risk_signals`: 105
-- `flowerxi_recommendations`: 105
+- `flowerxi_regions`: 11
+- `flowerxi_weather_daily`: 1155
+- `flowerxi_risk_signals`: 1155
+- `flowerxi_recommendations`: 1155
 - `flowerxi_market_calendar`: 18
+- `flowerxi_municipality_profile`: >= 3
+- `flowerxi_exports_monthly`: >= 12
+- `flowerxi_weather_stations`: >= 5
 
 Script de aplicacion:
 
@@ -104,18 +107,14 @@ Script de aplicacion:
 - `GET /api/municipalities/{slug}` — detalle de municipio
 - `GET /api/municipalities/compare` — comparativo municipal
 - `GET /api/dashboard?region=...` — snapshot del día actual
-- `GET /api/dashboard/full?region=...` — datos unificados (regions + snapshot + operativo + history)
 - `GET /api/history?region=...&limit=30` — histórico climático
-- `GET /api/alerts/today?region=...` — alerta activa del día
-- `GET /api/alerts/history?region=...&limit=30` — historial de alertas
 - `GET /api/recommendations/week?region=...&days=7` — recomendaciones semanales
 - `GET /api/risk/operativo?region=...` — estado operativo con acción concreta
 - `GET /api/risk/monthly?region=...&months=6` — riesgo agroclimático mensual + narrativa
 - `GET /api/risk/explain?region=...` — explicación del riesgo reciente
 - `GET /api/stations?region=...` — estaciones meteorológicas
-- `GET /api/calendar?year=2026` — calendario de mercado
 - `GET /api/exports?months=12` — datos de exportación (DANE proxy)
-- `GET /api/model/version` — versión del modelo de riesgo
+- `POST /api/alerts/simulate` — simulación operativa de alerta
 
 **Mejoras aplicadas**:
 
@@ -141,8 +140,8 @@ Pantalla principal en `frontend/src/pages/index.astro` con separación clara:
 
 Componentes clave implementados:
 
-- `frontend/src/islands/Sidebar.svelte`
-  - sidebar morada fija (desktop), colapsable
+- `frontend/src/islands/DashboardControls.svelte`
+  - franja horizontal de control
   - selector de municipio + lote
   - accesos a Chat IA y Modo campo
 - `frontend/src/islands/EvidenceSparklines.svelte`

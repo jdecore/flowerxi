@@ -76,13 +76,52 @@
     return { month, score, ...level };
   };
 
+  const combinedFromDay = (day) => {
+    const fungal = Number(day?.fungal_risk);
+    const water = Number(day?.waterlogging_risk);
+    const heat = Number(day?.heat_risk);
+    if (!Number.isFinite(fungal) || !Number.isFinite(water) || !Number.isFinite(heat)) return null;
+    return Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
+  };
+
+  const deriveMonthlyFromHistory = (historyItems) => {
+    const byMonth = new Map();
+    const ordered = [...historyItems].sort((a, b) => String(a.observed_on).localeCompare(String(b.observed_on)));
+
+    for (const day of ordered) {
+      const date = String(day?.observed_on ?? '');
+      const monthKey = date.slice(0, 7);
+      const score = combinedFromDay(day);
+      if (!monthKey || monthKey.length < 7 || score === null) continue;
+      const list = byMonth.get(monthKey) ?? [];
+      list.push(score);
+      byMonth.set(monthKey, list);
+    }
+
+    return Array.from(byMonth.entries())
+      .slice(-months)
+      .map(([month, values]) => {
+        const avg = values.length
+          ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+          : null;
+        const level = avg === null ? { label: 'Sin datos', levelClass: 'watch' } : levelFromScore(avg);
+        return { month, score: avg, ...level };
+      });
+  };
+
   const fetchHeatmap = async () => {
     loading = true;
     error = '';
     try {
-      const data = await fetchJson(`/api/risk/monthly?region=${encodeURIComponent(region)}&months=${months}`);
-      const items = Array.isArray(data?.items) ? data.items : [];
-      monthly = items.map(parseMonthItem);
+      try {
+        const data = await fetchJson(`/api/risk/monthly?region=${encodeURIComponent(region)}&months=${months}`);
+        const items = Array.isArray(data?.items) ? data.items : [];
+        monthly = items.map(parseMonthItem);
+      } catch {
+        const history = await fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=${Math.max(months * 31, 90)}`);
+        const items = Array.isArray(history?.items) ? history.items : [];
+        monthly = deriveMonthlyFromHistory(items);
+      }
     } catch (e) {
       monthly = [];
       error = 'Datos no disponibles.';

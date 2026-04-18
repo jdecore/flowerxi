@@ -70,22 +70,56 @@
 
   const badge = (index) => (index === 0 ? '🔴' : index === 1 ? '🟠' : '🟡');
 
+  const scoreFromDay = (day) => {
+    const fungal = Number(day?.fungal_risk);
+    const water = Number(day?.waterlogging_risk);
+    const heat = Number(day?.heat_risk);
+    if (![fungal, water, heat].every(Number.isFinite)) return null;
+    return Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
+  };
+
   const loadComparison = async () => {
     loading = true;
     error = '';
     try {
-      const compareData = await fetchJson('/api/municipalities/compare');
-      const compareItems = Array.isArray(compareData?.items) ? compareData.items : [];
-      const baseSlugs = compareItems.map((item) => item.slug).filter(Boolean);
+      let compareItems = [];
+      try {
+        const compareData = await fetchJson('/api/municipalities/compare');
+        compareItems = Array.isArray(compareData?.items) ? compareData.items : [];
+      } catch {
+        const regionsData = await fetchJson('/api/regions');
+        const regions = Array.isArray(regionsData?.items) ? regionsData.items : [];
+        const preferred = ['facatativa', 'madrid', 'funza'];
+        compareItems = regions
+          .filter((item) => preferred.includes(String(item?.slug || '').toLowerCase()))
+          .map((item) => ({ slug: item.slug, name: item.name }));
+      }
+
+      const preferred = ['facatativa', 'madrid', 'funza'];
+      const preferredItems = compareItems.filter((item) => preferred.includes(String(item?.slug || '').toLowerCase()));
+      const normalizedItems = preferredItems.length > 0 ? preferredItems : compareItems;
+      const baseSlugs = normalizedItems.map((item) => item.slug).filter(Boolean);
       const regionsToRank = baseSlugs.length > 0 ? baseSlugs : [region];
 
       const riskResponses = await Promise.all(
         regionsToRank.map(async (slug) => {
           try {
             const data = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(slug)}`);
-            return [slug, toNum(data?.score, null)];
+            let score = toNum(data?.score, null);
+            if (score === null) {
+              const history = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
+              const latest = Array.isArray(history?.items) ? history.items[0] : null;
+              score = scoreFromDay(latest);
+            }
+            return [slug, score];
           } catch {
-            return [slug, null];
+            try {
+              const history = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
+              const latest = Array.isArray(history?.items) ? history.items[0] : null;
+              return [slug, scoreFromDay(latest)];
+            } catch {
+              return [slug, null];
+            }
           }
         })
       );
@@ -93,7 +127,7 @@
       const riskBySlug = new Map(riskResponses);
 
       rows = regionsToRank.map((slug) => {
-        const base = compareItems.find((item) => item.slug === slug);
+        const base = normalizedItems.find((item) => item.slug === slug);
         const score = riskBySlug.get(slug);
         return {
           slug,

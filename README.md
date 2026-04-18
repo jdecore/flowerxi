@@ -75,22 +75,21 @@ backend/
 - Municipios principales: **Madrid**, **Facatativá**, **Funza**
 
 ### 📊 Dashboard Interactivo
-- ✅ Sidebar operativa fija, oscura y colapsable (desktop)
-- ✅ Selección de municipio + lote desde navegación lateral
+- ✅ Controles operativos horizontales (municipio + lote + chat + modo campo)
 - ✅ Estado diario de riesgo con recomendación accionable
-- ✅ Evidencia de 14 días (lluvia, temperatura, humedad proxy, score proxy)
+- ✅ Evidencia de 14 días (lluvia, temperatura y señales de riesgo reales)
 - ✅ Checklist diario persistente por región/fecha (localStorage)
 - ✅ Modo campo (tamaño/contraste mejorado para uso en invernadero)
 
 ### 🛡️ Vigilancia y Priorización
-- Capa de **riesgo agroclimático mensual** (proxy fitosanitario)
+- Capa de **riesgo agroclimático mensual** basada en `risk_signals` reales
 - Algoritmo de priorización para atención temprana
 - **Nota:** Es un modelo de priorización, **NO** es diagnóstico real por finca
 
 ### 🧩 Arquitectura de UI (actual)
 - **Astro**: estructura estática, layout, narrativa y bloques informativos
-- **Islas Svelte**: datos vivos y eventos (`Sidebar`, `EvidenceSparklines`, `TodayChecklist`, KPIs, heatmap, impacto)
-- Integración tolerante a fallos: si un endpoint no responde, varios widgets derivan desde `/api/dashboard` o `/api/history`
+- **Islas Svelte**: datos vivos y eventos (`DashboardControls`, `EvidenceSparklines`, `TodayChecklist`, KPIs, heatmap, impacto)
+- Integración tolerante a fallos: si un endpoint no responde, los widgets derivan desde `/api/history` (sin datos estáticos inventados)
 
 ### 🤖 Asistente IA
 - Chat en navegador con **Transformers.js** (modelo local)
@@ -116,11 +115,11 @@ GET /api/history?region=madrid&limit=30
 ```
 Últimos N días de datos completos (clima + riesgo + recomendación).
 
-### 🚨 Alertas
+### 🚨 Simulación de Alertas
 ```http
-GET /api/alerts/today?region=madrid
+POST /api/alerts/simulate
 ```
-Alertas activas del día para el municipio.
+Simula alerta de mañana con acción recomendada y confianza.
 
 ### 💡 Recomendaciones Semanales
 ```http
@@ -152,23 +151,11 @@ GET /api/stations?region=madrid
 ```
 Lista de estaciones meteorológicas cercanas.
 
-### 📅 Calendario de Mercado
-```http
-GET /api/calendar?year=2026
-```
-Festivos y días inhábiles de exportación.
-
 ### 📈 Exportaciones
 ```http
 GET /api/exports?months=12
 ```
 Datos de exportación mensuales (proxy DANE).
-
-### 🔬 Modelo de Riesgo
-```http
-GET /api/model/version
-```
-Versión activa del modelo de riesgo y sus pesos.
 
 ### 🗺️ Municipios
 ```http
@@ -209,11 +196,14 @@ Comparativa entre todos los municipios.
 | `flowerxi_risk_signals` | Señales de riesgo diarias |
 | `flowerxi_recommendations` | Recomendaciones diarias |
 | `flowerxi_market_calendar` | Calendario de mercado (Nager.Date) |
+| `flowerxi_municipality_profile` | Perfil operativo municipal |
+| `flowerxi_exports_monthly` | Exportaciones mensuales (proxy DANE) |
+| `flowerxi_weather_stations` | Estaciones meteorológicas por municipio |
 
 ### 🌐 Fuentes de Datos
 - **Clima:** Open-Meteo Archive API (Bogotá, 2026)
 - **Festivos:** Nager.Date Public Holidays (Colombia, 2026)
-- **Conteo inicial:** 105 registros por tabla (weather, risk, recommendations)
+- **Cobertura actual:** 11 municipios y 1155 registros por tabla climática/riesgo/recomendación (2026-01-01 a 2026-04-15)
 
 ### 🚀 Aplicar Schema y Seed
 ```bash
