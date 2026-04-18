@@ -32,19 +32,69 @@
   let snapshot = null;
   let history = [];
   let lastUpdated = null;
+  let apiBases = [];
 
   const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
-  $: baseUrl = normalizeBaseUrl(apiUrl);
 
-  const endpoint = (path) => `${baseUrl}${path}`;
+  const buildApiBases = (raw) => {
+    const configured = normalizeBaseUrl(raw);
+    const candidates = [];
+
+    if (configured) candidates.push(configured);
+
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+      if (isLocalHost) {
+        candidates.push(`${window.location.protocol}//${host}:8000`);
+        candidates.push('http://localhost:8000');
+        candidates.push('http://127.0.0.1:8000');
+      }
+    }
+
+    candidates.push('');
+    return [...new Set(candidates)];
+  };
+
+  const endpoint = (base, path) => {
+    if (!base) return path;
+    if (base.endsWith('/api') && path.startsWith('/api/')) {
+      return `${base}${path.slice(4)}`;
+    }
+    return `${base}${path}`;
+  };
+
+  $: apiBases = buildApiBases(apiUrl);
 
   const fetchJson = async (path, label) => {
     try {
-      const response = await fetch(endpoint(path), {
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) throw new Error(`${label} (${response.status})`);
-      return await response.json();
+      let lastHttpError = null;
+      let hadConnectionError = false;
+
+      for (const base of apiBases) {
+        try {
+          const response = await fetch(endpoint(base, path), {
+            headers: { Accept: 'application/json' },
+          });
+          if (!response.ok) {
+            lastHttpError = new Error(`${label} (${response.status})`);
+            continue;
+          }
+          return await response.json();
+        } catch (attemptError) {
+          if (attemptError instanceof TypeError) {
+            hadConnectionError = true;
+            continue;
+          }
+          throw attemptError;
+        }
+      }
+
+      if (lastHttpError) throw lastHttpError;
+      if (hadConnectionError) {
+        throw new Error('No se pudo conectar con el backend. Revisa PUBLIC_API_URL.');
+      }
+      throw new Error(`${label}. No se encontró endpoint disponible.`);
     } catch (err) {
       if (err instanceof TypeError) {
         throw new Error('No se pudo conectar con el backend. Revisa PUBLIC_API_URL.');
