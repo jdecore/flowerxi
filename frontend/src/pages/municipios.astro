@@ -40,6 +40,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
 
           <div class="content-grid">
             <div class="municipios-list" id="municipios-list">
+              <div class="static-content">
+                <h2>Perfiles Municipales</h2>
+                <p>Explora los municipios de la Sabana de Bogotá con producción de rosa de corte. Cada perfil incluye información sobre área de cultivo, fuerza laboral y contexto fitosanitario.</p>
+              </div>
               <p class="loading-text">Cargando perfiles...</p>
             </div>
             <div class="municipio-detail" id="municipio-detail" style="display: none;">
@@ -138,6 +142,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
       .context-box h4:first-child { margin-top: 0; }
       .context-box p { margin: 0; font-size: 0.9rem; color: var(--text-primary); }
       .loading-text, .empty-text, .error-text { color: var(--text-secondary); text-align: center; padding: 2rem; }
+      .static-content { grid-column: 1 / -1; margin-bottom: 1rem; }
+      .static-content h2 { font-size: 1.1rem; color: var(--primary); margin: 0 0 0.5rem; }
+      .static-content p { margin: 0; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; }
       .error-text { color: #C75D5D; }
     </style>
   </body>

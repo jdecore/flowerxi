@@ -61,7 +61,15 @@
   };
 
   const cleanModelAnswer = (text) => {
-    return (text ?? '').replace(/respuesta:|usuario:|bot:/gi, '').split('Usuario:')[0].trim();
+    if (!text) return '';
+    let cleaned = text
+      .replace(/respuesta:|usuario:|bot:/gi, '')
+      .split('Usuario:')[0]
+      .trim();
+    if (cleaned.length < 3 || cleaned.toLowerCase().includes('sorry') || cleaned.toLowerCase().includes('cannot respond')) {
+      return 'Lo siento, no puedo responder eso. Intenta otra pregunta.';
+    }
+    return cleaned;
   };
 
   const buildPrompt = (question) => {

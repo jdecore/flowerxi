@@ -41,6 +41,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
           <section class="comercial-section">
             <div class="section-block">
               <h2>Precios de Mercado</h2>
+              <div class="section-static">
+                <p>Precios de referencia de las principales variedades de rosa de corte en el mercado colombiano. Datos recopilados de Corabastos y Agronet.</p>
+              </div>
               <div class="prices-summary" id="prices-summary">
                 <p class="loading">Cargando...</p>
               </div>
@@ -49,6 +52,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
 
             <div class="section-block">
               <h2>Exportaciones (DANE proxy)</h2>
+              <div class="section-static">
+                <p>Datos de exportaciones de flores (codigo NANDI 0603)proxy desde la base de datos DANE. Muestra el valor FOB en USD y volumen en toneladas por mes y pais de destino.</p>
+              </div>
               <div class="exports-grid" id="exports-grid">
                 <p class="loading">Cargando...</p>
               </div>
@@ -132,7 +138,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
     <style>
       .comercial-section { padding: 0.5rem 0; }
       .section-block { margin-bottom: 2rem; }
-      .section-block h2 { font-size: 1.1rem; color: var(--primary); margin: 0 0 1rem; }
+      .section-block h2 { font-size: 1.1rem; color: var(--primary); margin: 0 0 0.75rem; }
+      .section-static { margin-bottom: 1rem; padding: 0.85rem; background: var(--bg-app); border-radius: 10px; border-left: 3px solid var(--primary); }
+      .section-static p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
       .prices-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
       .summary-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem; text-align: center; }
       .summary-card .label { display: block; font-size: 0.75rem; color: var(--text-secondary); }

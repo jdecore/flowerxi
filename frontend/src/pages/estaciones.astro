@@ -43,6 +43,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
               <h2>Red de monitoreo IDEAM</h2>
               <p>Estaciones cercanas a las zonas de cultivo en la Sabana de Bogota.</p>
             </div>
+            <div class="stations-static">
+              <p>Consulta las estaciones meteorologicas del IDEAM que proporcionan datos en tiempo real para la toma de decisiones agronomicas. Cada estacion incluye coordenadas, elevacion y distancia a las zonas de produccion.</p>
+            </div>
             <div class="stations-grid" id="stations-grid">
               <p class="loading">Cargando estaciones...</p>
             </div>
@@ -94,10 +97,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
     </script>
 
     <style>
-      .stations-section { padding: 0.5rem 0; }
-      .stations-info { margin-bottom: 1.5rem; }
+      .stations-info { margin-bottom: 1rem; }
       .stations-info h2 { font-size: 1.1rem; margin: 0; color: var(--primary); }
       .stations-info p { margin: 0.5rem 0 0; color: var(--text-secondary); font-size: 0.9rem; }
+      .stations-static { margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-app); border-radius: 12px; border-left: 3px solid var(--primary); }
+      .stations-static p { margin: 0; color: var(--text-primary); font-size: 0.9rem; line-height: 1.5; }
       .stations-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
       .station-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 1.25rem; }
       .station-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }

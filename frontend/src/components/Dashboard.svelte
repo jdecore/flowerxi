@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import OperativeDashboard from './OperativeDashboard.svelte';
 
   export let apiUrl;
   let Recharts = null;
@@ -247,14 +248,12 @@
 </script>
 
 <section class="dashboard">
-  <!-- Risk Info - loads immediately -->
-  <article class="card risk-info-card">
-    <header class="card-head">
-      <div>
-        <h2>¿Qué es este riesgo?</h2>
-        <p>Indicador proxy, no diagnóstico</p>
-      </div>
-    </header>
+  <!-- Risk Info - Collapsible -->
+  <details class="risk-info-collapsible">
+    <summary class="risk-info-summary">
+      <span>ℹ️</span>
+      <span>Más información sobre el estado operativo</span>
+    </summary>
     <div class="risk-info-content">
       <div class="risk-info-static">
         <p class="risk-info-main">
@@ -278,16 +277,16 @@
           </div>
         </div>
         <div class="risk-scale">
-          <span class="scale-item low"><span class="scale-dot"></span> 0-30: Bajo</span>
-          <span class="scale-item med"><span class="scale-dot"></span> 31-60: Medio</span>
-          <span class="scale-item high"><span class="scale-dot"></span> 61-100: Alto</span>
+          <span class="scale-item low"><span class="scale-dot"></span> 0-30: Rutina</span>
+          <span class="scale-item med"><span class="scale-dot"></span> 31-60: Vigilancia</span>
+          <span class="scale-item high"><span class="scale-dot"></span> 61-100: Acción</span>
         </div>
         <p class="risk-disclaimer">
           ⚠️ Este indicador no reemplaza la inspección técnica en campo. Use esta información como guía complementaria.
         </p>
       </div>
     </div>
-  </article>
+  </details>
 
   {#if loading}
     <div class="state loading"><p>Cargando estado del cultivo...</p></div>
@@ -399,36 +398,9 @@
         </div>
       </article>
 
-      <!-- Risk Gauge -->
-      <article class="card risk-card">
-        <header class="card-head">
-          <div>
-            <h2>Riesgo Actual</h2>
-            <p>Índice operativo-comercial</p>
-          </div>
-          <select class="region-select" value={selectedRegion} on:change={onRegionChange}>
-            {#each regions as r}<option value={r.slug}>{r.name}</option>{/each}
-          </select>
-        </header>
-        <div class="gauge-container">
-          <svg class="gauge-svg" viewBox="0 0 120 70">
-            <defs>
-              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color={COLORS.border}/>
-                <stop offset="100%" stop-color={COLORS.primary}/>
-              </linearGradient>
-            </defs>
-            <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke={COLORS.border} stroke-width="10" stroke-linecap="round"/>
-            <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" 
-              stroke-dasharray="{circumference}" stroke-dashoffset="{strokeDash}" class="gauge-fill"/>
-            <circle cx="60" cy="60" r="4" fill={gaugePercent < 40 ? COLORS.alertSuccess : gaugePercent < 70 ? COLORS.alertMedium : COLORS.alertHigh}/>
-          </svg>
-          <div class="gauge-value">{riskPercent}%</div>
-          <div class="gauge-label" style="color: {riskColor}">{riskLabel}</div>
-        </div>
-        <div class="risk-meta">
-          <span><strong>Meta:</strong> &lt;30%</span>
-        </div>
+      <!-- Operative Dashboard - Nuevo -->
+      <article class="card operative-card">
+        <OperativeDashboard apiUrl={apiUrl} region={selectedRegion} />
       </article>
 
       <!-- Protocols -->
@@ -764,12 +736,38 @@
     font-weight: 500;
   }
 
-  /* Risk Info */
-  .risk-info-card { 
-    margin-bottom: 1rem; 
+  /* Risk Info Collapsible */
+  .risk-info-collapsible {
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-subtle, #eee);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    overflow: hidden;
   }
 
-  .risk-info-content { margin-top: 0.5rem; }
+  .risk-info-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #666);
+    background: var(--bg-app, #f8f8f8);
+    user-select: none;
+  }
+
+  .risk-info-summary:hover {
+    background: var(--border-subtle, #eee);
+  }
+
+  .risk-info-collapsible[open] .risk-info-summary {
+    border-bottom: 1px solid var(--border-subtle, #eee);
+  }
+
+  .risk-info-content { 
+    padding: 1rem;
+  }
 
   .risk-info-main {
     font-size: 0.9rem;
