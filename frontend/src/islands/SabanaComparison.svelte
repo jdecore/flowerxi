@@ -71,18 +71,23 @@
   const badge = (index) => (index === 0 ? '🔴' : index === 1 ? '🟠' : index === 2 ? '🟡' : '⚪');
 
   const normalizeSlug = (value) => String(value || '').trim().toLowerCase();
+  const toRiskNum = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
 
   const scoreFromDay = (day) => {
-    const fungal = Number(day?.fungal_risk);
-    const water = Number(day?.waterlogging_risk);
-    const heat = Number(day?.heat_risk);
-    if (![fungal, water, heat].every(Number.isFinite)) return null;
+    const fungal = toRiskNum(day?.fungal_risk);
+    const water = toRiskNum(day?.waterlogging_risk);
+    const heat = toRiskNum(day?.heat_risk);
+    if (fungal === null || water === null || heat === null) return null;
     return Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
   };
 
   const scoreFromItem = (item) => {
-    const directScore = Number(item?.risk_score);
-    if (Number.isFinite(directScore)) return Math.round(directScore);
+    const directScore = toRiskNum(item?.risk_score);
+    if (directScore !== null) return Math.round(directScore);
     return scoreFromDay(item);
   };
 
@@ -151,25 +156,9 @@
         };
       });
 
-      const missingScoreSlugs = baseItems
-        .filter((item) => scoreFromItem(item) === null)
-        .map((item) => item.slug);
-
-      const operativoEntries = await Promise.all(
-        missingScoreSlugs.map(async (slug) => {
-          const operativo = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(slug)}`);
-          const status = String(operativo?.status || '').toLowerCase();
-          const parsedScore = Number(operativo?.score);
-          const score = status !== 'sin_datos' && Number.isFinite(parsedScore) ? Math.round(parsedScore) : null;
-          return [slug, { score }];
-        })
-      );
-      const operativoBySlug = new Map(operativoEntries);
-
       rows = baseItems.map((base) => {
         const slug = normalizeSlug(base.slug);
-        const derivedScore = scoreFromItem(base);
-        const score = derivedScore ?? operativoBySlug.get(slug)?.score ?? null;
+        const score = scoreFromItem(base);
         return {
           slug,
           name: base.name,

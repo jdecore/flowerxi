@@ -115,6 +115,12 @@ def municipalities_compare():
     for row in rows:
         area = to_float(row.get("flower_area_ha"), 0.0)
         workers = int(row.get("workers") or 0)
+        fungal_raw = row.get("fungal_risk")
+        water_raw = row.get("waterlogging_risk")
+        heat_raw = row.get("heat_risk")
+        fungal = round(to_float(fungal_raw), 1) if fungal_raw is not None else None
+        water = round(to_float(water_raw), 1) if water_raw is not None else None
+        heat = round(to_float(heat_raw), 1) if heat_raw is not None else None
         comparatives.append(
             {
                 "slug": row["slug"],
@@ -123,9 +129,9 @@ def municipalities_compare():
                 "production_share": to_float(row.get("production_share"), 0.0),
                 "area_ha": area,
                 "workers": workers,
-                "fungal_risk": to_float(row.get("fungal_risk"), 0.0),
-                "waterlogging_risk": to_float(row.get("waterlogging_risk"), 0.0),
-                "heat_risk": to_float(row.get("heat_risk"), 0.0),
+                "fungal_risk": fungal,
+                "waterlogging_risk": water,
+                "heat_risk": heat,
                 "risk_score": (
                     int(row["risk_score"]) if row.get("risk_score") is not None else None
                 ),

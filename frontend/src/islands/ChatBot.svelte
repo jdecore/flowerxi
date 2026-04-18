@@ -206,14 +206,23 @@
         : 'No tengo datos suficientes del riesgo de hoy.';
     }
 
+    const asksTodayAction =
+      (q.includes('hoy') && (q.includes('hago') || q.includes('hacer') || q.includes('debo'))) ||
+      q.includes('accion recomendada') ||
+      q.includes('accion de hoy');
+
     if (
       q.includes('que debo hacer') ||
       q.includes('que hago hoy') ||
       q.includes('que debo hacer hoy') ||
       q.includes('accion recomendada') ||
-      q.includes('recomendacion')
+      q.includes('recomendacion') ||
+      asksTodayAction
     ) {
-      return action ? `Acción recomendada hoy: ${action}` : 'No hay recomendación operativa disponible.';
+      if (action && normalizeText(action) !== 'sin datos') {
+        return `Acción recomendada hoy: ${action}`;
+      }
+      return `Estado actual: ${statusLabel || 'Sin datos'} (${score ?? '—'}). ${reason || 'Sin datos.'}`;
     }
 
     if (q.includes('donde hay mas humedad')) {
@@ -309,6 +318,11 @@
     isAnswering = true;
     try {
       const context = await loadBackendContext();
+      const q = normalizeText(question);
+      if (q.includes('hoy') && (q.includes('hago') || q.includes('hacer') || q.includes('debo'))) {
+        appendHistory(question, fallbackContextAnswer(context));
+        return;
+      }
       const quick = quickAnswer(question, context);
       if (quick) {
         appendHistory(question, quick);

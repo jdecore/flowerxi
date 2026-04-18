@@ -61,11 +61,10 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
       <StartupRegionModal client:load />
       <section class="region-priority">
         <button class="region-priority-btn" type="button" data-region-trigger>
-          Seleccionar municipio para cargar dashboard
+          Cambiar municipio
         </button>
-        <p class="region-priority-note">
-          Selecciónalo primero mientras flowerxi prepara los módulos más pesados.
-        </p>
+        <p class="region-current-label">Municipio actual</p>
+        <p class="region-current-value" id="current-region">Madrid</p>
       </section>
 
       <!-- Layout principal -->
@@ -141,6 +140,39 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
           };
           document.querySelectorAll('[data-region-trigger]').forEach((trigger) => {
             trigger.addEventListener('click', openRegionSelector);
+          });
+
+          const regionNameFromSlug = (slug) => {
+            const value = String(slug || '').trim();
+            if (!value) return 'Madrid';
+            const labels = {
+              madrid: 'Madrid',
+              facatativa: 'Facatativá',
+              funza: 'Funza',
+              'el-rosal': 'El Rosal',
+              tocancipa: 'Tocancipá',
+              chia: 'Chía',
+              mosquera: 'Mosquera',
+              sopo: 'Sopó',
+              bojaca: 'Bojacá',
+              cachipay: 'Cachipay',
+            };
+            if (labels[value]) return labels[value];
+            return value
+              .split('-')
+              .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+              .join(' ');
+          };
+
+          const regionLabel = document.getElementById('current-region');
+          const syncCurrentRegion = (slug) => {
+            if (!regionLabel) return;
+            regionLabel.textContent = regionNameFromSlug(slug);
+          };
+
+          syncCurrentRegion(localStorage.getItem('flowerxi_region') || 'madrid');
+          window.addEventListener('regionchange', (event) => {
+            syncCurrentRegion(event?.detail || localStorage.getItem('flowerxi_region') || 'madrid');
           });
 
           // Abrir chat
@@ -237,10 +269,19 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
         padding: 0.52rem 0.75rem;
         cursor: pointer;
       }
-      .region-priority-note {
+      .region-current-label {
         margin: 0;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
         color: var(--text-tertiary, #94a3b8);
+      }
+      .region-current-value {
+        margin: 0;
+        font-size: 1.65rem;
+        line-height: 1.05;
+        font-weight: 700;
+        color: var(--text-primary, #1f2937);
       }
 
       /* Layout principal */
