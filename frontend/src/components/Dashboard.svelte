@@ -66,6 +66,16 @@
 
   $: apiBases = buildApiBases(apiUrl);
 
+  const makeHttpError = (label, status) => {
+    const error = new Error(`${label} (${status})`);
+    error.status = status;
+    return error;
+  };
+
+  const isHttp404 = (err) =>
+    (err && typeof err === 'object' && Number(err.status) === 404) ||
+    (err instanceof Error && err.message.includes('(404)'));
+
   const fetchJson = async (path, label) => {
     try {
       let lastHttpError = null;
@@ -77,7 +87,7 @@
             headers: { Accept: 'application/json' },
           });
           if (!response.ok) {
-            lastHttpError = new Error(`${label} (${response.status})`);
+            lastHttpError = makeHttpError(label, response.status);
             continue;
           }
           return await response.json();
@@ -101,6 +111,50 @@
       }
       throw err;
     }
+  };
+
+  const scoreFromRisk = (riskLevel) => {
+    const normalized = String(riskLevel ?? '').toLowerCase().trim();
+    if (normalized.includes('alto') || normalized === 'high') return 75;
+    if (normalized.includes('medio') || normalized === 'medium') return 50;
+    return 22;
+  };
+
+  const deriveOperativoFallback = (alertPayload, dashboardSnapshot) => {
+    const alert = alertPayload?.alert ?? null;
+    const score = toNumberOrNull(alert?.agroclimatic_score) ?? scoreFromRisk(dashboardSnapshot?.global_risk_level);
+    const status = score <= 30 ? 'rutina' : score <= 60 ? 'vigilancia' : 'accion';
+
+    const statusLabelByKey = {
+      rutina: 'Rutina normal',
+      vigilancia: 'Vigilancia reforzada',
+      accion: 'Acción requerida',
+    };
+
+    return {
+      ok: true,
+      status,
+      status_label: statusLabelByKey[status],
+      score,
+      reason:
+        alert?.message ||
+        alert?.recommendation_title ||
+        'No hay explicación detallada del riesgo operativo en este backend.',
+      action_today:
+        alert?.recommendation_message ||
+        (status === 'accion'
+          ? 'Ejecuta inspección en campo, registra hallazgos y aplica protocolo preventivo.'
+          : status === 'vigilancia'
+          ? 'Refuerza revisión de humedad, drenaje y ventilación durante el turno.'
+          : 'Mantén la rutina de monitoreo sin acciones extraordinarias.'),
+      attention:
+        status === 'accion'
+          ? 'Este estado se calculó con fallback porque /api/risk/operativo no está disponible.'
+          : null,
+      trend_7d: 'stable',
+      confidence: 'media',
+      details: { days_available: 0, fallback: true },
+    };
   };
 
   const toNumberOrNull = (value) => {
@@ -142,11 +196,7 @@
   };
 
   const loadLiveData = async () => {
-    const [operativoPayload, dashboardPayload, historyPayload] = await Promise.all([
-      fetchJson(
-        `/api/risk/operativo?region=${encodeURIComponent(selectedRegion)}`,
-        'No se pudo cargar estado operativo'
-      ),
+    const [dashboardPayload, historyPayload] = await Promise.all([
       fetchJson(
         `/api/dashboard?region=${encodeURIComponent(selectedRegion)}`,
         'No se pudo cargar resumen del día'
@@ -157,9 +207,31 @@
       ),
     ]);
 
-    operativo = operativoPayload?.ok ? operativoPayload : null;
     snapshot = dashboardPayload?.snapshot ?? null;
     history = Array.isArray(historyPayload?.items) ? [...historyPayload.items].reverse() : [];
+
+    let operativoPayload = null;
+    try {
+      operativoPayload = await fetchJson(
+        `/api/risk/operativo?region=${encodeURIComponent(selectedRegion)}`,
+        'No se pudo cargar estado operativo'
+      );
+    } catch (err) {
+      if (!isHttp404(err)) throw err;
+
+      let alertPayload = null;
+      try {
+        alertPayload = await fetchJson(
+          `/api/alerts/today?region=${encodeURIComponent(selectedRegion)}`,
+          'No se pudo cargar alerta diaria'
+        );
+      } catch {
+        alertPayload = null;
+      }
+      operativoPayload = deriveOperativoFallback(alertPayload, snapshot);
+    }
+
+    operativo = operativoPayload?.ok ? operativoPayload : deriveOperativoFallback(null, snapshot);
   };
 
   const refreshAll = async () => {

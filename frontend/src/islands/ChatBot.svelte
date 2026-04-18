@@ -62,30 +62,28 @@
 
   const cleanModelAnswer = (text) => {
     if (!text) return '';
-    let cleaned = text
-      .replace(/respuesta:|usuario:|bot:/gi, '')
-      .split('Usuario:')[0]
-      .trim();
+    let cleaned = text.replace(/^assistant:\s*/i, '').trim();
     if (cleaned.length < 3 || cleaned.toLowerCase().includes('sorry') || cleaned.toLowerCase().includes('cannot respond')) {
       return 'Lo siento, no puedo responder eso. Intenta otra pregunta.';
     }
     return cleaned;
   };
 
-  const buildPrompt = (question) => {
+  const buildMessages = (question) => {
     const today = getTodayContext();
-    const recentHistory = chatHistory.slice(-3).map((item) => `Usuario: ${item.q}\nBot: ${item.a}`).join('\n');
-    return `
-Eres FlowerxiBot, asesor agronomico para rosa de corte.
-
-Reglas:
-- Responde en espanol, maximo tres lineas.
-- No inventes datos.
-
-Datos: municipio=${today.region}, temp=${today.temp}, precip=${today.precip}, riesgo=${today.risk_fungico}
-
-Usuario: ${question}
-Respuesta:`.trim();
+    const systemPrompt = `Eres FlowerxiBot, asesor agronomico para rosa de corte en Colombia. Reglas: - Responde en español, maximo tres lineas. - No inventes datos. Datos actuales: municipio=${today.region || 'desconocido'}, temp=${today.temp || 'N/A'}, precip=${today.precip || 'N/A'}, riesgo=${today.risk_fungico || 'N/A'}.`;
+    
+    const messages = [
+      { role: 'system', content: systemPrompt }
+    ];
+    
+    chatHistory.slice(-3).forEach(item => {
+      messages.push({ role: 'user', content: item.q });
+      messages.push({ role: 'assistant', content: item.a });
+    });
+    
+    messages.push({ role: 'user', content: question });
+    return messages;
   };
 
   const askQuestion = async () => {
@@ -94,10 +92,20 @@ Respuesta:`.trim();
     userQuestion = '';
     isAnswering = true;
     try {
-      const result = await model(buildPrompt(question), { max_new_tokens: 120, temperature: 0.6 });
-      const answer = cleanModelAnswer(result?.[0]?.generated_text) || 'No tengo respuesta.';
+      const messages = buildMessages(question);
+      const result = await model(messages, { 
+        max_new_tokens: 120, 
+        temperature: 0.7,
+        do_sample: true,
+      });
+      const generated = result?.[0]?.generated_text;
+      const answerText = Array.isArray(generated) 
+        ? (generated.at(-1)?.content || generated.at(-1))
+        : generated;
+      const answer = cleanModelAnswer(answerText) || 'No tengo respuesta.';
       appendHistory(question, answer);
-    } catch {
+    } catch (err) {
+      console.error('[flowerxi-chat] error:', err);
       appendHistory(question, 'Error. Intenta de nuevo.');
     } finally {
       isAnswering = false;
