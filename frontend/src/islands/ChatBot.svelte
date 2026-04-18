@@ -469,6 +469,23 @@
     return fallbackContextAnswer(context);
   };
 
+  const humanizeModelError = (rawMessage) => {
+    const message = normalizeText(rawMessage);
+    if (message.includes('contexto seguro') || message.includes('https') || message.includes('localhost')) {
+      return 'se requiere abrir la app en HTTPS o localhost';
+    }
+    if (message.includes('webgpu no esta disponible')) {
+      return 'WebGPU no está disponible en este navegador (usa Chrome/Edge actualizado)';
+    }
+    if (message.includes('no se encontro adaptador gpu compatible') || message.includes('no se encontro adaptador')) {
+      return 'el navegador no logró acceder a una GPU WebGPU (activa aceleración por hardware o actualiza driver/GPU)';
+    }
+    if (message.includes('fallo la inicializacion de webgpu')) {
+      return 'falló la inicialización de WebGPU en este dispositivo/navegador';
+    }
+    return rawMessage || 'falló la carga del modelo local';
+  };
+
   const ensureModel = async () => {
     if (modelReady || isModelLoading) return;
     isModelLoading = true;
@@ -491,7 +508,7 @@
       console.error('[flowerxi-chat] webllm init error:', err);
       modelReady = false;
       const message = err instanceof Error ? err.message : String(err || 'error desconocido');
-      modelError = message || 'falló la carga del modelo local';
+      modelError = humanizeModelError(message);
     } finally {
       isModelLoading = false;
     }

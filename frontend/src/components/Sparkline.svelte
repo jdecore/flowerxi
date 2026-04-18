@@ -15,12 +15,12 @@
     return `${r},${g},${b}`;
   };
 
-  // Calcular puntos del gráfico (normalizado a 0-100 en X, 0-80 en Y)
+  // Calcular puntos del gráfico (normalizado a 0-100 en X, 0-50 en Y)
   $: maxVal = Math.max(...data, 1);
   $: areaFill = `rgba(${hexToRgb(color)}, 0.16)`;
   $: points = data.map((val, i) => {
     const x = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
-    const y = 80 - ((val / maxVal) * 80);
+    const y = 50 - ((val / maxVal) * 50);
     return `${x},${y}`;
   }).join(' ');
 
@@ -33,9 +33,9 @@
   {/if}
 
    {#if data.length > 1}
-     <svg viewBox="0 0 100 80" class="spark-svg">
+     <svg viewBox="0 0 100 50" class="spark-svg">
        <!-- Área -->
-       <polygon points="0,80 {points} 100,80" fill={areaFill} />
+       <polygon points="0,50 {points} 100,50" fill={areaFill} />
        <!-- Línea -->
        <polyline points={points} fill="none" stroke={color} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
      </svg>
@@ -58,11 +58,11 @@
     background: var(--bg-surface, #fff);
     border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 12px;
-    padding: 0.6rem;
+    padding: 0.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    min-height: 160px;
+    gap: 0.3rem;
+    min-height: 80px;
     height: 100%;
   }
 
@@ -78,9 +78,12 @@
   .spark-svg {
     font-family: var(--font-sans);
     width: 100%;
-    aspect-ratio: 100/80;
+    max-width: 600px;
+    aspect-ratio: 100/50;
     border-radius: 6px;
     background: linear-gradient(180deg, color-mix(in srgb, var(--bg-app, #f8fafc) 60%, #fff), var(--bg-app, #f1f5f9));
+    margin: 0 auto;
+    display: block;
   }
 
   .spark-svg polygon, .spark-svg polyline {
@@ -103,8 +106,11 @@
 
   .spark-skeleton {
     font-family: var(--font-sans);
-    aspect-ratio: 100/80;
+    aspect-ratio: 100/50;
+    max-width: 600px;
     width: 100%;
+    margin: 0 auto;
+    display: block;
     background: linear-gradient(90deg, #e2e8f020, #cbd5e130, #e2e8f020);
     background-size: 200% 100%;
     border-radius: 6px;
