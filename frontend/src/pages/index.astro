@@ -2,7 +2,7 @@
 import '../styles/index.css';
 
 // Componentes
-import Sidebar from '../islands/Sidebar.svelte';
+import DashboardControls from '../islands/DashboardControls.svelte';
 import EvidenceSparklines from '../islands/EvidenceSparklines.svelte';
 import TodayChecklist from '../islands/TodayChecklist.svelte';
 import CommercialIntelCard from '../islands/CommercialIntelCard.svelte';
@@ -45,12 +45,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
 
       <!-- Layout principal -->
       <div class="main-layout">
-        <!-- Sidebar -->
-        <aside class="sidebar-col">
-          <Sidebar {apiUrl} currentPath="/" client:load />
-        </aside>
-
-        <!-- Contenido -->
         <main class="main-col">
           <!-- Hero KPI -->
           <section class="hero-kpi">
@@ -60,6 +54,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
               <p class="subtext">No diagnostica plagas. Te dice cuándo mirar más de cerca según clima reciente.</p>
             </div>
           </section>
+
+          <!-- Controles rápidos -->
+          <DashboardControls client:load />
 
           <!-- Grid 12 columnas -->
           <div class="dashboard-12">
@@ -94,18 +91,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
             <CommercialIntelCard {apiUrl} initialRegion="madrid" client:load />
           </div>
 
-          <!-- Comparativa Sabana -->
-          <details class="collapsible-card">
-            <summary>Comparativa Sabana</summary>
-            <div class="collapsible-content">
-              <SabanaComparison {apiUrl} initialRegion="madrid" client:load />
-            </div>
-          </details>
+          <!-- Contexto Sabana -->
+          <div class="two-col-row">
+            <details class="collapsible-card">
+              <summary>Comparativa Sabana</summary>
+              <div class="collapsible-content">
+                <SabanaComparison {apiUrl} initialRegion="madrid" client:load />
+              </div>
+            </details>
 
-          <!-- Footer operativo -->
-          <footer class="dashboard-footer">
-            <ClosestStationFooter {apiUrl} initialRegion="madrid" client:load />
-          </footer>
+            <section class="station-card">
+              <h3 class="section-head">Estación de referencia</h3>
+              <ClosestStationFooter {apiUrl} initialRegion="madrid" client:load />
+            </section>
+          </div>
         </main>
       </div>
 
@@ -180,8 +179,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       .btn-icon:hover { background: var(--border); color: var(--primary); }
 
       /* Layout principal */
-      .main-layout { display: grid; grid-template-columns: auto 1fr; gap: 1.5rem; padding: 1.5rem; max-width: 1440px; margin: 0 auto; width: 100%; align-items: start; }
-      .sidebar-col { position: relative; }
+      .main-layout { padding: 1.5rem; max-width: 1440px; margin: 0 auto; width: 100%; }
       .main-col { display: flex; flex-direction: column; gap: 1.5rem; }
 
       /* Hero KPI */
@@ -242,9 +240,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       .collapsible-card summary::-webkit-details-marker { display: none; }
       .collapsible-content { padding: 0 1rem 1rem; }
 
-      .dashboard-footer {
-        border-top: 1px solid var(--border-subtle);
-        padding-top: 0.8rem;
+      .station-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: 14px;
+        box-shadow: var(--shadow-sm);
+        padding: 1rem;
+        display: grid;
+        gap: 0.5rem;
       }
 
       :global(html[data-field-mode='on']) { font-size: 18px; }
@@ -258,8 +261,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       }
 
       @media (max-width: 768px) {
-        .main-layout { grid-template-columns: 1fr; padding: 1rem; }
-        .sidebar-col { display: none; }
+        .main-layout { padding: 1rem; }
         .topbar { padding: 0.6rem 1rem; }
         .topbar-center { order: 3; width: 100%; justify-content: flex-start; }
         .topbar-end { flex: 1; justify-content: flex-end; }
