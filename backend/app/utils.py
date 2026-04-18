@@ -27,6 +27,20 @@ def to_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def normalize_origin(origin: str) -> str | None:
+    """Normaliza una CORS origin: limpia espacios, asegura scheme, elimina trailing slash."""
+    if not origin:
+        return None
+    origin = origin.strip()
+    if not origin:
+        return None
+    # Si no tiene scheme, asumir https (para CORS)
+    if not origin.startswith(("http://", "https://")):
+        origin = "https://" + origin
+    # Eliminar trailing slash
+    return origin.rstrip("/")
+
+
 def handle_db_error(func: Callable) -> Callable:
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -142,3 +156,61 @@ def get_confidence(days_available: int) -> str:
     if days_available >= 4:
         return "media"
     return "baja"
+
+
+# ——— Nuevas funciones requeridas por main.py ———
+
+
+def build_agroclimatic_score(
+    fungal: float, water: float, heat: float, rainy_ratio: float
+) -> float:
+    """Score 0-100 combinando factores agroclimáticos."""
+    fungal = clamp(fungal, 0, 100)
+    water = clamp(water, 0, 100)
+    heat = clamp(heat, 0, 100)
+    rainy_ratio = clamp(rainy_ratio, 0, 100)
+    # Pesos simples: fungal 40%, water 20%, heat 20%, rainy_ratio 20%
+    score = fungal * 0.4 + water * 0.2 + heat * 0.2 + rainy_ratio * 0.2
+    return round(min(100, max(0, score)), 1)
+
+
+def risk_level_from_score(score: float) -> str:
+    """Convierte score numérico a nivel de riesgo."""
+    if score >= 70:
+        return "alto"
+    if score >= 40:
+        return "medio"
+    return "bajo"
+
+
+def build_commercial_metrics() -> dict:
+    """Placeholder: métricas comerciales. En producción, leer de DB o API."""
+    return {"commercial_risk_score": None}
+
+
+def build_risk_narrative(
+    region_name: str, latest: dict, commercial: dict | None
+) -> dict:
+    """Genera narrativa humana para el riesgo mensual."""
+    level = latest.get("risk_level", "bajo")
+    return {
+        "summary": f"En {region_name} el riesgo agroclimático está en nivel {level}.",
+        "details": f"Temperatura {latest.get('avg_temp_c', 'N/A')}°C, precipitación {latest.get('avg_precip_mm', 'N/A')}mm.",
+    }
+
+
+def fetch_monthly_risk_rows(region: str, months: int):
+    """Obtiene datos mensuales agregados desde la base de datos."""
+    try:
+        from .db import get_conn
+
+        # Por ahora retornamos datos vacíos; el endpoint /risk/monthly puede generarlos internamente
+        return region, []
+    except Exception as e:
+        logger.error(f"Error fetch_monthly_risk_rows: {e}")
+        return region, []
+
+
+def load_market_prices() -> dict:
+    """Placeholder: carga precios de mercado desde archivo o API."""
+    return {}

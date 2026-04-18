@@ -5,6 +5,9 @@ import '../styles/index.css';
 import Sidebar from '../islands/Sidebar.svelte';
 import EvidenceSparklines from '../islands/EvidenceSparklines.svelte';
 import TodayChecklist from '../islands/TodayChecklist.svelte';
+import CommercialIntelCard from '../islands/CommercialIntelCard.svelte';
+import SabanaComparison from '../islands/SabanaComparison.svelte';
+import ClosestStationFooter from '../islands/ClosestStationFooter.svelte';
 import RiskBadge from '../components/RiskBadge.svelte';
 import WeeklyKPIs from '../components/WeeklyKPIs.svelte';
 import RiskHeatmap from '../components/RiskHeatmap.svelte';
@@ -25,11 +28,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       <header class="topbar">
         <div class="topbar-start">
           <div class="brand">🌺 flowerxi</div>
-          <nav class="top-nav-mobile">
-            <a href="/municipios">Municipios</a>
-            <a href="/estaciones">Estaciones</a>
-            <a href="/exportaciones">Comercial</a>
-          </nav>
         </div>
 
         <div class="topbar-center">
@@ -84,12 +82,30 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
             </aside>
           </div>
 
-          <!-- Segunda fila: KPIs + Heatmap + Impacto -->
-          <div class="second-row">
+          <!-- Fila de operación -->
+          <div class="two-col-row">
             <WeeklyKPIs {apiUrl} region="madrid" client:load />
             <RiskHeatmap {apiUrl} region="madrid" client:load />
-            <ImpactoOperacion {apiUrl} region="madrid" client:load />
           </div>
+
+          <!-- Fila de negocio -->
+          <div class="two-col-row">
+            <ImpactoOperacion {apiUrl} region="madrid" client:load />
+            <CommercialIntelCard {apiUrl} initialRegion="madrid" client:load />
+          </div>
+
+          <!-- Comparativa Sabana -->
+          <details class="collapsible-card">
+            <summary>Comparativa Sabana</summary>
+            <div class="collapsible-content">
+              <SabanaComparison {apiUrl} initialRegion="madrid" client:load />
+            </div>
+          </details>
+
+          <!-- Footer operativo -->
+          <footer class="dashboard-footer">
+            <ClosestStationFooter {apiUrl} initialRegion="madrid" client:load />
+          </footer>
         </main>
       </div>
 
@@ -155,12 +171,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
         display: flex; align-items: center; justify-content: space-between;
         gap: 1rem; box-shadow: var(--shadow);
       }
-      .topbar-start { display: flex; align-items: center; gap: 1.5rem; min-width: 0; }
+      .topbar-start { display: flex; align-items: center; gap: 1rem; min-width: 0; }
       .topbar-center { display: flex; justify-content: center; }
       .topbar-status { margin: 0; font-size: 0.86rem; color: var(--text-secondary); }
       .brand { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1.2rem; color: var(--primary); }
-      .top-nav-mobile { display: none; gap: 1rem; font-size: 0.85rem; }
-      .top-nav-mobile a { color: var(--text-secondary); text-decoration: none; }
       .topbar-end { display: flex; align-items: center; gap: 0.5rem; }
       .btn-icon { padding: 0.5rem; border: none; background: var(--bg-app); color: var(--text-secondary); border-radius: var(--radius); cursor: pointer; transition: all 150ms; }
       .btn-icon:hover { background: var(--border); color: var(--primary); }
@@ -175,12 +189,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
         background: linear-gradient(135deg, var(--status-rutina-bg) 0%, #fff 100%);
         border: 2px solid var(--status-rutina);
         border-radius: 20px;
-        padding: 1.5rem;
-        display: flex; align-items: center; gap: 1.5rem;
+        padding: 1.25rem;
+        display: flex; align-items: center; gap: 1.25rem;
         box-shadow: 0 8px 24px rgba(16,185,129,0.15);
       }
       .hero-text { flex: 1; }
-      .greeting { margin: 0; font-size: 1.2rem; font-weight: 500; line-height: 1.4; }
+      .greeting { margin: 0; font-size: 1.15rem; font-weight: 500; line-height: 1.4; }
       .greeting strong { color: var(--secondary); }
       .badge-rutina { color: var(--status-rutina); font-weight: 700; }
       .subtext { margin: 0.4rem 0 0; font-size: 0.85rem; color: var(--text-secondary); }
@@ -201,19 +215,37 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       .section-head { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
       .section-sub { margin: 0.2rem 0 0.8rem; font-size: 0.8rem; color: var(--text-tertiary); }
 
-      .spark-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-
-      .checklist { display: flex; flex-direction: column; gap: 0.5rem; }
-      .check-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg-app); border-radius: var(--radius-md); border: 1px solid var(--border); }
-      .check-item input { width: 18px; height: 18px; }
-      .check-item.checked { border-color: var(--status-rutina); }
-
       .info-tip { background: var(--status-vigilancia-bg); border-left: 3px solid var(--status-vigilancia); padding: 0.75rem; border-radius: var(--radius-md); display: flex; gap: 0.75rem; font-size: 0.8rem; color: #92400E; margin-top: auto; }
       .info-tip span { font-size: 1.1rem; }
 
-      /* Segunda fila */
-      .second-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-      @media (max-width: 1024px) { .second-row { grid-template-columns: 1fr; } }
+      /* Filas 2 columnas */
+      .two-col-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.25rem;
+      }
+
+      /* Contenedor colapsable */
+      .collapsible-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: 14px;
+        box-shadow: var(--shadow-sm);
+      }
+      .collapsible-card summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 0.95rem 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .collapsible-card summary::-webkit-details-marker { display: none; }
+      .collapsible-content { padding: 0 1rem 1rem; }
+
+      .dashboard-footer {
+        border-top: 1px solid var(--border-subtle);
+        padding-top: 0.8rem;
+      }
 
       :global(html[data-field-mode='on']) { font-size: 18px; }
       :global(html[data-field-mode='on'] body) { background: #fff; }
@@ -221,16 +253,18 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       :global(html[data-field-mode='on'] input[type='checkbox']) { width: 24px; height: 24px; }
 
       /* Responsive móvil */
+      @media (max-width: 1024px) {
+        .two-col-row { grid-template-columns: 1fr; }
+      }
+
       @media (max-width: 768px) {
         .main-layout { grid-template-columns: 1fr; padding: 1rem; }
         .sidebar-col { display: none; }
         .topbar { padding: 0.6rem 1rem; }
-        .topbar-start .top-nav-mobile { display: flex; }
         .topbar-center { order: 3; width: 100%; justify-content: flex-start; }
         .topbar-end { flex: 1; justify-content: flex-end; }
         .hero-kpi { flex-direction: column; text-align: center; }
         .dashboard-12 { gap: 1rem; }
-        .spark-grid { grid-template-columns: 1fr; }
       }
     </style>
   </body>

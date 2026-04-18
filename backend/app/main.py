@@ -29,6 +29,14 @@ logger = logging.getLogger("flowerxi-backend")
 
 app = FastAPI(title=settings.app_name)
 
+# Log de arranque
+logger.info(f"Iniciando {settings.app_name} en {settings.app_env}")
+logger.info(f"Puerto configurado: {settings.app_port}")
+if not settings.database_configured:
+    logger.warning(
+        "DATABASE_URL no configurada. Endpoints DB fallarán hasta configurar."
+    )
+
 # CORS
 allowed_origins: list[str] = []
 for raw_origin in settings.cors_origins.split(","):

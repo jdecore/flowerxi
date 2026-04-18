@@ -138,7 +138,11 @@
 </script>
 
 {#if loading}
-  <p class="state muted">Cargando evidencia de {regionLabel}...</p>
+  <div class="skeleton-grid" aria-label={`Cargando evidencia de ${regionLabel}`}>
+    {#each Array(4) as _}
+      <div class="skeleton-card"></div>
+    {/each}
+  </div>
 {:else if error}
   <p class="state error">{error}</p>
 {:else if !enoughData}
@@ -168,6 +172,30 @@
 
   .state.error {
     color: #dc2626;
+  }
+
+  .skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .skeleton-card {
+    height: 122px;
+    border-radius: 12px;
+    background: linear-gradient(
+      90deg,
+      var(--border-subtle, #e2e8f0) 25%,
+      var(--bg-app, #f1f5f9) 50%,
+      var(--border-subtle, #e2e8f0) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite linear;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
   }
 
   .empty-state {
@@ -203,6 +231,10 @@
   }
 
   @media (max-width: 900px) {
+    .skeleton-grid {
+      grid-template-columns: 1fr;
+    }
+
     .spark-grid {
       grid-template-columns: 1fr;
     }
