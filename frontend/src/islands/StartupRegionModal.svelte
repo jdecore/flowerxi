@@ -1,13 +1,67 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
-  import { regions, setRegion } from '../stores/region';
+  import { regions as fallbackRegions, setRegion } from '../stores/region';
 
   const STORAGE_REGION = 'flowerxi_region';
+  const API_URL = import.meta.env.PUBLIC_API_URL ?? '';
 
   let selectedRegion = 'madrid';
   let open = false;
+  let availableRegions = fallbackRegions.map((region) => ({ id: region.id, name: region.name }));
 
-  const isValidRegion = (value) => regions.some((region) => region.id === value);
+  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
+
+  const buildApiBases = (raw) => {
+    const configured = normalizeBaseUrl(raw);
+    const candidates = [];
+    if (configured) candidates.push(configured);
+
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        candidates.push(`${window.location.protocol}//${host}:8000`);
+        candidates.push('http://localhost:8000');
+        candidates.push('http://127.0.0.1:8000');
+      }
+    }
+
+    candidates.push('');
+    return [...new Set(candidates)];
+  };
+
+  const endpoint = (base, path) => {
+    if (!base) return path;
+    if (base.endsWith('/api') && path.startsWith('/api/')) return `${base}${path.slice(4)}`;
+    return `${base}${path}`;
+  };
+
+  const fetchJson = async (path) => {
+    const apiBases = buildApiBases(API_URL);
+    for (const base of apiBases) {
+      try {
+        const res = await fetch(endpoint(base, path), { headers: { Accept: 'application/json' } });
+        if (!res.ok) continue;
+        return await res.json();
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  };
+
+  const loadRegions = async () => {
+    const data = await fetchJson('/api/regions');
+    const items = Array.isArray(data?.items) ? data.items : [];
+    if (items.length === 0) return;
+    availableRegions = items
+      .map((item) => ({
+        id: String(item?.slug || '').trim(),
+        name: String(item?.name || '').trim(),
+      }))
+      .filter((item) => item.id && item.name);
+  };
+
+  const isValidRegion = (value) => availableRegions.some((region) => region.id === value);
 
   const applyRegion = (region) => {
     if (typeof window === 'undefined') return;
@@ -36,15 +90,18 @@
 
   onMount(() => {
     if (typeof window === 'undefined') return;
-
-    const savedRegion = window.localStorage.getItem(STORAGE_REGION);
-    if (savedRegion && isValidRegion(savedRegion)) {
-      selectedRegion = savedRegion;
-    }
-
-    applyRegion(selectedRegion);
-    window.addEventListener('open-region-selector', openSelector);
-    open = true;
+    (async () => {
+      await loadRegions();
+      const savedRegion = window.localStorage.getItem(STORAGE_REGION);
+      if (savedRegion && isValidRegion(savedRegion)) {
+        selectedRegion = savedRegion;
+      } else if (!isValidRegion(selectedRegion)) {
+        selectedRegion = availableRegions[0]?.id || 'madrid';
+      }
+      applyRegion(selectedRegion);
+      window.addEventListener('open-region-selector', openSelector);
+      open = true;
+    })();
   });
 
   onDestroy(() => {
@@ -62,7 +119,7 @@
       <label>
         <span>Municipio</span>
         <select bind:value={selectedRegion} on:change={handleRegionChange}>
-          {#each regions as region}
+          {#each availableRegions as region}
             <option value={region.id}>{region.name}</option>
           {/each}
         </select>

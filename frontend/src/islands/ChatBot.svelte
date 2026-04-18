@@ -1,23 +1,25 @@
 <script>
-  import { onMount } from 'svelte';
-  import { getAIModel } from '../lib/ai/model.js';
+  import { onDestroy, onMount } from 'svelte';
+  import { getAIModel, getLoadedModelId } from '../lib/ai/model.js';
 
   export let apiUrl = '';
+  export let embedded = false;
 
   const STORAGE_REGION = 'flowerxi_region';
   const CHAT_STORAGE_KEY = 'flowerxi_chat';
-  const TODAY_STORAGE_KEY = 'flowerxi_today';
-  const MAX_MESSAGES = 20;
-  const trackedRegions = ['madrid', 'facatativa', 'funza'];
+  const MAX_MESSAGES = 30;
 
   let chatHistory = [];
   let userQuestion = '';
-  let chatOpen = false;
+  let chatOpen = embedded;
   let isModelLoading = false;
   let isAnswering = false;
   let modelReady = false;
-  let model = null;
+  let modelProgress = 0;
+  let modelName = '';
+  let engine = null;
   let region = 'madrid';
+  let inputRef;
 
   const loadHistory = () => {
     if (typeof window === 'undefined') return;
@@ -97,28 +99,74 @@
   };
 
   const loadBackendContext = async () => {
-    const [operativoData, historyData] = await Promise.all([
+    const [operativoData, historyData, weeklyData, monthlyData, compareData] = await Promise.all([
       fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
-      fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=7`),
+      fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=14`),
+      fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`),
+      fetchJson(`/api/risk/monthly?region=${encodeURIComponent(region)}&months=12`),
+      fetchJson('/api/municipalities/compare'),
     ]);
 
     const history = Array.isArray(historyData?.items) ? historyData.items : [];
     const latest = history[0] ?? null;
+    const weekly = Array.isArray(weeklyData?.items) ? weeklyData.items : [];
+    const monthly = Array.isArray(monthlyData?.items) ? monthlyData.items : [];
+
+    const trackedRegions = Array.isArray(compareData?.items)
+      ? compareData.items.map((item) => ({
+          slug: String(item?.slug || '').trim(),
+          name: String(item?.name || '').trim(),
+        }))
+      : [];
+    const regionList = trackedRegions.filter((item) => item.slug);
 
     const humidityByRegion = await Promise.all(
-      trackedRegions.map(async (slug) => {
+      regionList.map(async (regionItem) => {
+        const slug = regionItem.slug;
         const data = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
         const day = Array.isArray(data?.items) ? data.items[0] : null;
         const waterRisk = Number(day?.waterlogging_risk);
-        return { slug, humidity: Number.isFinite(waterRisk) ? Math.round(waterRisk) : null };
+        return {
+          slug,
+          name: regionItem.name || slug,
+          waterRisk: Number.isFinite(waterRisk) ? Math.round(waterRisk) : null,
+        };
       })
     );
 
     const humidTop = humidityByRegion
-      .filter((item) => item.humidity !== null)
-      .sort((a, b) => b.humidity - a.humidity)[0];
+      .filter((item) => item.waterRisk !== null)
+      .sort((a, b) => b.waterRisk - a.waterRisk)[0];
 
-    return { operativo: operativoData, latest, humidTop };
+    const contextSummary = {
+      region,
+      operativo: {
+        status: operativoData?.status_label || 'Sin datos',
+        score: operativoData?.score ?? null,
+        reason: operativoData?.reason || 'Sin datos',
+        action: operativoData?.action_today || 'Sin datos',
+      },
+      today: latest
+        ? {
+            date: latest.observed_on,
+            temp: latest.temp_mean_c,
+            precip: latest.precipitation_mm,
+            fungal: latest.fungal_risk,
+            waterlogging: latest.waterlogging_risk,
+            heat: latest.heat_risk,
+            recommendation: latest.recommendation_message || latest.recommendation_title || 'Sin datos',
+          }
+        : null,
+      weeklyActions: weekly.slice(0, 3).map((item) => item.title || item.message).filter(Boolean),
+      monthlyTrend: monthly.slice(0, 6).map((item) => ({
+        month: item.month_label,
+        score: item.combined_score,
+        level: item.risk_level,
+      })),
+      humidTop: humidTop ? `${humidTop.name} (${humidTop.waterRisk} pts)` : null,
+    };
+
+    return { operativo: operativoData, latest, humidTop, contextSummary };
   };
 
   const quickAnswer = (question, context) => {
@@ -128,25 +176,31 @@
     const action = context?.operativo?.action_today;
     const reason = context?.operativo?.reason;
     const humidTop = context?.humidTop;
+    const latest = context?.latest;
 
     if (q.includes('riesgo hoy') || q.includes('como esta el riesgo') || q.includes('cómo está el riesgo')) {
       return score !== null && score !== undefined
         ? `Hoy en ${region} el riesgo está en ${statusLabel || 'estado operativo'} (${score}).`
-        : 'Datos no disponibles para el riesgo de hoy.';
+        : 'No tengo datos suficientes del riesgo de hoy.';
     }
 
     if (q.includes('que debo hacer') || q.includes('qué debo hacer') || q.includes('recomendacion')) {
-      return action ? `Acción recomendada hoy: ${action}` : 'Datos no disponibles para recomendación operativa.';
+      return action ? `Acción recomendada hoy: ${action}` : 'No hay recomendación operativa disponible.';
     }
 
     if (q.includes('donde hay mas humedad') || q.includes('dónde hay más humedad')) {
       return humidTop
-        ? `Hoy el mayor riesgo por humedad/encharcamiento está en ${humidTop.slug} (${humidTop.humidity} pts).`
-        : 'Datos no disponibles para comparar humedad entre municipios.';
+        ? `Hoy el mayor riesgo de humedad/encharcamiento está en ${humidTop.name || humidTop.slug} (${humidTop.waterRisk} pts).`
+        : 'No hay datos para comparar humedad entre municipios.';
     }
 
     if (q.includes('por que') || q.includes('por qué')) {
-      return reason ? `El riesgo sube por: ${reason}` : 'Datos no disponibles para explicar el riesgo.';
+      return reason ? `El riesgo sube por: ${reason}` : 'No hay explicación de riesgo disponible.';
+    }
+
+    if (q.includes('lluvia') || q.includes('temperatura')) {
+      if (!latest) return 'No hay observación climática reciente.';
+      return `Último dato en ${region}: lluvia ${latest.precipitation_mm ?? 'N/A'} mm, temperatura ${latest.temp_mean_c ?? 'N/A'} °C.`;
     }
 
     return '';
@@ -157,54 +211,37 @@
     const label = context?.operativo?.status_label;
     const action = context?.operativo?.action_today;
     const reason = context?.operativo?.reason;
-    if ((score === null || score === undefined) && !action) return 'Datos no disponibles.';
+    if ((score === null || score === undefined) && !action) return 'No tengo datos suficientes para responder.';
     return `Estado actual: ${label || 'Sin datos'} (${score ?? '—'}). ${reason || ''} Acción sugerida: ${action || 'Sin datos'}`.trim();
   };
 
-  const loadModel = async () => {
+  const ensureModel = async () => {
     if (modelReady || isModelLoading) return;
     isModelLoading = true;
+    modelProgress = 0;
     try {
-      model = await getAIModel();
-      if (!model) throw new Error('No fue posible inicializar el modelo');
-      modelReady = true;
+      engine = await getAIModel((progress) => {
+        const val = Number(progress?.progress ?? 0);
+        if (Number.isFinite(val)) modelProgress = Math.max(0, Math.min(100, Math.round(val * 100)));
+      });
+      modelName = getLoadedModelId() || '';
+      modelReady = Boolean(engine);
     } catch (err) {
-      console.error('[flowerxi-chat] init error:', err);
+      console.error('[flowerxi-chat] webllm init error:', err);
+      modelReady = false;
     } finally {
       isModelLoading = false;
     }
   };
 
-  const getTodayContext = () => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const raw = window.localStorage.getItem(TODAY_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  };
-
-  const cleanModelAnswer = (text) => {
-    if (!text) return '';
-    const cleaned = text.replace(/^assistant:\s*/i, '').trim();
-    if (cleaned.length < 3 || cleaned.toLowerCase().includes('cannot respond')) {
-      return 'Datos no disponibles.';
-    }
-    return cleaned;
-  };
-
   const buildMessages = (question, context) => {
-    const today = getTodayContext();
     const systemPrompt =
-      `Eres FlowerxiBot, asesor agronomico para rosa de corte en Colombia. ` +
-      `Responde en español, maximo tres lineas, sin inventar datos. ` +
-      `Contexto actual: municipio=${today.region || region}, temp=${today.temp || 'N/A'}, ` +
-      `precip=${today.precip || 'N/A'}, riesgo=${today.risk_fungico || context?.operativo?.score || 'N/A'}, ` +
-      `accion=${context?.operativo?.action_today || 'N/A'}.`;
+      `Eres FlowerxiBot, asistente agronómico para floricultura en Cundinamarca. ` +
+      `Responde en español, máximo 4 líneas, sin inventar datos y priorizando decisiones operativas. ` +
+      `Si falta dato, dilo explícitamente. Usa este contexto JSON real: ${JSON.stringify(context.contextSummary)}.`;
 
     const messages = [{ role: 'system', content: systemPrompt }];
-    chatHistory.slice(-3).forEach((item) => {
+    chatHistory.slice(-4).forEach((item) => {
       messages.push({ role: 'user', content: item.q });
       messages.push({ role: 'assistant', content: item.a });
     });
@@ -225,23 +262,21 @@
         return;
       }
 
-      if (!modelReady) await loadModel();
-      if (!modelReady) {
+      await ensureModel();
+      if (!modelReady || !engine) {
         appendHistory(question, fallbackContextAnswer(context));
         return;
       }
 
       const messages = buildMessages(question, context);
-      const result = await model(messages, {
-        max_new_tokens: 120,
-        temperature: 0.7,
-        do_sample: true,
+      const completion = await engine.chat.completions.create({
+        messages,
+        temperature: 0.4,
+        top_p: 0.9,
+        max_tokens: 180,
+        stream: false,
       });
-      const generated = result?.[0]?.generated_text;
-      const answerText = Array.isArray(generated)
-        ? generated.at(-1)?.content || generated.at(-1)
-        : generated;
-      const answer = cleanModelAnswer(answerText) || 'Datos no disponibles.';
+      const answer = completion?.choices?.[0]?.message?.content?.trim() || fallbackContextAnswer(context);
       appendHistory(question, answer);
     } catch (err) {
       console.error('[flowerxi-chat] error:', err);
@@ -249,19 +284,11 @@
         const context = await loadBackendContext();
         appendHistory(question, fallbackContextAnswer(context));
       } catch {
-        appendHistory(question, 'Datos no disponibles.');
+        appendHistory(question, 'No tengo datos suficientes para responder en este momento.');
       }
     } finally {
       isAnswering = false;
     }
-  };
-
-  const closeChat = () => {
-    chatOpen = false;
-  };
-
-  const openFromSidebar = async () => {
-    chatOpen = true;
   };
 
   const onRegionChange = (event) => {
@@ -269,17 +296,26 @@
     region = event.detail;
   };
 
+  const openChat = async () => {
+    chatOpen = true;
+    await Promise.resolve();
+    if (inputRef?.focus) inputRef.focus();
+    if (embedded && typeof document !== 'undefined') {
+      const section = document.getElementById('chat-section');
+      section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   onMount(() => {
     loadHistory();
     if (typeof window !== 'undefined') {
       region = window.localStorage.getItem(STORAGE_REGION) || region;
-      window.addEventListener('openchat', openFromSidebar);
+      window.addEventListener('openchat', openChat);
       window.addEventListener('regionchange', onRegionChange);
     }
-
     return () => {
       if (typeof window !== 'undefined') {
-        window.removeEventListener('openchat', openFromSidebar);
+        window.removeEventListener('openchat', openChat);
         window.removeEventListener('regionchange', onRegionChange);
       }
     };
@@ -287,87 +323,61 @@
 </script>
 
 {#if chatOpen}
-  <div class="chat-overlay" role="presentation" on:click={closeChat}>
-    <aside
-      class="chat-panel"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Panel de Chat IA"
-      on:click|stopPropagation
-    >
-      <header class="chat-header">
-        <div>
-          <h3>FlowerxiBot</h3>
-          <p>Asistente agronómico</p>
-        </div>
-        <div class="header-actions">
-          <button class="clear-btn" type="button" on:click={clearHistory}>Limpiar</button>
-          <button class="close-btn" type="button" on:click={closeChat} aria-label="Cerrar chat">×</button>
-        </div>
-      </header>
+  <article class="chat-card" id={embedded ? 'chat-section' : undefined}>
+    <header class="chat-header">
+      <div>
+        <h3>FlowerxiBot</h3>
+        <p>Asistente agronómico con contexto operativo real</p>
+      </div>
+      <div class="header-actions">
+        <button class="clear-btn" type="button" on:click={clearHistory}>Limpiar</button>
+      </div>
+    </header>
 
-      {#if isModelLoading}
-        <p class="status">Cargando IA avanzada...</p>
+    {#if isModelLoading}
+      <p class="status">Cargando WebLLM{modelProgress ? ` (${modelProgress}%)` : '...'}</p>
+    {:else if modelReady}
+      <p class="status model-ok">Modelo local: {modelName || 'WebLLM'}</p>
+    {/if}
+
+    <div class="chat-history">
+      {#if chatHistory.length === 0}
+        <p class="status">Pregunta: “¿Cómo está el riesgo hoy?”, “¿Qué debo hacer?” o “¿Por qué subió?”</p>
       {/if}
+      {#each chatHistory as item}
+        <div class="message">
+          <p class="q"><strong>Tú:</strong> {item.q}</p>
+          <p class="a"><strong>Bot:</strong> {item.a}</p>
+          <p class="time">{formatTime(item.timestamp)}</p>
+        </div>
+      {/each}
+    </div>
 
-      <div class="chat-history">
-        {#if chatHistory.length === 0}
-          <p class="status">Prueba: "¿Cómo está el riesgo hoy?" o "¿Qué debo hacer hoy?"</p>
-        {/if}
-        {#each chatHistory as item}
-          <div class="message">
-            <p class="q"><strong>Tú:</strong> {item.q}</p>
-            <p class="a"><strong>Bot:</strong> {item.a}</p>
-            <p class="time">{formatTime(item.timestamp)}</p>
-          </div>
-        {/each}
-      </div>
-
-      <div class="composer">
-        <textarea
-          rows="2"
-          bind:value={userQuestion}
-          on:keydown={handleKeydown}
-          placeholder="Ej: ¿Qué riesgo hay hoy en mi lote?"
-          disabled={isAnswering}
-        ></textarea>
-        <button type="button" on:click={askQuestion} disabled={isAnswering}>
-          {isAnswering ? '...' : 'Enviar'}
-        </button>
-      </div>
-    </aside>
-  </div>
+    <div class="composer">
+      <textarea
+        rows="2"
+        bind:this={inputRef}
+        bind:value={userQuestion}
+        on:keydown={handleKeydown}
+        placeholder="Ej: ¿Qué acción recomiendas para hoy en mi municipio?"
+        disabled={isAnswering}
+      ></textarea>
+      <button type="button" on:click={askQuestion} disabled={isAnswering}>
+        {isAnswering ? 'Pensando...' : 'Enviar'}
+      </button>
+    </div>
+  </article>
 {/if}
 
 <style>
-  :root {
-    --chat-primary: var(--primary);
-    --chat-primary-hover: var(--primary-hover);
-    --chat-bg: var(--bg-app);
-    --chat-surface: var(--bg-surface);
-    --chat-text: var(--text-primary);
-    --chat-muted: var(--text-secondary);
-    --chat-tertiary: var(--text-tertiary);
-    --chat-border: var(--border-subtle);
-  }
-
-  .chat-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 12, 21, 0.35);
-    z-index: 80;
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .chat-panel {
-    width: min(430px, 100vw);
-    height: 100vh;
+  .chat-card {
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    border-radius: 14px;
+    background: var(--bg-surface, #fff);
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(31, 41, 55, 0.06));
     display: flex;
     flex-direction: column;
-    border-left: 1px solid var(--chat-border);
-    background: var(--chat-surface);
-    box-shadow: -12px 0 28px rgba(43, 39, 48, 0.12);
+    min-height: 460px;
   }
 
   .chat-header {
@@ -375,20 +385,20 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem;
-    padding: 1rem;
-    border-bottom: 1px solid var(--chat-border);
+    padding: 0.9rem;
+    border-bottom: 1px solid var(--border-subtle, #e2e8f0);
   }
 
   .chat-header h3 {
     margin: 0;
-    font-size: 0.95rem;
-    color: var(--chat-text);
+    font-size: 1rem;
+    color: var(--text-primary, #1f2937);
   }
 
   .chat-header p {
     margin: 0.2rem 0 0;
-    font-size: 0.8rem;
-    color: var(--chat-muted);
+    font-size: 0.78rem;
+    color: var(--text-secondary, #64748b);
   }
 
   .header-actions {
@@ -398,35 +408,18 @@
   }
 
   .clear-btn {
-    border: 1px solid var(--chat-border);
+    border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 8px;
     background: transparent;
-    color: var(--chat-muted);
+    color: var(--text-secondary, #64748b);
     padding: 0.3rem 0.5rem;
     font-size: 0.75rem;
     cursor: pointer;
   }
 
   .clear-btn:hover {
-    background: var(--chat-bg);
-    color: var(--chat-text);
-  }
-
-  .close-btn {
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--chat-muted);
-    font-size: 1.2rem;
-    line-height: 1;
-    width: 30px;
-    height: 30px;
-    cursor: pointer;
-  }
-
-  .close-btn:hover {
-    background: var(--chat-bg);
-    color: var(--chat-text);
+    background: var(--bg-app, #f8fafc);
+    color: var(--text-primary, #1f2937);
   }
 
   .chat-history {
@@ -438,46 +431,47 @@
   }
 
   .message {
-    border: 1px solid var(--chat-border);
+    border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 10px;
-    padding: 0.5rem;
-    background: var(--chat-bg);
+    padding: 0.55rem;
+    background: var(--bg-app, #f8fafc);
   }
 
   .q,
   .a {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
     line-height: 1.35;
-    color: var(--chat-text);
+    color: var(--text-primary, #1f2937);
   }
 
   .a {
     margin-top: 0.3rem;
-    color: var(--chat-primary);
+    color: var(--primary, #7b5ba6);
   }
 
   .time {
     margin: 0.3rem 0 0;
     font-size: 0.7rem;
-    color: var(--chat-tertiary);
+    color: var(--text-tertiary, #94a3b8);
   }
 
   .status {
     margin: 0;
-    padding: 1rem;
-    color: var(--chat-muted);
+    padding: 0.5rem 0.9rem;
+    color: var(--text-secondary, #64748b);
+    font-size: 0.8rem;
   }
 
-  .status.error {
-    color: var(--alert-high);
+  .status.model-ok {
+    color: #065f46;
   }
 
   .composer {
     display: grid;
     gap: 0.5rem;
     padding: 0.75rem;
-    border-top: 1px solid var(--chat-border);
+    border-top: 1px solid var(--border-subtle, #e2e8f0);
   }
 
   textarea {
@@ -486,9 +480,9 @@
     min-height: 56px;
     max-height: 130px;
     border-radius: 10px;
-    border: 1px solid var(--chat-border);
-    background: var(--chat-bg);
-    color: var(--chat-text);
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    background: var(--bg-app, #f8fafc);
+    color: var(--text-primary, #1f2937);
     font: inherit;
     font-size: 0.85rem;
     padding: 0.5rem 0.65rem;
@@ -497,33 +491,27 @@
   }
 
   textarea:focus {
-    border-color: var(--chat-primary);
+    border-color: var(--primary, #7b5ba6);
   }
 
   .composer button {
     border: none;
     border-radius: 10px;
-    background: var(--chat-primary);
+    background: var(--primary, #7b5ba6);
     color: #fff;
     font: inherit;
-    font-weight: 500;
-    padding: 0.5rem 0.6rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.55rem 0.7rem;
     cursor: pointer;
   }
 
   .composer button:hover:not(:disabled) {
-    background: var(--chat-primary-hover);
+    background: var(--primary-hover, #6b4f92);
   }
 
   .composer button:disabled,
   textarea:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 700px) {
-    .chat-panel {
-      width: 100vw;
-    }
+    opacity: 0.65;
   }
 </style>

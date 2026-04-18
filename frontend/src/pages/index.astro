@@ -5,11 +5,9 @@ import '../styles/index.css';
 import StartupRegionModal from '../islands/StartupRegionModal.svelte';
 import OperationalHero from '../islands/OperationalHero.svelte';
 import EvidenceSparklines from '../islands/EvidenceSparklines.svelte';
-import TodayChecklist from '../islands/TodayChecklist.svelte';
 import CommercialIntelCard from '../islands/CommercialIntelCard.svelte';
 import SabanaComparison from '../islands/SabanaComparison.svelte';
 import ClosestStationFooter from '../islands/ClosestStationFooter.svelte';
-import WeeklyKPIs from '../components/WeeklyKPIs.svelte';
 import RiskHeatmap from '../components/RiskHeatmap.svelte';
 import ImpactoOperacion from '../components/ImpactoOperacion.svelte';
 import ChatBot from '../islands/ChatBot.svelte';
@@ -65,21 +63,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
               <EvidenceSparklines {apiUrl} initialRegion="madrid" client:load />
             </section>
 
-            <!-- Qué hacer hoy (4 cols) -->
+            <!-- Chat operativo (4 cols) -->
             <aside class="col-4">
-              <h2 class="section-head">Qué hacer hoy</h2>
-              <TodayChecklist initialRegion="madrid" client:load />
-
-              <div class="info-tip">
-                <span>ℹ️</span>
-                <p><strong>Marco de decisión:</strong> Riesgo = prioridad de atención hoy. No es diagnóstico de finca.</p>
-              </div>
+              <h2 class="section-head">Chat IA operativo</h2>
+              <ChatBot {apiUrl} embedded={true} client:load />
             </aside>
           </div>
 
-          <!-- Fila de operación -->
-          <div class="two-col-row">
-            <WeeklyKPIs {apiUrl} region="madrid" client:load />
+          <!-- Calendario ampliado -->
+          <div class="one-col-row">
             <RiskHeatmap {apiUrl} region="madrid" client:load />
           </div>
 
@@ -101,13 +93,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
             <section class="station-card">
               <h3 class="section-head">Estación de referencia</h3>
               <ClosestStationFooter {apiUrl} initialRegion="madrid" client:load />
+              <p class="made-by">Hecho por Juan Enriquez- 2026</p>
             </section>
           </div>
         </main>
       </div>
-
-      <!-- ChatBot -->
-      <ChatBot {apiUrl} client:load />
 
       <!-- Scripts vanilla para tema y refresh -->
       <script>
@@ -206,13 +196,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
       .section-head { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
       .section-sub { margin: 0.2rem 0 0.8rem; font-size: 0.8rem; color: var(--text-tertiary); }
 
-      .info-tip { background: var(--status-vigilancia-bg); border-left: 3px solid var(--status-vigilancia); padding: 0.75rem; border-radius: var(--radius-md); display: flex; gap: 0.75rem; font-size: 0.8rem; color: #92400E; margin-top: auto; }
-      .info-tip span { font-size: 1.1rem; }
-
       /* Filas 2 columnas */
       .two-col-row {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.25rem;
+      }
+      .one-col-row {
+        display: grid;
+        grid-template-columns: 1fr;
         gap: 1.25rem;
       }
 
@@ -241,6 +233,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
         padding: 1rem;
         display: grid;
         gap: 0.5rem;
+      }
+      .made-by {
+        margin: 0.2rem 0 0;
+        font-size: 0.75rem;
+        color: var(--text-tertiary, #94a3b8);
       }
 
       /* Responsive móvil */

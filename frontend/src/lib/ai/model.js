@@ -1,64 +1,57 @@
-import { env } from '@huggingface/transformers';
+const PREFERRED_MODELS = [
+  'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+  'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+  'Phi-3.5-mini-instruct-q4f16_1-MLC',
+  'Gemma-2-2b-it-q4f16_1-MLC',
+  'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',
+  'DeepSeek-R1-Distill-Qwen-1.5B-q4f16_1-MLC',
+];
 
-env.allowLocalModels = false;
-env.useBrowserCache = true;
-
-const MODEL_ID = 'onnx-community/SmolLM-135M-ONNX';
-
-let modelInstance = null;
+let engineInstance = null;
 let loadingPromise = null;
+let modelIdLoaded = null;
+let webllmModulePromise = null;
 
-export async function getAIModel() {
-  if (typeof window === 'undefined') {
-    return null;
+const isChatLikeModel = (modelId) => /instruct|chat|llama|qwen|phi|gemma|mistral|deepseek/i.test(modelId);
+
+async function loadWebLLMModule() {
+  if (!webllmModulePromise) {
+    webllmModulePromise = import('@mlc-ai/web-llm');
+  }
+  return webllmModulePromise;
+}
+
+async function pickModelId() {
+  const { prebuiltAppConfig } = await loadWebLLMModule();
+  const modelList = Array.isArray(prebuiltAppConfig?.model_list) ? prebuiltAppConfig.model_list : [];
+  const availableIds = modelList.map((item) => item?.model_id).filter(Boolean);
+
+  for (const preferred of PREFERRED_MODELS) {
+    if (availableIds.includes(preferred)) return preferred;
   }
 
-  if (modelInstance) {
-    return modelInstance;
-  }
+  const fallback = availableIds.find((id) => isChatLikeModel(id));
+  if (fallback) return fallback;
 
-  if (loadingPromise) {
-    return loadingPromise;
-  }
+  return 'Llama-3.1-8B-Instruct';
+}
+
+export async function getAIModel(onProgress = null) {
+  if (typeof window === 'undefined') return null;
+  if (engineInstance) return engineInstance;
+  if (loadingPromise) return loadingPromise;
+
+  const selectedModel = await pickModelId();
+  modelIdLoaded = selectedModel;
 
   loadingPromise = (async () => {
-    const { pipeline, Env } = await import('@huggingface/transformers');
-
-    let device = 'webgpu';
-    let dtype = 'q4';
-
-    try {
-      console.log('[flowerxi-ai] Loading model:', MODEL_ID);
-      modelInstance = await pipeline('text-generation', MODEL_ID, {
-        dtype,
-        device,
-        progress_callback: (event) => {
-          if (event?.status === 'progress') {
-            console.log(`[flowerxi-ai] Loading ${Math.round(event.progress * 100)}%`);
-          }
-        },
-      });
-      console.log('[flowerxi-ai] Model loaded successfully');
-    } catch (webgpuError) {
-      console.warn('[flowerxi-ai] WebGPU failed, trying CPU fallback:', webgpuError?.message || webgpuError);
-      try {
-        modelInstance = await pipeline('text-generation', MODEL_ID, {
-          dtype: 'q4',
-          device: 'cpu',
-          progress_callback: (event) => {
-            if (event?.status === 'progress') {
-              console.log(`[flowerxi-ai] Loading (CPU) ${Math.round(event.progress * 100)}%`);
-            }
-          },
-        });
-        console.log('[flowerxi-ai] Model loaded on CPU');
-      } catch (cpuError) {
-        console.error('[flowerxi-ai] All backends failed:', cpuError);
-        throw new Error(`No se pudo cargar el modelo (WebGPU: ${webgpuError?.message}, CPU: ${cpuError?.message})`);
-      }
-    }
-
-    return modelInstance;
+    const { CreateMLCEngine } = await loadWebLLMModule();
+    engineInstance = await CreateMLCEngine(selectedModel, {
+      initProgressCallback: (progress) => {
+        if (typeof onProgress === 'function') onProgress(progress);
+      },
+    });
+    return engineInstance;
   })();
 
   try {
@@ -68,7 +61,15 @@ export async function getAIModel() {
   }
 }
 
-export function resetAIModel() {
-  modelInstance = null;
+export function getLoadedModelId() {
+  return modelIdLoaded;
+}
+
+export async function resetAIModel() {
+  if (engineInstance?.unload) {
+    await engineInstance.unload();
+  }
+  engineInstance = null;
   loadingPromise = null;
+  modelIdLoaded = null;
 }

@@ -105,7 +105,7 @@ def municipality_detail(slug: str):
 def municipalities_compare():
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(SQL_QUERIES["municipalities"])
+            cur.execute(SQL_QUERIES["regions_compare"])
             rows = cur.fetchall()
 
     total_area = sum(to_float(r.get("flower_area_ha"), 0.0) for r in rows)
@@ -119,6 +119,8 @@ def municipalities_compare():
             {
                 "slug": row["slug"],
                 "name": row["name"],
+                "city": row.get("city"),
+                "production_share": to_float(row.get("production_share"), 0.0),
                 "area_ha": area,
                 "workers": workers,
             }
@@ -415,6 +417,12 @@ def risk_monthly(
             "month_label": row["month_label"],
             "combined_score": combined,
             "risk_level": risk_level_from_score(combined),
+            "sample_days": sample_days,
+            "rainy_days": rainy_days,
+            "rainy_ratio_pct": round(rainy_ratio, 1),
+            "avg_fungal_risk": round(fungal, 1),
+            "avg_waterlogging_risk": round(water, 1),
+            "avg_heat_risk": round(heat, 1),
         }
         items.append(item)
 

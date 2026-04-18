@@ -60,8 +60,27 @@ SQL_QUERIES = {
             ORDER BY year DESC NULLS LAST
             LIMIT 1
         ) mp ON TRUE
-        WHERE r.slug IN ('madrid', 'facatativa', 'funza')
+        WHERE r.department = 'CUNDINAMARCA'
         ORDER BY r.name ASC;
+    """,
+    "regions_compare": """
+        SELECT
+            r.slug,
+            r.name,
+            r.city,
+            r.production_share,
+            mp.flower_area_ha,
+            mp.workers
+        FROM flowerxi_regions r
+        LEFT JOIN LATERAL (
+            SELECT flower_area_ha, workers
+            FROM flowerxi_municipality_profile
+            WHERE region_slug = r.slug
+            ORDER BY year DESC NULLS LAST
+            LIMIT 1
+        ) mp ON TRUE
+        WHERE r.department = 'CUNDINAMARCA'
+        ORDER BY r.production_share DESC NULLS LAST, r.name ASC;
     """,
     "exports": """
         SELECT 

@@ -7,6 +7,13 @@ export const regions = [
   { id: 'madrid', name: 'Madrid' },
   { id: 'facatativa', name: 'Facatativá' },
   { id: 'funza', name: 'Funza' },
+  { id: 'el-rosal', name: 'El Rosal' },
+  { id: 'tocancipa', name: 'Tocancipá' },
+  { id: 'chia', name: 'Chía' },
+  { id: 'mosquera', name: 'Mosquera' },
+  { id: 'sopo', name: 'Sopó' },
+  { id: 'bojaca', name: 'Bojacá' },
+  { id: 'cachipay', name: 'Cachipay' },
 ];
 
 export const lotsByRegion = {

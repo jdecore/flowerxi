@@ -8,6 +8,7 @@
   let loading = true;
   let error = '';
   let rows = [];
+  const TOP_LIMIT = 10;
 
   const toNum = (value, fallback = 0) => {
     const parsed = Number(value);
@@ -68,7 +69,7 @@
     return 'Rutina';
   };
 
-  const badge = (index) => (index === 0 ? '🔴' : index === 1 ? '🟠' : '🟡');
+  const badge = (index) => (index === 0 ? '🔴' : index === 1 ? '🟠' : index === 2 ? '🟡' : '⚪');
 
   const scoreFromDay = (day) => {
     const fungal = Number(day?.fungal_risk);
@@ -89,15 +90,16 @@
       } catch {
         const regionsData = await fetchJson('/api/regions');
         const regions = Array.isArray(regionsData?.items) ? regionsData.items : [];
-        const preferred = ['facatativa', 'madrid', 'funza'];
         compareItems = regions
-          .filter((item) => preferred.includes(String(item?.slug || '').toLowerCase()))
-          .map((item) => ({ slug: item.slug, name: item.name }));
+          .map((item) => ({
+            slug: item.slug,
+            name: item.name,
+            city: item.city,
+            production_share: 0,
+          }));
       }
 
-      const preferred = ['facatativa', 'madrid', 'funza'];
-      const preferredItems = compareItems.filter((item) => preferred.includes(String(item?.slug || '').toLowerCase()));
-      const normalizedItems = preferredItems.length > 0 ? preferredItems : compareItems;
+      const normalizedItems = compareItems.filter((item) => Boolean(item?.slug));
       const baseSlugs = normalizedItems.map((item) => item.slug).filter(Boolean);
       const regionsToRank = baseSlugs.length > 0 ? baseSlugs : [region];
 
@@ -132,6 +134,8 @@
         return {
           slug,
           name: base?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1),
+          city: base?.city ?? '',
+          productionShare: toNum(base?.production_share, 0),
           score,
           level: score === null ? 'Sin datos' : riskLabel(score),
           area: toNum(base?.area_ha, 0),
@@ -177,6 +181,7 @@
     const sb = b?.score === null ? -1 : toNum(b?.score, -1);
     return sb - sa;
   });
+  $: visibleRows = rankedRows.slice(0, TOP_LIMIT);
 </script>
 
 {#if loading}
@@ -187,17 +192,31 @@
   {:else}
     <div class="ranking-wrap">
       <p class="title">Municipios con mayor riesgo hoy</p>
+      <p class="coverage">
+        Cobertura actual: {rankedRows.length} municipios con información operativa.
+      </p>
       <ol>
-        {#each rankedRows as row, index}
+        {#each visibleRows as row, index}
           <li class:current={row.isCurrent}>
             <span class="rank">{index + 1}.</span>
             <span class="badge">{badge(index)}</span>
-            <strong>{row.name}</strong>
+            <div class="main">
+              <strong>{row.name}</strong>
+              <small>{row.city || 'Cundinamarca'}</small>
+            </div>
             <span class="score">{row.score === null ? '—' : `${row.score}`}</span>
             <small>{row.level}</small>
+            <div class="meta">
+              <span>{row.productionShare > 0 ? `${row.productionShare.toFixed(1)}% participación` : 'Participación n/d'}</span>
+              <span>{row.area > 0 ? `${Math.round(row.area)} ha` : 'Área n/d'}</span>
+              <span>{row.workers > 0 ? `${row.workers} empleos` : 'Empleo n/d'}</span>
+            </div>
           </li>
         {/each}
       </ol>
+      {#if rankedRows.length > TOP_LIMIT}
+        <p class="footnote">Mostrando top {TOP_LIMIT} de {rankedRows.length} municipios disponibles en backend.</p>
+      {/if}
     </div>
   {/if}
 {/if}
@@ -229,6 +248,12 @@
     letter-spacing: 0.05em;
   }
 
+  .coverage {
+    margin: -0.15rem 0 0;
+    font-size: 0.76rem;
+    color: var(--text-tertiary, #94a3b8);
+  }
+
   ol {
     margin: 0;
     padding: 0;
@@ -239,7 +264,7 @@
 
   li {
     display: grid;
-    grid-template-columns: auto auto 1fr auto auto;
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 0.45rem;
     background: var(--bg-app, #f8fafc);
@@ -262,6 +287,17 @@
     font-size: 0.88rem;
   }
 
+  .main {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+
+  .main small {
+    font-size: 0.72rem;
+    color: var(--text-tertiary, #94a3b8);
+  }
+
   .score {
     font-size: 0.95rem;
     font-weight: 700;
@@ -271,6 +307,21 @@
   li small {
     font-size: 0.74rem;
     color: var(--text-secondary, #64748b);
+  }
+
+  .meta {
+    grid-column: 3 / -1;
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    font-size: 0.7rem;
+    color: var(--text-tertiary, #94a3b8);
+  }
+
+  .footnote {
+    margin: 0.2rem 0 0;
+    font-size: 0.72rem;
+    color: var(--text-tertiary, #94a3b8);
   }
 
   li.current {

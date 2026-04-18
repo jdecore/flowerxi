@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@astrojs/svelte": "^7.0.0",
-    "@huggingface/transformers": "^4.1.0",
+    "@mlc-ai/web-llm": "^0.2.79",
     "apexcharts": "^5.10.6",
     "astro": "^5.7.0",
     "d3-scale": "^4.0.2",

@@ -23,10 +23,10 @@ Ya creada en `/home/juan/lab/flowerxi`:
 
 Tecnologias:
 
-- Frontend: `astro`, `@astrojs/svelte`, `svelte`, `@insforge/sdk` (AI chat)
+- Frontend: `astro`, `@astrojs/svelte`, `svelte`, `@mlc-ai/web-llm` (chat local)
 - Backend: `fastapi`, `uvicorn`, `psycopg`
 - DB: InsForge Postgres (proyecto `glovar`)
-- AI: InsForge AI (`deepseek/deepseek-v3.2`) para ChatBot
+- AI: WebLLM en navegador (sin API externa)
 
 ### 2) Backend - Estructura modular (actualizada)
 
@@ -135,33 +135,32 @@ Variables de entorno (`backend/.env.example`):
 
 Pantalla principal en `frontend/src/pages/index.astro` con separación clara:
 
-- **Astro (estático):** layout, copy de decisión y estructura principal.
-- **Islas Svelte (dinámico):** datos vivos, interacción y actualización.
+- **Astro (estático):** topbar, layout y composición de bloques.
+- **Islas Svelte (dinámico):** fetch, eventos y actualización por municipio.
 
-Componentes clave implementados:
+Componentes activos en home:
 
-- `frontend/src/islands/DashboardControls.svelte`
-  - franja horizontal de control
-  - selector de municipio + lote
-  - accesos a Chat IA y Modo campo
+- `frontend/src/islands/StartupRegionModal.svelte`
+  - modal inicial de selección de municipio
+  - cambio de municipio en tiempo real (evento `regionchange`)
+- `frontend/src/islands/OperationalHero.svelte`
+  - riesgo del día, explicación de factores y simulación de alerta
 - `frontend/src/islands/EvidenceSparklines.svelte`
   - evidencia real de 14 días desde `/api/history`
-  - estado vacío cuando hay menos de 7 días
-- `frontend/src/islands/TodayChecklist.svelte`
-  - checklist diario con persistencia en `localStorage`
-  - micro-acción "Tomar foto / Sin novedad" para puntos húmedos
-
-Widgets operativos ya integrados en home:
-
-- `WeeklyKPIs.svelte`
-- `RiskHeatmap.svelte` (versión ligera en grid, sin dependencia pesada en runtime)
-- `ImpactoOperacion.svelte`
+- `frontend/src/components/RiskHeatmap.svelte`
+  - calendario ampliado de riesgo (12 meses con factores)
+- `frontend/src/components/ImpactoOperacion.svelte`
+  - resumen operativo semanal basado en datos reales
+- `frontend/src/islands/SabanaComparison.svelte`
+  - comparativa dinámica entre municipios disponibles
+- `frontend/src/islands/ChatBot.svelte`
+  - chat operativo embebido, respuestas rápidas con datos backend + WebLLM local
 
 Resiliencia de integración API:
 
 - fallback de base URL (`PUBLIC_API_URL` / localhost / same-origin)
 - normalización de paths para evitar `/api/api`
-- degradación controlada cuando faltan endpoints (derivando desde `/api/dashboard` o `/api/history`)
+- degradación controlada cuando faltan endpoints (derivando desde `/api/history`)
 
 Variables esperadas (`frontend/.env.example`):
 
@@ -216,21 +215,12 @@ cd flowerxi
    - `frontend/vercel.json` (si hace falta config extra)
    - `backend/render.yaml` o instrucciones cerradas para Render
 
-2. Checklist multiusuario:
-   - crear tabla `flowerxi_checklist` en DB
-   - exponer endpoints backend para guardar/leer tareas por fecha/lote
-   - conectar `TodayChecklist.svelte` a API (en vez de solo localStorage)
-
-3. Lotes reales:
-   - mover catálogo de lotes desde store frontend a backend
-   - incluir lote en endpoints de dashboard/history para segmentación real
-
-4. UX operativa final:
+2. UX operativa final:
    - drawer de explicabilidad al click en nivel de riesgo
    - mostrar “Actualizado” + próximo auto-refresh en home
-   - ajustar modo campo (tipografía/targets) en más componentes
+   - mejorar carga diferida del chat WebLLM para reducir bundle inicial
 
-5. Seguridad + CI:
+3. Seguridad + CI:
    - validar `CORS_ORIGINS` de Vercel
    - revisar que no se commiteen `.env`
    - workflow de build frontend

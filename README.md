@@ -72,14 +72,14 @@ backend/
 
 ### 🌹 Cultivo Foco
 - **Rosa de corte** (variedades lavanda/morada)
-- Municipios principales: **Madrid**, **Facatativá**, **Funza**
+- Cobertura operativa: municipios floricultores de **Cundinamarca** (base actual del seed)
 
 ### 📊 Dashboard Interactivo
-- ✅ Controles operativos horizontales (municipio + lote + chat + modo campo)
+- ✅ Selector inicial de municipio (modal) con actualización inmediata del dashboard
 - ✅ Estado diario de riesgo con recomendación accionable
 - ✅ Evidencia de 14 días (lluvia, temperatura y señales de riesgo reales)
-- ✅ Checklist diario persistente por región/fecha (localStorage)
-- ✅ Modo campo (tamaño/contraste mejorado para uso en invernadero)
+- ✅ Chat IA operativo embebido en home con contexto real del backend
+- ✅ Comparativa Sabana ampliada (ranking dinámico top 10 con cobertura total disponible)
 
 ### 🛡️ Vigilancia y Priorización
 - Capa de **riesgo agroclimático mensual** basada en `risk_signals` reales
@@ -87,12 +87,12 @@ backend/
 - **Nota:** Es un modelo de priorización, **NO** es diagnóstico real por finca
 
 ### 🧩 Arquitectura de UI (actual)
-- **Astro**: estructura estática, layout, narrativa y bloques informativos
-- **Islas Svelte**: datos vivos y eventos (`DashboardControls`, `EvidenceSparklines`, `TodayChecklist`, KPIs, heatmap, impacto)
+- **Astro**: estructura estática, layout principal y topbar
+- **Islas Svelte**: datos vivos y eventos (`StartupRegionModal`, `OperationalHero`, `EvidenceSparklines`, `RiskHeatmap`, `ImpactoOperacion`, `SabanaComparison`, `ChatBot`)
 - Integración tolerante a fallos: si un endpoint no responde, los widgets derivan desde `/api/history` (sin datos estáticos inventados)
 
 ### 🤖 Asistente IA
-- Chat en navegador con **Transformers.js** (modelo local)
+- Chat en navegador con **WebLLM (MLC AI)** (modelo local)
 - Sin dependencias externas de API de IA
 
 ### 💰 Inteligencia de Mercado
@@ -203,7 +203,7 @@ Comparativa entre todos los municipios.
 ### 🌐 Fuentes de Datos
 - **Clima:** Open-Meteo Archive API (Bogotá, 2026)
 - **Festivos:** Nager.Date Public Holidays (Colombia, 2026)
-- **Cobertura actual:** 11 municipios y 1155 registros por tabla climática/riesgo/recomendación (2026-01-01 a 2026-04-15)
+- **Cobertura actual:** municipios floricultores de Cundinamarca y serie 2026-01-01 a 2026-04-15 para clima/riesgo/recomendación
 
 ### 🚀 Aplicar Schema y Seed
 ```bash
