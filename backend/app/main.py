@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 from typing import Any
 
 from fastapi import Body, FastAPI, HTTPException, Query
@@ -14,8 +13,6 @@ from .utils import (
     build_commercial_metrics,
     build_risk_narrative,
     fetch_monthly_risk_rows,
-    handle_db_error,
-    load_market_prices,
     normalize_origin,
     risk_level_from_score,
     to_float,
@@ -84,12 +81,6 @@ def municipality_detail(slug: str):
       r.slug,
       r.name,
       r.city,
-      r.department,
-      r.crop_focus,
-      r.production_share,
-      r.latitude,
-      r.longitude,
-      mp.year,
       mp.flower_area_ha,
       mp.greenhouse_area_ha,
       mp.workers,
@@ -97,8 +88,7 @@ def municipality_detail(slug: str):
       mp.workers_male,
       mp.fisanicitary_context,
       mp.waste_management,
-      mp.main_varieties,
-      mp.source AS profile_source
+      mp.main_varieties
     FROM flowerxi_regions r
     LEFT JOIN flowerxi_municipality_profile mp ON mp.region_slug = r.slug
     WHERE r.slug = %s;
@@ -130,18 +120,8 @@ def municipalities_compare():
             {
                 "slug": row["slug"],
                 "name": row["name"],
-                "city": row["city"],
-                "area_pct": round((area / total_area * 100.0), 1)
-                if total_area > 0
-                else 0,
-                "workers_pct": round((workers / total_workers * 100.0), 1)
-                if total_workers > 0
-                else 0,
                 "area_ha": area,
-                "greenhouse_area_ha": to_float(row.get("greenhouse_area_ha"), 0.0),
                 "workers": workers,
-                "fitosanitary": row.get("fisanicitary_context"),
-                "waste": row.get("waste_management"),
             }
         )
 
@@ -240,10 +220,10 @@ def risk_operativo(region: str = Query(DEFAULT_REGION)):
             "attention": None,
         }
 
-    status_raw = row.get("status") or "rutina"
-    score_raw = row.get("risk_score") or 22
-    reason_raw = row.get("reason") or "Condiciones normales"
-    action_raw = row.get("action_today") or "Mantén rutina habitual"
+    status_raw = row.get("status") or "sin_datos"
+    score_raw = row.get("risk_score")
+    reason_raw = row.get("reason") or "Datos no disponibles."
+    action_raw = row.get("action_today") or "Datos no disponibles."
     trend_raw = row.get("trend_7d") or "stable"
     confidence_raw = row.get("confidence") or "media"
 
@@ -258,7 +238,7 @@ def risk_operativo(region: str = Query(DEFAULT_REGION)):
         "ok": True,
         "region": region,
         "status": status_raw,
-        "status_label": status_labels.get(status_raw, "Rutina normal"),
+        "status_label": status_labels.get(status_raw, "Sin datos"),
         "score": score_raw,
         "reason": reason_raw,
         "action_today": action_raw,
@@ -288,95 +268,6 @@ def dashboard(region: str = Query(DEFAULT_REGION)):
     return {"ok": True, "region": region, "snapshot": row}
 
 
-@app.get("/api/dashboard/full")
-def dashboard_full(region: str = Query(DEFAULT_REGION)):
-    """
-    Endpoint unificado que devuelve:
-    - regions: lista de municipios
-    - snapshot: datos del día actual
-    - operativo: estado operativo con acción
-    - history: últimos 14 días
-    Todo en una sola respuesta para reducir requests.
-    """
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(SQL_QUERIES["regions"])
-            regions = cur.fetchall()
-
-            cur.execute(SQL_QUERIES["dashboard_snapshot"], (region,))
-            snapshot = cur.fetchone()
-
-            cur.execute(SQL_QUERIES["weather_history"], (region, 14))
-            history_rows = cur.fetchall()
-
-            operativo = None
-            if snapshot:
-                try:
-                    cur.execute(SQL_QUERIES["risk_operativo"], (region,))
-                    row = cur.fetchone()
-                    if row:
-                        operativo = {
-                            "ok": True,
-                            "region": region,
-                            "status": row.get("status") or "rutina",
-                            "status_label": {
-                                "rutina": "Rutina normal",
-                                "vigilancia": "Vigilancia reforzada",
-                                "accion": "Acción requerida",
-                            }.get(row.get("status"), "Rutina normal"),
-                            "score": row.get("risk_score") or 22,
-                            "reason": row.get("reason") or "Condiciones normales",
-                            "action_today": row.get("action_today")
-                            or "Mantén rutina habitual",
-                            "trend_7d": row.get("trend_7d") or "stable",
-                            "confidence": row.get("confidence") or "media",
-                        }
-                except Exception as e:
-                    logger.error(f"Error calculating operativo for {region}: {e}")
-                    operativo = None
-
-        if not operativo:
-            fungal = to_float(snapshot.get("fungal_risk"), 0.0) if snapshot else 0
-            precip = to_float(snapshot.get("precipitation_mm"), 0.0)
-            score = max(
-                22,
-                min(
-                    85,
-                    int(fungal * 0.6 + (precip > 4 and precip > 0 and 30 or 0) * 0.4),
-                ),
-            )
-            operativo = {
-                "ok": True,
-                "region": region,
-                "status": "rutina"
-                if score <= 30
-                else "vigilancia"
-                if score <= 60
-                else "accion",
-                "status_label": "Rutina normal"
-                if score <= 30
-                else "Vigilancia reforzada"
-                if score <= 60
-                else "Acción requerida",
-                "score": score,
-                "reason": "Estado calculado desde datos disponibles",
-                "action_today": "Mantén rutina de monitoreo",
-                "trend_7d": "stable",
-                "confidence": "baja",
-            }
-
-    history = list(reversed(history_rows)) if history_rows else []
-
-    return {
-        "ok": True,
-        "region": region,
-        "regions": regions,
-        "snapshot": snapshot,
-        "operativo": operativo,
-        "history": history,
-    }
-
-
 @app.get("/api/history")
 def history(region: str = Query(DEFAULT_REGION), limit: int = Query(30, ge=1, le=120)):
     with get_conn() as conn:
@@ -384,51 +275,6 @@ def history(region: str = Query(DEFAULT_REGION), limit: int = Query(30, ge=1, le
             cur.execute(SQL_QUERIES["weather_history"], (region, limit))
             rows = cur.fetchall()
     return {"ok": True, "region": region, "items": rows}
-
-
-@app.get("/api/alerts/today")
-def alerts_today(region: str = Query(DEFAULT_REGION)):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(SQL_QUERIES["dashboard_snapshot"], (region,))
-            row = cur.fetchone()
-
-    if not row:
-        raise HTTPException(
-            status_code=404, detail=f"No alert data for region '{region}'"
-        )
-
-    fungal = to_float(row.get("fungal_risk"), 0.0)
-    water = to_float(row.get("waterlogging_risk"), 0.0)
-    heat = to_float(row.get("heat_risk"), 0.0)
-    rainy_ratio = 100.0 if to_float(row.get("precipitation_mm"), 0.0) >= 4.0 else 30.0
-    score = build_agroclimatic_score(fungal, water, heat, rainy_ratio)
-    level = risk_level_from_score(score)
-
-    message = (
-        "Prioriza ventilacion y monitoreo fungico."
-        if level == "alto"
-        else "Mantener seguimiento diario de humedad y drenaje."
-        if level == "medio"
-        else "Condicion estable, mantener protocolo habitual."
-    )
-
-    return {
-        "ok": True,
-        "region": region,
-        "alert": {
-            "observed_on": row["observed_on"],
-            "region_name": row["region_name"],
-            "risk_level": level,
-            "agroclimatic_score": score,
-            "fungal_risk": row["fungal_risk"],
-            "waterlogging_risk": row["waterlogging_risk"],
-            "heat_risk": row["heat_risk"],
-            "recommendation_title": row.get("recommendation_title"),
-            "recommendation_message": row.get("recommendation_message"),
-            "message": message,
-        },
-    }
 
 
 @app.post("/api/alerts/simulate")
@@ -454,7 +300,14 @@ def alerts_simulate(payload: dict[str, Any] = Body(default={})):
             "delta": None,
         }
 
-    score_today = int((operativo or {}).get("risk_score") or 22)
+    score_today_raw = (operativo or {}).get("risk_score")
+    if score_today_raw is None:
+        fungal_today = to_float(snapshot.get("fungal_risk"), 0.0)
+        water_today = to_float(snapshot.get("waterlogging_risk"), 0.0)
+        heat_today = to_float(snapshot.get("heat_risk"), 0.0)
+        score_today = int(round((fungal_today * 0.5) + (water_today * 0.3) + (heat_today * 0.2)))
+    else:
+        score_today = int(score_today_raw)
     temp = to_float(snapshot.get("temp_mean_c"), 0.0)
     precip = to_float(snapshot.get("precipitation_mm"), 0.0)
     trend = (operativo or {}).get("trend_7d") or "stable"
@@ -541,7 +394,7 @@ def risk_monthly(
     commercial = build_commercial_metrics()
     commercial_score = commercial.get("commercial_risk_score")
 
-    items: list[dict[str, any]] = []
+    items: list[dict[str, Any]] = []
     for row in rows:
         sample_days = max(int(row.get("sample_days", 0)), 1)
         rainy_days = int(row.get("rainy_days", 0))
@@ -555,38 +408,29 @@ def risk_monthly(
         else:
             combined = round((agro_score * 0.8) + (to_float(commercial_score) * 0.2), 1)
 
-        baseline_temp = row.get("baseline_temp_c")
-        baseline_precip = row.get("baseline_precip_mm")
-        avg_temp = to_float(row.get("avg_temp_c"), 0.0)
-        avg_precip = to_float(row.get("avg_precip_mm"), 0.0)
-        temp_anomaly = (
-            avg_temp - to_float(baseline_temp, avg_temp)
-            if baseline_temp is not None
-            else 0.0
-        )
-        precip_anomaly_pct = 0.0
-        if baseline_precip is not None and to_float(baseline_precip) > 0:
-            precip_anomaly_pct = (
-                (avg_precip - to_float(baseline_precip)) / to_float(baseline_precip)
-            ) * 100.0
-
         item = {
-            "month_start": row["month_start"],
             "month_label": row["month_label"],
-            "avg_temp_c": round(avg_temp, 2),
-            "avg_precip_mm": round(avg_precip, 2),
-            "rainy_days": rainy_days,
-            "sample_days": sample_days,
-            "temp_anomaly_c": round(temp_anomaly, 2),
-            "precip_anomaly_pct": round(precip_anomaly_pct, 1),
-            "agroclimatic_score": agro_score,
             "combined_score": combined,
             "risk_level": risk_level_from_score(combined),
-            "avg_fungal_risk": round(fungal, 1),
-            "avg_waterlogging_risk": round(water, 1),
-            "avg_heat_risk": round(heat, 1),
         }
         items.append(item)
+
+    if not items:
+        return {
+            "ok": True,
+            "region": region,
+            "region_name": region_name,
+            "months": months,
+            "latest": None,
+            "items": [],
+            "commercial": commercial,
+            "narrative": {"summary": "Datos no disponibles.", "details": ""},
+            "model_context": {
+                "name": "flowerxi-agroclimatic-proxy-v1",
+                "scope": "vigilancia y priorizacion de riesgo",
+                "note": "No corresponde a diagnostico real de plagas por finca.",
+            },
+        }
 
     latest = items[0]
     narrative = build_risk_narrative(region_name, latest, commercial)
@@ -599,13 +443,6 @@ def risk_monthly(
         "latest": latest,
         "items": items,
         "commercial": commercial,
-        "kpis": {
-            "fob_value_monthly": None,
-            "net_kg_monthly": None,
-            "implicit_price_per_kg": None,
-            "climate_risk_score": latest["agroclimatic_score"],
-            "operational_commercial_score": latest["combined_score"],
-        },
         "narrative": narrative,
         "model_context": {
             "name": "flowerxi-agroclimatic-proxy-v1",
@@ -619,47 +456,6 @@ def risk_monthly(
 def stations(region: str = Query(DEFAULT_REGION)):
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(SQL_QUERIES["stations"])
+            cur.execute(SQL_QUERIES["stations"], (region,))
             rows = cur.fetchall()
     return {"ok": True, "items": rows, "total": len(rows)}
-
-
-@app.get("/api/calendar")
-def calendar(year: int = Query(2026)):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(SQL_QUERIES["calendar"], (year,))
-            rows = cur.fetchall()
-    return {"ok": True, "year": year, "items": rows, "total": len(rows)}
-
-
-@app.get("/api/model/version")
-def model_version():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(SQL_QUERIES["model_version"])
-            row = cur.fetchone()
-
-    if not row:
-        return {"ok": True, "version": "v1.0", "formula": "default", "weights": {}}
-
-    return {
-        "ok": True,
-        "version": row["version"],
-        "formula": row["formula_description"],
-        "weights": row["weights"],
-        "author": row["author"],
-        "created_at": row["created_at"],
-        "notes": row["notes"],
-    }
-
-
-@app.get("/api/alerts/history")
-def alerts_history(
-    region: str = Query(DEFAULT_REGION), limit: int = Query(30, ge=1, le=90)
-):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(SQL_QUERIES["alerts_history"], (region, limit))
-            rows = cur.fetchall()
-    return {"ok": True, "region": region, "items": rows, "total": len(rows)}

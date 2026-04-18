@@ -1,24 +1,18 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
 
-  export let apiUrl = '';
-  export let initialRegion = 'madrid';
+export let apiUrl = '';
+export let initialRegion = 'madrid';
 
-  const monthFormatter = new Intl.DateTimeFormat('es-CO', { month: 'short', day: 'numeric' });
-
-  const campaigns = [
-    { name: 'San Valentín', month: 2, day: 14 },
-    { name: 'Día de la Madre', month: 5, day: 10 },
-    { name: 'Amor y Amistad', month: 9, day: 20 },
-  ];
+  const monthFormatter = new Intl.DateTimeFormat('es-CO', { month: 'short', year: 'numeric' });
 
   let region = initialRegion;
   let loading = true;
   let error = '';
-  let avgPrice = null;
-  let topVariety = null;
+  let avgPricePerKg = null;
+  let topDestination = null;
   let exportsSummary = null;
-  let campaignList = [];
+  let peakMonths = [];
 
   const toNum = (value, fallback = 0) => {
     const parsed = Number(value);
@@ -73,51 +67,56 @@
     throw lastError ?? new Error('network');
   };
 
-  const nextCampaigns = () => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const upcoming = campaigns.map((campaign) => {
-      const thisYear = new Date(currentYear, campaign.month - 1, campaign.day);
-      const nextDate = thisYear < now ? new Date(currentYear + 1, campaign.month - 1, campaign.day) : thisYear;
-      return { ...campaign, date: nextDate };
-    });
-    return upcoming.sort((a, b) => a.date - b.date).slice(0, 3);
+  const parseMonth = (yearMonth) => {
+    const [year, month] = String(yearMonth || '').split('-').map(Number);
+    if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+    return new Date(year, month - 1, 1);
   };
 
   const loadCommercial = async () => {
     loading = true;
     error = '';
-    avgPrice = null;
-    topVariety = null;
+    avgPricePerKg = null;
+    topDestination = null;
     exportsSummary = null;
-    campaignList = nextCampaigns();
+    peakMonths = [];
 
     try {
-      const pricesPromise = fetch('/market_prices.json').then((res) => (res.ok ? res.json() : null));
-      const exportsPromise = fetchJson('/api/exports?months=12').catch(() => null);
-      const [pricesData, exportsData] = await Promise.all([pricesPromise, exportsPromise]);
-
-      const prices = Array.isArray(pricesData?.data)
-        ? pricesData.data.filter((item) => toNum(item.price_cop, 0) > 0)
-        : [];
-
-      if (prices.length > 0) {
-        avgPrice = Math.round(prices.reduce((sum, item) => sum + toNum(item.price_cop), 0) / prices.length);
-        topVariety = [...prices].sort((a, b) => toNum(b.price_cop) - toNum(a.price_cop))[0];
-      }
+      const exportsData = await fetchJson('/api/exports?months=12');
 
       if (exportsData?.summary) {
         exportsSummary = exportsData.summary;
+        avgPricePerKg = toNum(exportsData.summary.avg_price_per_kg, null);
       }
+
+      const exportItems = Array.isArray(exportsData?.items) ? exportsData.items : [];
+      const byDestination = new Map();
+      exportItems.forEach((item) => {
+        const key = String(item?.country_dest || '').trim();
+        if (!key) return;
+        byDestination.set(key, toNum(byDestination.get(key), 0) + toNum(item?.fob_usd, 0));
+      });
+      topDestination = [...byDestination.entries()]
+        .sort((a, b) => b[1] - a[1])[0] ?? null;
+
+      const byMonth = exportsData?.by_month && typeof exportsData.by_month === 'object'
+        ? Object.entries(exportsData.by_month)
+        : [];
+      peakMonths = byMonth
+        .map(([month, values]) => ({
+          month,
+          fobUsd: toNum(values?.fob_usd, 0),
+          date: parseMonth(month),
+        }))
+        .filter((item) => item.date)
+        .sort((a, b) => b.fobUsd - a.fobUsd)
+        .slice(0, 3);
     } catch (err) {
       error = 'Datos no disponibles.';
     } finally {
       loading = false;
     }
   };
-
-  const formatCurrency = (value) =>
-    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value);
 
   const formatM = (value) => `${(toNum(value) / 1_000_000).toFixed(1)}M`;
 
@@ -164,12 +163,12 @@
   {:else}
     <div class="metrics">
       <div class="metric">
-        <span>Precio promedio</span>
-        <strong>{avgPrice ? formatCurrency(avgPrice) : 'Sin datos'}</strong>
+        <span>Precio FOB promedio</span>
+        <strong>{avgPricePerKg === null ? 'Sin datos' : `${avgPricePerKg.toFixed(2)} USD/kg`}</strong>
       </div>
       <div class="metric">
-        <span>Variedad top</span>
-        <strong>{topVariety?.variety ?? 'Sin datos'}</strong>
+        <span>Destino principal</span>
+        <strong>{topDestination ? topDestination[0] : 'Sin datos'}</strong>
       </div>
       <div class="metric">
         <span>FOB 12 meses</span>
@@ -178,10 +177,14 @@
     </div>
 
     <div class="campaigns">
-      <h4>Próximos picos</h4>
-      {#each campaignList as campaign}
-        <p><strong>{campaign.name}</strong> · {monthFormatter.format(campaign.date)}</p>
-      {/each}
+      <h4>Picos recientes (FOB)</h4>
+      {#if peakMonths.length === 0}
+        <p>Datos no disponibles.</p>
+      {:else}
+        {#each peakMonths as peak}
+          <p><strong>{monthFormatter.format(peak.date)}</strong> · ${formatM(peak.fobUsd)}</p>
+        {/each}
+      {/if}
     </div>
   {/if}
 </article>

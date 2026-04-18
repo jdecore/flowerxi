@@ -1,21 +1,18 @@
 SQL_QUERIES = {
     "regions": """
-        SELECT slug, name, city, crop_focus, department, production_share
+        SELECT slug, name, city
         FROM flowerxi_regions
-        ORDER BY production_share DESC NULLS LAST, name ASC;
+        ORDER BY name ASC;
     """,
     "dashboard_snapshot": """
         SELECT
           reg.name AS region_name,
-          reg.city AS region_city,
-          reg.crop_focus,
           w.observed_on,
           w.temp_mean_c,
           w.precipitation_mm,
           r.fungal_risk,
           r.waterlogging_risk,
           r.heat_risk,
-          r.global_risk_level,
           rec.title AS recommendation_title,
           rec.message AS recommendation_message
         FROM flowerxi_regions reg
@@ -30,10 +27,23 @@ SQL_QUERIES = {
         LIMIT 1;
     """,
     "weather_history": """
-        SELECT observed_on, temp_mean_c, precipitation_mm
-        FROM flowerxi_weather_daily
-        WHERE region_slug = %s
-        ORDER BY observed_on DESC
+        SELECT
+          w.observed_on,
+          w.temp_mean_c,
+          w.precipitation_mm,
+          r.fungal_risk,
+          r.waterlogging_risk,
+          r.heat_risk,
+          r.global_risk_level,
+          rec.title AS recommendation_title,
+          rec.message AS recommendation_message
+        FROM flowerxi_weather_daily w
+        LEFT JOIN flowerxi_risk_signals r
+          ON r.region_slug = w.region_slug AND r.observed_on = w.observed_on
+        LEFT JOIN flowerxi_recommendations rec
+          ON rec.region_slug = w.region_slug AND rec.observed_on = w.observed_on
+        WHERE w.region_slug = %s
+        ORDER BY w.observed_on DESC
         LIMIT %s;
     """,
     "municipalities": """
@@ -41,12 +51,6 @@ SQL_QUERIES = {
             r.slug,
             r.name,
             r.city,
-            r.department,
-            r.crop_focus,
-            r.production_share,
-            r.latitude,
-            r.longitude,
-            mp.year,
             mp.flower_area_ha,
             mp.greenhouse_area_ha,
             mp.workers,
@@ -63,27 +67,18 @@ SQL_QUERIES = {
     "exports": """
         SELECT 
             year_month,
-            subpartida,
             country_dest,
             fob_usd,
-            net_tons,
-            unit_value,
-            source
+            net_tons
         FROM flowerxi_exports_monthly
         ORDER BY year_month DESC, fob_usd DESC
         LIMIT %s;
     """,
     "stations": """
-        SELECT station_code, station_name, region_slug, elevation_m, 
-               latitude, longitude, distance_km, data_quality, source
+        SELECT station_name, region_slug, distance_km
         FROM flowerxi_weather_stations
+        WHERE region_slug = %s
         ORDER BY distance_km ASC;
-    """,
-    "calendar": """
-        SELECT event_date, event_name, local_name, country_code
-        FROM flowerxi_market_calendar
-        WHERE EXTRACT(YEAR FROM event_date) = %s
-        ORDER BY event_date ASC;
     """,
     "risk_explain": """
         WITH last_7 AS (
@@ -242,32 +237,16 @@ SQL_QUERIES = {
     """,
     "recommendations_week": """
         SELECT
-          rec.observed_on,
           rec.title,
           rec.message,
           r.global_risk_level,
           r.fungal_risk,
-          r.waterlogging_risk,
-          r.heat_risk
+          r.waterlogging_risk
         FROM flowerxi_recommendations rec
         LEFT JOIN flowerxi_risk_signals r
           ON r.region_slug = rec.region_slug AND r.observed_on = rec.observed_on
         WHERE rec.region_slug = %s
         ORDER BY rec.observed_on DESC
-        LIMIT %s;
-    """,
-    "model_version": """
-        SELECT version, formula_description, weights, author, created_at, is_active, notes
-        FROM flowerxi_risk_model_versions
-        WHERE is_active = true
-        ORDER BY created_at DESC
-        LIMIT 1;
-    """,
-    "alerts_history": """
-        SELECT observed_on, alert_level, alert_score, message, protocol_applied, compliance_status
-        FROM flowerxi_alert_history
-        WHERE region_slug = %s
-        ORDER BY observed_on DESC
         LIMIT %s;
     """,
 }

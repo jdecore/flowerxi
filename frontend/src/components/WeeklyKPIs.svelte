@@ -8,25 +8,6 @@
   let guidanceMessage = '';
   let loading = true;
 
-  const toNum = (value, fallback = 0) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  };
-
-  const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
-
-  const riskProxy = (temp, precip) => {
-    const rainFactor = Math.min(55, toNum(precip) * 9);
-    const tempFactor = toNum(temp) < 12 ? 16 : toNum(temp) > 24 ? 10 : 4;
-    return clamp(Math.round(18 + rainFactor + tempFactor), 12, 95);
-  };
-
-  const recommendationFromScore = (score) => {
-    if (score >= 70) return 'Inspección en campo y registro fitosanitario';
-    if (score >= 40) return 'Revisar humedad, drenaje y ventilación';
-    return 'Mantener rutina, sin preventivo adicional';
-  };
-
   const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
 
   const buildApiBases = (raw) => {
@@ -78,40 +59,23 @@
   const fetchKPIs = async () => {
     loading = true;
     try {
-      try {
-        const data = await fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`);
-        const items = Array.isArray(data?.items) ? data.items : [];
-        const surveillanceDays = items.filter(r => {
-          const level = (r.global_risk_level || '').toLowerCase();
-          return level === 'alto' || level === 'medio';
-        }).length;
-        const avgScore = items.length
-          ? Math.round(items.reduce((sum, r) => sum + (Number(r.fungal_risk) || 0), 0) / items.length)
-          : 0;
-        const topRecommendation = items.length > 0 ? items[0].title || 'Sin recomendaciones' : 'Sin datos';
-        kpis = { surveillanceDays, avgScore, topRecommendation, observedDays: items.length };
-        guidanceMessage = items.length < 7
-          ? `Necesitamos una semana completa para tu promedio. Hoy es día ${Math.max(items.length, 1)}.`
-          : '';
-        return;
-      } catch {
-        const historyData = await fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=7`);
-        const days = Array.isArray(historyData?.items) ? historyData.items : [];
-        const scoreSeries = days.map((d) => riskProxy(d?.temp_mean_c, d?.precipitation_mm));
-        const surveillanceDays = scoreSeries.filter((score) => score >= 40).length;
-        const avgScore = scoreSeries.length
-          ? Math.round(scoreSeries.reduce((sum, score) => sum + score, 0) / scoreSeries.length)
-          : 0;
-        kpis = {
-          surveillanceDays,
-          avgScore,
-          topRecommendation: recommendationFromScore(avgScore),
-          observedDays: days.length,
-        };
-        guidanceMessage = days.length < 7
-          ? `Necesitamos una semana completa para tu promedio. Hoy es día ${Math.max(days.length, 1)}.`
-          : '';
-      }
+      const data = await fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`);
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const fungalSamples = items
+        .map((r) => Number(r?.fungal_risk))
+        .filter((value) => Number.isFinite(value));
+      const surveillanceDays = items.filter(r => {
+        const level = (r.global_risk_level || '').toLowerCase();
+        return level === 'alto' || level === 'medio';
+      }).length;
+      const avgScore = fungalSamples.length
+        ? Math.round(fungalSamples.reduce((sum, value) => sum + value, 0) / fungalSamples.length)
+        : 0;
+      const topRecommendation = items.length > 0 ? items[0].title || 'Sin recomendaciones' : 'Sin datos';
+      kpis = { surveillanceDays, avgScore, topRecommendation, observedDays: items.length };
+      guidanceMessage = items.length < 7
+        ? `Necesitamos una semana completa para tu promedio. Hoy es día ${Math.max(items.length, 1)}.`
+        : '';
     } catch (e) {
       kpis = { surveillanceDays: 0, avgScore: 0, topRecommendation: 'Sin datos', observedDays: 0 };
       guidanceMessage = 'No hay datos suficientes para mostrar KPIs semanales.';

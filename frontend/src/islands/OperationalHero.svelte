@@ -8,14 +8,14 @@
 
   let region = initialRegion;
   let loading = true;
-  let score = 22;
-  let level = 'RUTINA';
-  let levelClass = 'rutina';
+  let score = null;
+  let level = 'SIN DATOS';
+  let levelClass = 'sin-datos';
   let delta = 0;
-  let criticalWindowHours = 72;
+  let criticalWindowHours = null;
   let hoursSinceRain = null;
   let reason = 'Datos no disponibles';
-  let actionToday = 'Mantener operación normal';
+  let actionToday = 'Datos no disponibles.';
   let explanation = [];
 
   let simulating = false;
@@ -26,17 +26,12 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
-  const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
-
-  const estimateHumidity = (temp, precip) => {
-    const estimate = 64 + toNum(precip) * 2.2 - Math.max(0, toNum(temp) - 20) * 1.4;
-    return clamp(Math.round(estimate), 35, 95);
-  };
-
-  const riskProxy = (temp, precip) => {
-    const rainFactor = Math.min(55, toNum(precip) * 9);
-    const tempFactor = toNum(temp) < 12 ? 16 : toNum(temp) > 24 ? 10 : 4;
-    return clamp(Math.round(18 + rainFactor + tempFactor), 12, 95);
+  const scoreFromSignals = (day) => {
+    const fungal = Number(day?.fungal_risk);
+    const water = Number(day?.waterlogging_risk);
+    const heat = Number(day?.heat_risk);
+    if (!Number.isFinite(fungal) || !Number.isFinite(water) || !Number.isFinite(heat)) return null;
+    return Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
   };
 
   const levelFromScore = (riskScore) => {
@@ -98,19 +93,15 @@
   };
 
   const buildExplanation = (day) => {
-    const temp = toNum(day?.temp_mean_c, 0);
-    const precip = toNum(day?.precipitation_mm, 0);
-    const humidity = estimateHumidity(temp, precip);
-
-    const rawHumidity = clamp(((humidity - 70) / 25) * 40, 0, 40);
-    const rawRain = clamp(precip * 8, 0, 35);
-    const rawTemp = clamp(temp < 12 ? 24 : temp > 24 ? 18 : 10, 8, 24);
-    const total = rawHumidity + rawRain + rawTemp || 1;
-
+    const fungal = Number(day?.fungal_risk);
+    const water = Number(day?.waterlogging_risk);
+    const heat = Number(day?.heat_risk);
+    if (!Number.isFinite(fungal) || !Number.isFinite(water) || !Number.isFinite(heat)) return [];
+    const total = fungal + water + heat || 1;
     return [
-      { label: `Humedad ${humidity}%`, weight: Math.round((rawHumidity / total) * 100) },
-      { label: `Lluvia reciente ${precip.toFixed(1)}mm`, weight: Math.round((rawRain / total) * 100) },
-      { label: `Temperatura ${temp.toFixed(1)}°C`, weight: Math.round((rawTemp / total) * 100) },
+      { label: `Riesgo fúngico ${Math.round(fungal)} pts`, weight: Math.round((fungal / total) * 100) },
+      { label: `Riesgo encharcamiento ${Math.round(water)} pts`, weight: Math.round((water / total) * 100) },
+      { label: `Riesgo térmico ${Math.round(heat)} pts`, weight: Math.round((heat / total) * 100) },
     ];
   };
 
@@ -120,7 +111,7 @@
       region,
       temp: toNum(day?.temp_mean_c, null),
       precip: toNum(day?.precipitation_mm, null),
-      risk_fungico: score,
+      risk_fungico: toNum(day?.fungal_risk, null),
       score,
       action: actionToday,
       reason,
@@ -141,12 +132,12 @@
       const today = historyDesc[0] ?? null;
       const yesterday = historyDesc[1] ?? null;
 
-      const fallbackScore = today ? riskProxy(today.temp_mean_c, today.precipitation_mm) : 22;
-      const fallbackLevel = levelFromScore(fallbackScore);
+      const todaySignalScore = scoreFromSignals(today);
+      const yesterdaySignalScore = scoreFromSignals(yesterday);
 
-      score = toNum(operativoData?.score, fallbackScore);
+      score = operativoData?.score == null ? todaySignalScore : toNum(operativoData?.score, todaySignalScore);
       const fromOperativoLevel = String(operativoData?.status || '').toLowerCase();
-      const inferredLevel = levelFromScore(score);
+      const inferredLevel = score === null ? { text: 'SIN DATOS', cls: 'sin-datos' } : levelFromScore(score);
       level =
         fromOperativoLevel === 'accion'
           ? 'ALTO'
@@ -165,19 +156,17 @@
           : inferredLevel.cls;
 
       reason = operativoData?.reason || 'Datos no disponibles';
-      actionToday = operativoData?.action_today || 'Mantener operación normal';
+      actionToday = operativoData?.action_today || 'Datos no disponibles.';
 
-      if (today && yesterday) {
-        const todayProxy = riskProxy(today.temp_mean_c, today.precipitation_mm);
-        const yesterdayProxy = riskProxy(yesterday.temp_mean_c, yesterday.precipitation_mm);
-        delta = score - yesterdayProxy;
+      if (todaySignalScore !== null && yesterdaySignalScore !== null) {
+        delta = todaySignalScore - yesterdaySignalScore;
       } else {
         delta = 0;
       }
 
-      criticalWindowHours = score >= 70 || delta >= 10 ? 24 : score >= 40 ? 48 : 72;
+      criticalWindowHours = score === null ? null : score >= 70 || delta >= 10 ? 24 : score >= 40 ? 48 : 72;
       hoursSinceRain = hoursFromLastRain(historyDesc);
-      explanation = buildExplanation(today);
+      explanation = today ? buildExplanation(today) : [];
       persistTodayContext(today);
     } finally {
       loading = false;
@@ -236,25 +225,29 @@
   {:else}
     <div class="hero-main">
       <p class="label">RIESGO HOY</p>
-      <h2>{level} ({score})</h2>
-      <p class="delta">{deltaPrefix} {Math.abs(delta)} vs ayer</p>
-      <p class="window">⏱ Próxima ventana crítica: {criticalWindowHours}h</p>
+      <h2>{level}{score === null ? '' : ` (${score})`}</h2>
+      <p class="delta">{score === null ? 'Datos no disponibles.' : `${deltaPrefix} ${Math.abs(delta)} vs ayer`}</p>
+      <p class="window">⏱ Próxima ventana crítica: {criticalWindowHours === null ? 'Datos no disponibles' : `${criticalWindowHours}h`}</p>
       <p class="rain">Última lluvia: {hoursSinceRain === null ? 'Datos no disponibles' : `hace ${hoursSinceRain}h`}</p>
     </div>
 
     <div class="hero-why">
       <h3>¿Por qué?</h3>
-      {#each explanation as item}
-        <p>+ {item.label} ({item.weight}%)</p>
-      {/each}
+      {#if explanation.length === 0}
+        <p>Datos no disponibles para explicar factores de riesgo.</p>
+      {:else}
+        {#each explanation as item}
+          <p>+ {item.label} ({item.weight}%)</p>
+        {/each}
+      {/if}
       <small>{reason}</small>
     </div>
 
     <div class="hero-action">
       <h3>🧭 Decisión de hoy</h3>
-      <p>✔ {score <= 30 ? 'Mantener operación normal' : 'Mantener vigilancia activa'}</p>
+      <p>✔ {score === null ? 'Datos no disponibles.' : score <= 30 ? 'Mantener operación normal' : 'Mantener vigilancia activa'}</p>
       <p>⚠ {actionToday}</p>
-      <p>⏱ Revisar nuevamente en {criticalWindowHours}h</p>
+      <p>⏱ Revisar nuevamente en {criticalWindowHours === null ? 'Datos no disponibles' : `${criticalWindowHours}h`}</p>
       <button type="button" on:click={simulateAlert} disabled={simulating}>
         {simulating ? 'Simulando...' : '⚡ Simular alerta automática'}
       </button>

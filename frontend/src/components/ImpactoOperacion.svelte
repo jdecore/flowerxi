@@ -1,12 +1,14 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
 
-  export let apiUrl = '';
-  export let region = 'madrid';
+export let apiUrl = '';
+export let region = 'madrid';
 
-  let savingHours = 0.5;
-  let riskReduction = '5%';
-  let recommendation = 'Mantener recorrido normal';
+  let currentScore = null;
+  let currentStatus = 'Sin datos';
+  let surveillanceDays = null;
+  let observedDays = null;
+  let recommendation = 'Datos no disponibles.';
   let loading = true;
   let error = '';
 
@@ -58,36 +60,30 @@
     throw lastError ?? new Error('network');
   };
 
-  const updateImpact = (score) => {
-    if (score >= 70) {
-      savingHours = '4-6';
-      riskReduction = '25%';
-      recommendation = 'Activar protocolo de emergencia';
-    } else if (score >= 40) {
-      savingHours = '2-3';
-      riskReduction = '18%';
-      recommendation = 'Reforzar vigilancia diaria';
-    } else {
-      savingHours = 0.5;
-      riskReduction = '5%';
-      recommendation = 'Mantener recorrido normal';
-    }
-  };
-
   const fetchImpact = async () => {
     loading = true;
     error = '';
+    currentScore = null;
+    currentStatus = 'Sin datos';
+    surveillanceDays = null;
+    observedDays = null;
+    recommendation = 'Datos no disponibles.';
     try {
-      try {
-        const data = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`);
-        const score = Number(data?.score ?? data?.operativo?.score ?? 22);
-        updateImpact(score);
-        return;
-      } catch {
-        const dashboard = await fetchJson(`/api/dashboard?region=${encodeURIComponent(region)}`);
-        const score = Number(dashboard?.combined_score ?? dashboard?.risk_score ?? 22);
-        updateImpact(score);
-      }
+      const [operativo, weekly] = await Promise.all([
+        fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
+        fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`),
+      ]);
+
+      currentScore = Number.isFinite(Number(operativo?.score)) ? Number(operativo.score) : null;
+      currentStatus = operativo?.status_label || 'Sin datos';
+      recommendation = operativo?.action_today || 'Datos no disponibles.';
+
+      const items = Array.isArray(weekly?.items) ? weekly.items : [];
+      observedDays = items.length;
+      surveillanceDays = items.filter((item) => {
+        const level = String(item?.global_risk_level || '').toLowerCase();
+        return level === 'alto' || level === 'medio';
+      }).length;
     } catch (e) {
       error = 'Datos no disponibles.';
       console.error(e);
@@ -140,15 +136,17 @@
     <li>
       <span class="impact-icon">⏱️</span>
       <div>
-        <strong>Ahorro de tiempo:</strong>
-        <span class="value">∼{savingHours} horas/día de inspección</span>
+        <strong>Riesgo hoy:</strong>
+        <span class="value">{currentScore === null ? 'Datos no disponibles' : `${currentStatus} (${currentScore})`}</span>
       </div>
     </li>
     <li>
       <span class="impact-icon">🛡️</span>
       <div>
-        <strong>Reducción de riesgo:</strong>
-        <span class="value">−{riskReduction} de Botrytis (proxy climático)</span>
+        <strong>Días en vigilancia (7d):</strong>
+        <span class="value">
+          {observedDays === null ? 'Datos no disponibles' : `${surveillanceDays}/${observedDays} días`}
+        </span>
       </div>
     </li>
     <li>
@@ -161,7 +159,7 @@
   </ul>
 
   <p class="impact-note">
-    ℹ️ No es diagnóstico de finca. Es un modelo de priorización basado en clima.
+    ℹ️ Basado en datos reales de recomendaciones y señales de riesgo del backend.
   </p>
 </article>
 

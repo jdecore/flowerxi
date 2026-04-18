@@ -16,7 +16,6 @@
   let isModelLoading = false;
   let isAnswering = false;
   let modelReady = false;
-  let modelError = '';
   let model = null;
   let region = 'madrid';
 
@@ -97,14 +96,6 @@
     return null;
   };
 
-  const estimateHumidity = (temp, precip) => {
-    const t = Number(temp);
-    const p = Number(precip);
-    if (!Number.isFinite(t) && !Number.isFinite(p)) return null;
-    const estimate = 64 + (Number.isFinite(p) ? p : 0) * 2.2 - Math.max(0, (Number.isFinite(t) ? t : 0) - 20) * 1.4;
-    return Math.max(35, Math.min(95, Math.round(estimate)));
-  };
-
   const loadBackendContext = async () => {
     const [operativoData, historyData] = await Promise.all([
       fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
@@ -118,7 +109,8 @@
       trackedRegions.map(async (slug) => {
         const data = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
         const day = Array.isArray(data?.items) ? data.items[0] : null;
-        return { slug, humidity: estimateHumidity(day?.temp_mean_c, day?.precipitation_mm) };
+        const waterRisk = Number(day?.waterlogging_risk);
+        return { slug, humidity: Number.isFinite(waterRisk) ? Math.round(waterRisk) : null };
       })
     );
 
@@ -138,7 +130,7 @@
     const humidTop = context?.humidTop;
 
     if (q.includes('riesgo hoy') || q.includes('como esta el riesgo') || q.includes('cómo está el riesgo')) {
-      return score
+      return score !== null && score !== undefined
         ? `Hoy en ${region} el riesgo está en ${statusLabel || 'estado operativo'} (${score}).`
         : 'Datos no disponibles para el riesgo de hoy.';
     }
@@ -149,7 +141,7 @@
 
     if (q.includes('donde hay mas humedad') || q.includes('dónde hay más humedad')) {
       return humidTop
-        ? `Hoy la mayor humedad estimada está en ${humidTop.slug} (${humidTop.humidity}%).`
+        ? `Hoy el mayor riesgo por humedad/encharcamiento está en ${humidTop.slug} (${humidTop.humidity} pts).`
         : 'Datos no disponibles para comparar humedad entre municipios.';
     }
 
@@ -160,17 +152,24 @@
     return '';
   };
 
+  const fallbackContextAnswer = (context) => {
+    const score = context?.operativo?.score;
+    const label = context?.operativo?.status_label;
+    const action = context?.operativo?.action_today;
+    const reason = context?.operativo?.reason;
+    if ((score === null || score === undefined) && !action) return 'Datos no disponibles.';
+    return `Estado actual: ${label || 'Sin datos'} (${score ?? '—'}). ${reason || ''} Acción sugerida: ${action || 'Sin datos'}`.trim();
+  };
+
   const loadModel = async () => {
     if (modelReady || isModelLoading) return;
     isModelLoading = true;
-    modelError = '';
     try {
       model = await getAIModel();
       if (!model) throw new Error('No fue posible inicializar el modelo');
       modelReady = true;
     } catch (err) {
       console.error('[flowerxi-chat] init error:', err);
-      modelError = 'No fue posible cargar la IA en este momento.';
     } finally {
       isModelLoading = false;
     }
@@ -228,7 +227,7 @@
 
       if (!modelReady) await loadModel();
       if (!modelReady) {
-        appendHistory(question, 'Datos no disponibles.');
+        appendHistory(question, fallbackContextAnswer(context));
         return;
       }
 
@@ -246,7 +245,12 @@
       appendHistory(question, answer);
     } catch (err) {
       console.error('[flowerxi-chat] error:', err);
-      appendHistory(question, 'Datos no disponibles.');
+      try {
+        const context = await loadBackendContext();
+        appendHistory(question, fallbackContextAnswer(context));
+      } catch {
+        appendHistory(question, 'Datos no disponibles.');
+      }
     } finally {
       isAnswering = false;
     }
@@ -258,7 +262,6 @@
 
   const openFromSidebar = async () => {
     chatOpen = true;
-    if (!modelReady) await loadModel();
   };
 
   const onRegionChange = (event) => {
@@ -304,23 +307,21 @@
       </header>
 
       {#if isModelLoading}
-        <p class="status">Cargando modelo IA...</p>
-      {:else if modelError}
-        <p class="status error">{modelError}</p>
-      {:else}
-        <div class="chat-history">
-          {#if chatHistory.length === 0}
-            <p class="status">Haz tu primera pregunta.</p>
-          {/if}
-          {#each chatHistory as item}
-            <div class="message">
-              <p class="q"><strong>Tú:</strong> {item.q}</p>
-              <p class="a"><strong>Bot:</strong> {item.a}</p>
-              <p class="time">{formatTime(item.timestamp)}</p>
-            </div>
-          {/each}
-        </div>
+        <p class="status">Cargando IA avanzada...</p>
       {/if}
+
+      <div class="chat-history">
+        {#if chatHistory.length === 0}
+          <p class="status">Prueba: "¿Cómo está el riesgo hoy?" o "¿Qué debo hacer hoy?"</p>
+        {/if}
+        {#each chatHistory as item}
+          <div class="message">
+            <p class="q"><strong>Tú:</strong> {item.q}</p>
+            <p class="a"><strong>Bot:</strong> {item.a}</p>
+            <p class="time">{formatTime(item.timestamp)}</p>
+          </div>
+        {/each}
+      </div>
 
       <div class="composer">
         <textarea
@@ -340,14 +341,14 @@
 
 <style>
   :root {
-    --chat-primary: #756a85;
-    --chat-primary-hover: #5f546e;
-    --chat-bg: #f6f4f8;
-    --chat-surface: #ffffff;
-    --chat-text: #2b2730;
-    --chat-muted: #6b6573;
-    --chat-tertiary: #9590a3;
-    --chat-border: #e5e0eb;
+    --chat-primary: var(--primary);
+    --chat-primary-hover: var(--primary-hover);
+    --chat-bg: var(--bg-app);
+    --chat-surface: var(--bg-surface);
+    --chat-text: var(--text-primary);
+    --chat-muted: var(--text-secondary);
+    --chat-tertiary: var(--text-tertiary);
+    --chat-border: var(--border-subtle);
   }
 
   .chat-overlay {
@@ -469,7 +470,7 @@
   }
 
   .status.error {
-    color: #c75d5d;
+    color: var(--alert-high);
   }
 
   .composer {

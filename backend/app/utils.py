@@ -195,7 +195,7 @@ def build_risk_narrative(
     level = latest.get("risk_level", "bajo")
     return {
         "summary": f"En {region_name} el riesgo agroclimático está en nivel {level}.",
-        "details": f"Temperatura {latest.get('avg_temp_c', 'N/A')}°C, precipitación {latest.get('avg_precip_mm', 'N/A')}mm.",
+        "details": f"Mes {latest.get('month_label', 'N/A')} con puntaje combinado {latest.get('combined_score', 'N/A')}.",
     }
 
 
@@ -204,8 +204,34 @@ def fetch_monthly_risk_rows(region: str, months: int):
     try:
         from .db import get_conn
 
-        # Por ahora retornamos datos vacíos; el endpoint /risk/monthly puede generarlos internamente
-        return region, []
+        sql = """
+            SELECT
+              COALESCE(reg.name, %s) AS region_name,
+              to_char(date_trunc('month', w.observed_on), 'YYYY-MM') AS month_label,
+              COUNT(*)::int AS sample_days,
+              SUM(CASE WHEN COALESCE(w.precipitation_mm, 0) > 0 THEN 1 ELSE 0 END)::int AS rainy_days,
+              AVG(COALESCE(r.fungal_risk, 0)) AS avg_fungal_risk,
+              AVG(COALESCE(r.waterlogging_risk, 0)) AS avg_waterlogging_risk,
+              AVG(COALESCE(r.heat_risk, 0)) AS avg_heat_risk
+            FROM flowerxi_weather_daily w
+            LEFT JOIN flowerxi_risk_signals r
+              ON r.region_slug = w.region_slug AND r.observed_on = w.observed_on
+            LEFT JOIN flowerxi_regions reg
+              ON reg.slug = w.region_slug
+            WHERE w.region_slug = %s
+              AND w.observed_on >= (CURRENT_DATE - (%s::text || ' months')::interval)
+            GROUP BY COALESCE(reg.name, %s), date_trunc('month', w.observed_on)
+            ORDER BY date_trunc('month', w.observed_on) DESC
+            LIMIT %s;
+        """
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (region, region, months, region, months))
+                rows = cur.fetchall()
+
+        region_name = rows[0]["region_name"] if rows else region
+        return region_name, rows
     except Exception as e:
         logger.error(f"Error fetch_monthly_risk_rows: {e}")
         return region, []

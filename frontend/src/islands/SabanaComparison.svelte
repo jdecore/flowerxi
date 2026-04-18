@@ -4,13 +4,6 @@
   export let apiUrl = '';
   export let initialRegion = 'madrid';
 
-  const trackedRegions = ['madrid', 'funza', 'facatativa'];
-  const fallbackRows = [
-    { slug: 'facatativa', name: 'Facatativá', score: 82 },
-    { slug: 'madrid', name: 'Madrid', score: 77 },
-    { slug: 'funza', name: 'Funza', score: 65 },
-  ];
-
   let region = initialRegion;
   let loading = true;
   let error = '';
@@ -83,9 +76,11 @@
     try {
       const compareData = await fetchJson('/api/municipalities/compare');
       const compareItems = Array.isArray(compareData?.items) ? compareData.items : [];
+      const baseSlugs = compareItems.map((item) => item.slug).filter(Boolean);
+      const regionsToRank = baseSlugs.length > 0 ? baseSlugs : [region];
 
       const riskResponses = await Promise.all(
-        trackedRegions.map(async (slug) => {
+        regionsToRank.map(async (slug) => {
           try {
             const data = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(slug)}`);
             return [slug, toNum(data?.score, null)];
@@ -97,12 +92,12 @@
 
       const riskBySlug = new Map(riskResponses);
 
-      rows = trackedRegions.map((slug) => {
+      rows = regionsToRank.map((slug) => {
         const base = compareItems.find((item) => item.slug === slug);
         const score = riskBySlug.get(slug);
         return {
           slug,
-          name: base?.name ?? slug,
+          name: base?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1),
           score,
           level: score === null ? 'Sin datos' : riskLabel(score),
           area: toNum(base?.area_ha, 0),
@@ -111,14 +106,8 @@
         };
       });
     } catch (err) {
-      rows = fallbackRows.map((item) => ({
-        ...item,
-        level: riskLabel(item.score),
-        area: 0,
-        workers: 0,
-        isCurrent: item.slug === region,
-      }));
-      error = 'Datos no disponibles';
+      rows = [];
+      error = 'Datos no disponibles.';
     } finally {
       loading = false;
     }
@@ -159,23 +148,24 @@
 {#if loading}
   <p class="state muted">Cargando comparativa...</p>
 {:else}
-  {#if error}
-    <p class="state muted">{error}</p>
+  {#if error || rankedRows.length === 0}
+    <p class="state muted">Datos no disponibles.</p>
+  {:else}
+    <div class="ranking-wrap">
+      <p class="title">Municipios con mayor riesgo hoy</p>
+      <ol>
+        {#each rankedRows as row, index}
+          <li class:current={row.isCurrent}>
+            <span class="rank">{index + 1}.</span>
+            <span class="badge">{badge(index)}</span>
+            <strong>{row.name}</strong>
+            <span class="score">{row.score === null ? '—' : `${row.score}`}</span>
+            <small>{row.level}</small>
+          </li>
+        {/each}
+      </ol>
+    </div>
   {/if}
-  <div class="ranking-wrap">
-    <p class="title">Municipios con mayor riesgo hoy</p>
-    <ol>
-      {#each rankedRows as row, index}
-        <li class:current={row.isCurrent}>
-          <span class="rank">{index + 1}.</span>
-          <span class="badge">{badge(index)}</span>
-          <strong>{row.name}</strong>
-          <span class="score">{row.score === null ? '—' : `${row.score}`}</span>
-          <small>{row.level}</small>
-        </li>
-      {/each}
-    </ol>
-  </div>
 {/if}
 
 <style>

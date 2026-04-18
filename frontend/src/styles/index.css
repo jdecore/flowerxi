@@ -24,6 +24,11 @@
   --status-accion: #DC2626;
   --status-accion-bg: #FEE2E2;
   
+  /* Alerts */
+  --alert-success: #10B981;
+  --alert-medium: #F59E0B;
+  --alert-high: #DC2626;
+  
   /* Texto */
   --text-primary: #1F2937;
   --text-secondary: #4B5563;
@@ -32,9 +37,12 @@
   /* Bordes y sombras */
   --border-subtle: #E5E7EB;
   --border-medium: #D1D5DB;
+  --border: var(--border-subtle);
+  --shadow: var(--shadow-sm);
   --shadow-sm: 0 1px 3px rgba(31, 41, 55, 0.06);
   --shadow-md: 0 4px 12px rgba(31, 41, 55, 0.08);
   --shadow-lg: 0 8px 24px rgba(31, 41, 55, 0.12);
+  --radius: var(--radius-sm);
   
   /* Radio */
   --radius-sm: 8px;
@@ -44,25 +52,50 @@
   --radius-full: 999px;
 }
 
-/* Modo Oscuro */
+/* Modo Oscuro - Colores consistentes */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-app: #111827;
-    --bg-surface: #1F2937;
-    --bg-sidebar: #111827;
-    --primary: #A78BCC;
-    --primary-hover: #C4B5E0;
-    --text-primary: #F9FAFB;
-    --text-secondary: #D1D5DB;
-    --text-tertiary: #9CA3AF;
-    --border-subtle: #374151;
-    --border-medium: #4B5563;
+    /* Fondo uniforme */
+    --bg-app: #0F0F12;
+    --bg-surface: #18181B;
+    --bg-sidebar: #121215;
+    
+    /* Primario - Lavanda suave en oscuro */
+    --primary: #9D8ABF;
+    --primary-hover: #B5A6D0;
+    --primary-light: #7C6A9E;
+    
+    /* Secundario igual */
+    --secondary: #4ADE80;
+    --secondary-light: #22C55E;
+    
+    /* Semáforo - colores más vibrantes */
     --status-rutina: #34D399;
-    --status-rutina-bg: #064E3B;
+    --status-rutina-bg: #052E2A;
     --status-vigilancia: #FBBF24;
-    --status-vigilancia-bg: #78350F;
+    --status-vigilancia-bg: #422806;
     --status-accion: #F87171;
-    --status-accion-bg: #7F1D1D;
+    --status-accion-bg: #450A0A;
+    
+    /* Alerts */
+    --alert-success: #34D399;
+    --alert-medium: #FBBF24;
+    --alert-high: #F87171;
+    
+    /* Texto - contraste adecuado */
+    --text-primary: #EDEDF0;
+    --text-secondary: #A1A1AA;
+    --text-tertiary: #71717A;
+    
+    /* Bordes oscuros pero visibles */
+    --border-subtle: #27272A;
+    --border-medium: #3F3F46;
+    --border: var(--border-subtle);
+    --shadow: var(--shadow-sm);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --radius: var(--radius-sm);
   }
 }
 

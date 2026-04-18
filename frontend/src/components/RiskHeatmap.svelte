@@ -14,14 +14,6 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
-  const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
-
-  const riskProxy = (temp, precip) => {
-    const rainFactor = Math.min(55, toNum(precip) * 9);
-    const tempFactor = toNum(temp) < 12 ? 16 : toNum(temp) > 24 ? 10 : 4;
-    return clamp(Math.round(18 + rainFactor + tempFactor), 12, 95);
-  };
-
   const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
 
   const buildApiBases = (raw) => {
@@ -77,49 +69,20 @@
   };
 
   const parseMonthItem = (item) => {
-    const score = Math.round(toNum(item?.combined_score, 0));
+    const rawScore = Number(item?.combined_score);
+    const score = Number.isFinite(rawScore) ? Math.round(rawScore) : null;
     const month = item?.month_label ?? item?.month ?? 'Mes';
-    const level = levelFromScore(score);
+    const level = score === null ? { label: 'Sin datos', levelClass: 'watch' } : levelFromScore(score);
     return { month, score, ...level };
-  };
-
-  const deriveMonthlyFromHistory = (historyItems) => {
-    const byMonth = new Map();
-    const ordered = [...historyItems].sort((a, b) => String(a.observed_on).localeCompare(String(b.observed_on)));
-
-    for (const day of ordered) {
-      const date = String(day?.observed_on ?? '');
-      const monthKey = date.slice(0, 7);
-      if (!monthKey || monthKey.length < 7) continue;
-      const list = byMonth.get(monthKey) ?? [];
-      list.push(riskProxy(day?.temp_mean_c, day?.precipitation_mm));
-      byMonth.set(monthKey, list);
-    }
-
-    return Array.from(byMonth.entries())
-      .slice(-months)
-      .map(([month, values]) => {
-        const avg = values.length
-          ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-          : 0;
-        const level = levelFromScore(avg);
-        return { month, score: avg, ...level };
-      });
   };
 
   const fetchHeatmap = async () => {
     loading = true;
     error = '';
     try {
-      try {
-        const data = await fetchJson(`/api/risk/monthly?region=${encodeURIComponent(region)}&months=${months}`);
-        const items = Array.isArray(data?.items) ? data.items : [];
-        monthly = items.map(parseMonthItem);
-      } catch {
-        const history = await fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=${Math.max(months * 31, 90)}`);
-        const items = Array.isArray(history?.items) ? history.items : [];
-        monthly = deriveMonthlyFromHistory(items);
-      }
+      const data = await fetchJson(`/api/risk/monthly?region=${encodeURIComponent(region)}&months=${months}`);
+      const items = Array.isArray(data?.items) ? data.items : [];
+      monthly = items.map(parseMonthItem);
     } catch (e) {
       monthly = [];
       error = 'Datos no disponibles.';
@@ -175,7 +138,7 @@
       {#each monthly as month}
         <article class="month-cell {month.levelClass}">
           <span class="month">{month.month}</span>
-          <strong>{month.score}</strong>
+          <strong>{month.score === null ? '—' : month.score}</strong>
           <small>{month.label}</small>
         </article>
       {/each}

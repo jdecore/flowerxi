@@ -17,23 +17,9 @@
   let history = [];
   let updatedAt = '';
 
-  const clamp = (value, min = 0, max = 100) =>
-    Math.max(min, Math.min(max, Number.isFinite(value) ? value : min));
-
   const toNum = (value, fallback = 0) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
-  };
-
-  const estimateHumidity = (temp, precip) => {
-    const estimate = 64 + toNum(precip) * 2.2 - Math.max(0, toNum(temp) - 20) * 1.4;
-    return clamp(Math.round(estimate), 35, 95);
-  };
-
-  const riskProxy = (temp, precip) => {
-    const rainFactor = Math.min(55, toNum(precip) * 9);
-    const tempFactor = toNum(temp) < 12 ? 16 : toNum(temp) > 24 ? 10 : 4;
-    return clamp(Math.round(18 + rainFactor + tempFactor), 12, 95);
   };
 
   const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
@@ -131,8 +117,8 @@
 
   $: rainSeries = history.map((day) => toNum(day.precipitation_mm));
   $: tempSeries = history.map((day) => toNum(day.temp_mean_c));
-  $: humiditySeries = history.map((day) => estimateHumidity(day.temp_mean_c, day.precipitation_mm));
-  $: riskSeries = history.map((day) => riskProxy(day.temp_mean_c, day.precipitation_mm));
+  $: waterSeries = history.map((day) => toNum(day.waterlogging_risk, 0));
+  $: fungalSeries = history.map((day) => toNum(day.fungal_risk, 0));
   $: enoughData = history.length >= 7;
   $: regionLabel = regionNames[region] ?? region;
 </script>
@@ -154,8 +140,8 @@
   <div class="spark-grid">
     <Sparkline title="Lluvia (mm)" data={rainSeries} unit="mm" color="#3B82F6" />
     <Sparkline title="Temperatura (°C)" data={tempSeries} unit="°C" color="#EF4444" />
-    <Sparkline title="Humedad (%)" data={humiditySeries} unit="%" color="#10B981" />
-    <Sparkline title="Puntaje riesgo" data={riskSeries} unit="pts" color="#7B5BA6" />
+    <Sparkline title="Riesgo encharcamiento" data={waterSeries} unit="pts" color="#10B981" />
+    <Sparkline title="Riesgo fúngico" data={fungalSeries} unit="pts" color="#7B5BA6" />
   </div>
   <p class="updated">Actualizado: {updatedAt}</p>
 {/if}
