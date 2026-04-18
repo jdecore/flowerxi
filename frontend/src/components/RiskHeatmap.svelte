@@ -43,9 +43,26 @@
     }
   };
 
-  window.addEventListener('regionchange', (e) => { if (e.detail !== region) { region = e.detail; fetchHeatmap(); } });
-  onMount(fetchHeatmap);
-  onDestroy(() => { if (chart) chart.destroy(); });
+  const handleRegionChange = (e) => {
+    if (e.detail !== region) {
+      region = e.detail;
+      fetchHeatmap();
+    }
+  };
+
+  onMount(() => {
+    fetchHeatmap();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('regionchange', handleRegionChange);
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('regionchange', handleRegionChange);
+    }
+    if (chart) chart.destroy();
+  });
 </script>
 
 <article class="risk-heatmap">

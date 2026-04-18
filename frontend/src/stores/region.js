@@ -10,5 +10,7 @@ export const regions = [
 
 export const setRegion = (region) => {
   regionStore.set(region);
-  window.dispatchEvent(new CustomEvent('regionchange', { detail: region }));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('regionchange', { detail: region }));
+  }
 };

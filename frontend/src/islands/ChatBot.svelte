@@ -119,12 +119,19 @@
 
   // Escuchar evento global para abrir chat desde sidebar
   const openFromSidebar = () => { chatOpen = true; if (!modelReady) loadModel(); };
-  window.addEventListener('openchat', openFromSidebar);
 
   onMount(() => {
     loadHistory();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('openchat', openFromSidebar);
+    }
+
     // Limpieza
-    return () => window.removeEventListener('openchat', openFromSidebar);
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('openchat', openFromSidebar);
+      }
+    };
   });
 </script>
 

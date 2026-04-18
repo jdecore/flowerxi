@@ -1,4 +1,6 @@
 <script>
+  import { onDestroy, onMount } from 'svelte';
+
   export let apiUrl = '';
   export let currentRegion = 'madrid';
 
@@ -12,6 +14,8 @@
 
   const handleChange = (e) => {
     selected = e.target.value;
+    if (typeof window === 'undefined') return;
+
     // Emit custom event para que otras islas se actualicen
     window.dispatchEvent(new CustomEvent('regionchange', { detail: selected }));
     // También actualizar URL sin recargar
@@ -20,9 +24,20 @@
     window.history.pushState({}, '', url);
   };
 
-  // Escuchar cambios desde otras fuentes
-  window.addEventListener('regionchange', (e) => {
+  const handleRegionChange = (e) => {
     selected = e.detail;
+  };
+
+  onMount(() => {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('regionchange', handleRegionChange);
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('regionchange', handleRegionChange);
+    }
   });
 </script>
 

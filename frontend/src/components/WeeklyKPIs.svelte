@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
 
   export let apiUrl = '';
   export let region = 'madrid';
@@ -28,11 +28,25 @@
     finally { loading = false; }
   };
 
-  window.addEventListener('regionchange', (e) => {
-    if (e.detail !== region) { region = e.detail; fetchKPIs(); }
+  const handleRegionChange = (e) => {
+    if (e.detail !== region) {
+      region = e.detail;
+      fetchKPIs();
+    }
+  };
+
+  onMount(() => {
+    fetchKPIs();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('regionchange', handleRegionChange);
+    }
   });
 
-  onMount(fetchKPIs);
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('regionchange', handleRegionChange);
+    }
+  });
 </script>
 
 <article class="weekly-kpis">

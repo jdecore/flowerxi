@@ -39,9 +39,9 @@ const mockHistory = Array.from({ length: 14 }, (_, i) => ({
         </div>
 
         <div class="topbar-center">
-          <select id="region-select" class="region-select" on:change="(e) => { window.dispatchEvent(new CustomEvent('regionchange', { detail: e.target.value })); localStorage.setItem('flowerxi_region', e.target.value); }">
+          <select id="region-select" class="region-select">
             <option value="madrid">Madrid</option>
-            <option value="facatative">Facatativá</option>
+            <option value="facatativa">Facatativá</option>
             <option value="funza">Funza</option>
           </select>
         </div>
@@ -138,7 +138,14 @@ const mockHistory = Array.from({ length: 14 }, (_, i) => ({
           (function() {
             const saved = localStorage.getItem('flowerxi_region') || 'madrid';
             const select = document.getElementById('region-select');
-            if (select) select.value = saved;
+            if (select) {
+              select.value = saved;
+              select.addEventListener('change', (event) => {
+                const value = event.target instanceof HTMLSelectElement ? event.target.value : 'madrid';
+                window.dispatchEvent(new CustomEvent('regionchange', { detail: value }));
+                localStorage.setItem('flowerxi_region', value);
+              });
+            }
           })();
 
           // Toggle modo oscuro

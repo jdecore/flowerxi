@@ -24,11 +24,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
               <a href="/estaciones" class="sidebar-icon active"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></a>
             </nav>
           </div>
-          <div class="sidebar-bottom">
-            <button class="sidebar-icon chat-toggle" aria-label="Chat AI">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-            </button>
-          </div>
+           <div class="sidebar-bottom">
+             <button class="sidebar-icon chat-toggle" id="open-chat-estaciones" aria-label="Chat AI">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              </button>
+           </div>
         </aside>
 
         <section class="main-panel">
@@ -52,5 +52,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
         </section>
       </section>
     </main>
+    <script is:inline>
+      (() => {
+        const button = document.getElementById('open-chat-estaciones');
+        if (!button) return;
+        button.addEventListener('click', () => {
+          window.dispatchEvent(new Event('openchat'));
+        });
+      })();
+    </script>
   </body>
 </html>
