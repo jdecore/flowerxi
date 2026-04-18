@@ -15,6 +15,7 @@
   let monthlyRisk = null;
   let alertsToday = null;
   let weeklyRecommendations = null;
+  let riskExplain = null;
   let regions = [];
   let selectedRegion = 'madrid';
 
@@ -154,10 +155,20 @@
     }
   };
 
+  const fetchRiskExplain = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/api/risk/explain?region=${encodeURIComponent(selectedRegion)}`);
+      if (!response.ok) return;
+      riskExplain = await response.json();
+    } catch (err) {
+      riskExplain = null;
+    }
+  };
+
   const refreshAll = async () => {
     try {
       await fetchDashboard();
-      await Promise.all([fetchHistory(), fetchMonthlyRisk(), fetchAlertsToday(), fetchWeeklyRecommendations()]);
+      await Promise.all([fetchHistory(), fetchMonthlyRisk(), fetchAlertsToday(), fetchWeeklyRecommendations(), fetchRiskExplain()]);
     } catch (err) {
       loading = false;
       error = err instanceof Error ? err.message : 'Error cargando dashboard';
@@ -445,6 +456,39 @@
         </ul>
       </article>
 
+      <article class="card explain-card">
+        <header class="card-head">
+          <div>
+            <h2>Por qué Subió el Riesgo</h2>
+            <p class="card-subtitle">Variables explicativas de los ultimos 7 dias</p>
+          </div>
+        </header>
+        {#if riskExplain?.analysis}
+          <div class="explain-block">
+            <div class="explain-drivers">
+              <div class="driver-item">
+                <span class="driver-label">Driver principal</span>
+                <span class="driver-value">{riskExplain.analysis.primary_driver}</span>
+              </div>
+              <div class="driver-item">
+                <span class="driver-label">Precipitacion cambio</span>
+                <span class="driver-value">{riskExplain.analysis.precip_change_mm > 0 ? '+' : ''}{riskExplain.analysis.precip_change_mm} mm vs semana anterior</span>
+              </div>
+              <div class="driver-item">
+                <span class="driver-label">Dias con lluvia</span>
+                <span class="driver-value">{riskExplain.analysis.rainy_days}</span>
+              </div>
+            </div>
+            <div class="explain-recommendation">
+              <span class="rec-label">Recomendacion</span>
+              <p class="rec-text">{riskExplain.analysis.recommendation}</p>
+            </div>
+          </div>
+        {:else}
+          <p class="history-note">Cargando explicabilidad...</p>
+        {/if}
+      </article>
+
       <article class="card risk-mvp-card">
         <header class="card-head">
           <div>
@@ -588,6 +632,7 @@
     grid-template-areas:
       'status calendar'
       'stack protocols'
+      'explain explain'
       'mvp mvp'
       'data data';
     gap: 1rem;
@@ -625,6 +670,63 @@
 
   .risk-mvp-card {
     grid-area: mvp;
+  }
+
+  .explain-card {
+    grid-area: explain;
+  }
+
+  .explain-block {
+    margin-top: 0.85rem;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+  }
+
+  .explain-drivers {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .driver-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.5rem 0.65rem;
+    background: #FAF7F3;
+    border-radius: 10px;
+  }
+
+  .driver-label {
+    font-size: 0.7rem;
+    color: var(--text-muted, #6B6B6B);
+  }
+
+  .driver-value {
+    font-size: 0.85rem;
+    color: var(--text, #1A1A1A);
+    font-weight: 500;
+  }
+
+  .explain-recommendation {
+    background: linear-gradient(135deg, rgba(107, 63, 160, 0.12), rgba(127, 57, 251, 0.08));
+    border: 1px solid rgba(107, 63, 160, 0.25);
+    border-radius: 12px;
+    padding: 0.75rem;
+  }
+
+  .rec-label {
+    font-size: 0.7rem;
+    color: var(--primary, #6B3FA0);
+    font-weight: 600;
+  }
+
+  .rec-text {
+    margin: 0.35rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text, #1A1A1A);
+    line-height: 1.4;
   }
 
   .data-inventory-card {
@@ -1095,8 +1197,13 @@
         'calendar'
         'stack'
         'protocols'
+        'explain'
         'mvp'
         'data';
+    }
+
+    .explain-block {
+      grid-template-columns: 1fr;
     }
 
     .bubble-coral {

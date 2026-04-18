@@ -18,26 +18,102 @@ REGIONS = [
     {
         "slug": "madrid",
         "name": "Madrid",
-        "city": "Madrid",
+        "city": "Madrid, Cundinamarca",
         "latitude": 4.7320,
         "longitude": -74.2640,
-        "crop_focus": "rosa de corte (lavanda/morada)",
+        "crop_focus": "rosa de corte",
+        "department": "CUNDINAMARCA",
+        "production_share": 18.0,
     },
     {
         "slug": "facatativa",
-        "name": "Facatativa",
-        "city": "Facatativa",
+        "name": "Facatativá",
+        "city": "Facatativá, Cundinamarca",
         "latitude": 4.8130,
         "longitude": -74.3540,
-        "crop_focus": "rosa de corte (lavanda/morada)",
+        "crop_focus": "rosa, clavel",
+        "department": "CUNDINAMARCA",
+        "production_share": 9.0,
+    },
+    {
+        "slug": "el-rosal",
+        "name": "El Rosal",
+        "city": "El Rosal, Cundinamarca",
+        "latitude": 4.7760,
+        "longitude": -74.3360,
+        "crop_focus": "rosa, crisantemo",
+        "department": "CUNDINAMARCA",
+        "production_share": 8.0,
     },
     {
         "slug": "funza",
         "name": "Funza",
-        "city": "Funza",
+        "city": "Funza, Cundinamarca",
         "latitude": 4.7160,
         "longitude": -74.2110,
-        "crop_focus": "rosa de corte (lavanda/morada)",
+        "crop_focus": "rosa, clavel, alstroemeria",
+        "department": "CUNDINAMARCA",
+        "production_share": 5.0,
+    },
+    {
+        "slug": "tocancipa",
+        "name": "Tocancipá",
+        "city": "Tocancipá, Cundinamarca",
+        "latitude": 4.9530,
+        "longitude": -73.9170,
+        "crop_focus": "rosa de corte",
+        "department": "CUNDINAMARCA",
+        "production_share": 5.0,
+    },
+    {
+        "slug": "chia",
+        "name": "Chía",
+        "city": "Chía, Cundinamarca",
+        "latitude": 4.8670,
+        "longitude": -73.8000,
+        "crop_focus": "rosa, follajes",
+        "department": "CUNDINAMARCA",
+        "production_share": 3.0,
+    },
+    {
+        "slug": "mosquera",
+        "name": "Mosquera",
+        "city": "Mosquera, Cundinamarca",
+        "latitude": 4.6880,
+        "longitude": -74.2290,
+        "crop_focus": "rosa, clavel",
+        "department": "CUNDINAMARCA",
+        "production_share": 3.0,
+    },
+    {
+        "slug": "sopo",
+        "name": "Sopó",
+        "city": "Sopó, Cundinamarca",
+        "latitude": 4.9270,
+        "longitude": -73.7740,
+        "crop_focus": "rosa, hortensia",
+        "department": "CUNDINAMARCA",
+        "production_share": 2.0,
+    },
+    {
+        "slug": "bojaca",
+        "name": "Bojacá",
+        "city": "Bojacá, Cundinamarca",
+        "latitude": 4.7450,
+        "longitude": -74.3890,
+        "crop_focus": "rosa de corte",
+        "department": "CUNDINAMARCA",
+        "production_share": 2.0,
+    },
+    {
+        "slug": "cachipay",
+        "name": "Cachipay",
+        "city": "Cachipay, Cundinamarca",
+        "latitude": 4.7060,
+        "longitude": -74.4550,
+        "crop_focus": "flores de corte",
+        "department": "CUNDINAMARCA",
+        "production_share": 1.0,
     },
 ]
 
@@ -219,6 +295,8 @@ def apply_seed() -> None:
                     f"{region['latitude']:.4f}",
                     f"{region['longitude']:.4f}",
                     f"'{sql_escape(region['crop_focus'])}'",
+                    f"'{sql_escape(region['department'])}'",
+                    f"{region.get('production_share', 'NULL')}",
                 ]
             )
             + ")"
@@ -226,7 +304,7 @@ def apply_seed() -> None:
 
     run_insforge_query(
         """
-        INSERT INTO flowerxi_regions (slug, name, city, latitude, longitude, crop_focus)
+        INSERT INTO flowerxi_regions (slug, name, city, latitude, longitude, crop_focus, department, production_share)
         VALUES
         """.strip()
         + "\n"
@@ -237,7 +315,9 @@ def apply_seed() -> None:
           city = EXCLUDED.city,
           latitude = EXCLUDED.latitude,
           longitude = EXCLUDED.longitude,
-          crop_focus = EXCLUDED.crop_focus;
+          crop_focus = EXCLUDED.crop_focus,
+          department = EXCLUDED.department,
+          production_share = EXCLUDED.production_share;
         """.rstrip()
     )
 
@@ -304,12 +384,22 @@ def apply_seed() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed InsForge with 2026 FlowerXi data")
-    parser.add_argument("--apply", action="store_true", help="Apply seed directly to InsForge")
+    parser = argparse.ArgumentParser(
+        description="Seed InsForge with 2026 FlowerXi data"
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply seed directly to InsForge"
+    )
     args = parser.parse_args()
 
     if not args.apply:
-        rows_weather, rows_risk, rows_recommendations, rows_holidays, weather_sources = build_data_rows()
+        (
+            rows_weather,
+            rows_risk,
+            rows_recommendations,
+            rows_holidays,
+            weather_sources,
+        ) = build_data_rows()
         print(
             json.dumps(
                 {

@@ -1,6 +1,4 @@
 ---
-import Dashboard from '../components/Dashboard.svelte';
-import ChatBot from '../islands/ChatBot.svelte';
 import '../styles/index.css';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -10,7 +8,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>flowerxi | Estado de Cultivo</title>
+    <title>flowerxi | Calendario</title>
   </head>
   <body>
     <main class="be-page">
@@ -19,7 +17,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
           <div class="sidebar-top">
             <div class="logo-mark" aria-label="flowerxi">✿</div>
             <nav class="sidebar-nav" aria-label="Navegacion principal">
-              <a href="/" class="sidebar-icon active" aria-label="Inicio">
+              <a href="/" class="sidebar-icon" aria-label="Inicio">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
                   <path d="M3 10.7L12 3l9 7.7" />
                   <path d="M5.5 9.7V21h13V9.7" />
@@ -35,7 +33,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
                   <circle cx="18" cy="7" r="1.2" />
                 </svg>
               </a>
-              <a href="/calendario" class="sidebar-icon" aria-label="Calendario">
+              <a href="/calendario" class="sidebar-icon active" aria-label="Calendario">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
                   <rect x="3.5" y="5.5" width="17" height="15" rx="2.5" />
                   <path d="M8 3.5v4M16 3.5v4M3.5 10h17" />
@@ -67,57 +65,42 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
           <header class="top-header">
             <div class="brand-block">
               <p class="brand-logo">flowerxi</p>
-              <h1>Hola, cultivador. Veamos el estado de tu roseal hoy</h1>
-            </div>
-            <div class="header-actions">
-              <label class="search-box" for="region-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                  <circle cx="11" cy="11" r="6" />
-                  <path d="M20 20l-4.2-4.2" />
-                </svg>
-                <input id="region-search" type="search" placeholder="Buscar municipio..." autocomplete="off" />
-              </label>
-              <button id="refresh-dashboard" class="refresh-btn" type="button">Actualizar datos</button>
+              <h1>Calendario de Alertas</h1>
             </div>
           </header>
 
-          <Dashboard apiUrl={apiUrl} client:load />
+          <section class="calendar-content" id="calendar-content">
+            <p class="info-text">El calendario de alertas muestra el historial de riesgos diarios por municipio.</p>
+            <div class="calendar-placeholder">
+              <p>Usa el calendario en el dashboard principal para ver el mes actual.</p>
+              <a href="/" class="link-btn">Ver Dashboard</a>
+            </div>
+          </section>
         </section>
       </section>
-      <ChatBot client:idle />
     </main>
 
-    <script is:inline>
-      (() => {
-        const searchInput = document.getElementById('region-search');
-        const refreshButton = document.getElementById('refresh-dashboard');
-        let searchDebounce;
-
-        const emit = (name, detail = {}) => {
-          window.dispatchEvent(new CustomEvent(name, { detail }));
-        };
-
-        if (searchInput) {
-          searchInput.addEventListener('input', (event) => {
-            const value = event.target instanceof HTMLInputElement ? event.target.value : '';
-            window.clearTimeout(searchDebounce);
-            searchDebounce = window.setTimeout(() => {
-              emit('flowerxi:search-region', { query: value });
-            }, 220);
-          });
-
-          searchInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              emit('flowerxi:search-region', { query: searchInput.value });
-            }
-          });
-        }
-
-        if (refreshButton) {
-          refreshButton.addEventListener('click', () => emit('flowerxi:refresh'));
-        }
-      })();
-    </script>
+    <style>
+      .calendar-content { padding: 1rem; }
+      .info-text {
+        margin-bottom: 1rem;
+        color: var(--text-muted, #6B6B6B);
+      }
+      .calendar-placeholder {
+        background: #FAF7F3;
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+      }
+      .link-btn {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.5rem 1rem;
+        background: var(--primary, #6B3FA0);
+        color: #fff;
+        border-radius: 8px;
+        text-decoration: none;
+      }
+    </style>
   </body>
 </html>

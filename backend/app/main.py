@@ -11,7 +11,9 @@ from .db import get_conn
 
 app = FastAPI(title=settings.app_name)
 DEFAULT_REGION = "madrid"
-MARKET_PRICES_PATH = Path(__file__).resolve().parents[2] / "frontend" / "public" / "market_prices.json"
+MARKET_PRICES_PATH = (
+    Path(__file__).resolve().parents[2] / "frontend" / "public" / "market_prices.json"
+)
 
 
 def normalize_origin(origin: str) -> str:
@@ -39,7 +41,10 @@ def to_float(value: Any, default: float = 0.0) -> float:
 
 
 def build_agroclimatic_score(
-    fungal_risk: float, waterlogging_risk: float, heat_risk: float, rainy_days_ratio: float
+    fungal_risk: float,
+    waterlogging_risk: float,
+    heat_risk: float,
+    rainy_days_ratio: float,
 ) -> float:
     score = (
         fungal_risk * 0.35
@@ -51,7 +56,13 @@ def build_agroclimatic_score(
 
 
 def load_market_prices() -> dict[str, Any]:
-    default_payload = {"scraped_at": None, "generated_at": None, "sources": [], "data": [], "stale": False}
+    default_payload = {
+        "scraped_at": None,
+        "generated_at": None,
+        "sources": [],
+        "data": [],
+        "stale": False,
+    }
     try:
         raw = MARKET_PRICES_PATH.read_text(encoding="utf-8")
         payload = json.loads(raw)
@@ -69,7 +80,11 @@ def load_market_prices() -> dict[str, Any]:
 
 def build_commercial_metrics() -> dict[str, Any]:
     payload = load_market_prices()
-    prices = [to_float(item.get("price_cop"), 0.0) for item in payload.get("data", []) if to_float(item.get("price_cop"), 0.0) > 0]
+    prices = [
+        to_float(item.get("price_cop"), 0.0)
+        for item in payload.get("data", [])
+        if to_float(item.get("price_cop"), 0.0) > 0
+    ]
 
     if not prices:
         return {
@@ -85,7 +100,11 @@ def build_commercial_metrics() -> dict[str, Any]:
 
     total_price = sum(prices)
     avg_price = mean(prices)
-    volatility_pct = (pstdev(prices) / avg_price * 100.0) if len(prices) > 1 and avg_price > 0 else 0.0
+    volatility_pct = (
+        (pstdev(prices) / avg_price * 100.0)
+        if len(prices) > 1 and avg_price > 0
+        else 0.0
+    )
     concentration_pct = (max(prices) / total_price * 100.0) if total_price > 0 else 0.0
     commercial_risk_score = clamp((volatility_pct * 1.15) + (concentration_pct * 0.55))
 
@@ -101,7 +120,9 @@ def build_commercial_metrics() -> dict[str, Any]:
     }
 
 
-def build_risk_narrative(region_name: str, latest: dict[str, Any], commercial: dict[str, Any]) -> str:
+def build_risk_narrative(
+    region_name: str, latest: dict[str, Any], commercial: dict[str, Any]
+) -> str:
     drivers: list[str] = []
     rainy_days = int(latest.get("rainy_days", 0))
     temp_anomaly = to_float(latest.get("temp_anomaly_c"), 0.0)
@@ -117,13 +138,20 @@ def build_risk_narrative(region_name: str, latest: dict[str, Any], commercial: d
     elif temp_anomaly >= 1.5:
         drivers.append("hubo mayor estres termico respecto al promedio")
 
-    if commercial.get("commercial_risk_score") is not None and to_float(commercial["commercial_risk_score"]) >= 55:
+    if (
+        commercial.get("commercial_risk_score") is not None
+        and to_float(commercial["commercial_risk_score"]) >= 55
+    ):
         drivers.append("aparecio presion comercial por volatilidad de precios")
 
     if not drivers:
         drivers.append("el comportamiento agroclimatico se mantuvo estable")
 
-    driver_text = ", ".join(drivers[:-1]) + f" y {drivers[-1]}" if len(drivers) > 1 else drivers[0]
+    driver_text = (
+        ", ".join(drivers[:-1]) + f" y {drivers[-1]}"
+        if len(drivers) > 1
+        else drivers[0]
+    )
     return (
         f"En {region_name}, el indice operativo-comercial de {latest.get('month_label', 'este periodo')} "
         f"quedo en {round(to_float(latest.get('combined_score'), agro_score), 1)} puntos: {driver_text}. "
@@ -131,7 +159,9 @@ def build_risk_narrative(region_name: str, latest: dict[str, Any], commercial: d
     )
 
 
-def fetch_monthly_risk_rows(region: str, months: int) -> tuple[str, list[dict[str, Any]]]:
+def fetch_monthly_risk_rows(
+    region: str, months: int
+) -> tuple[str, list[dict[str, Any]]]:
     sql = """
     WITH region_base AS (
       SELECT
@@ -183,7 +213,9 @@ def fetch_monthly_risk_rows(region: str, months: int) -> tuple[str, list[dict[st
             rows = cur.fetchall()
 
     if not rows:
-        raise HTTPException(status_code=404, detail=f"No monthly data for region '{region}'")
+        raise HTTPException(
+            status_code=404, detail=f"No monthly data for region '{region}'"
+        )
 
     region_name = rows[0]["region_name"]
     return region_name, rows
@@ -212,9 +244,9 @@ def health():
 @app.get("/api/regions")
 def regions():
     sql = """
-    SELECT slug, name, city, crop_focus
+    SELECT slug, name, city, crop_focus, department, production_share
     FROM flowerxi_regions
-    ORDER BY name ASC;
+    ORDER BY production_share DESC NULLS LAST, name ASC;
     """
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -222,6 +254,271 @@ def regions():
             rows = cur.fetchall()
 
     return {"ok": True, "default_region": DEFAULT_REGION, "items": rows}
+
+
+@app.get("/api/municipalities")
+def municipalities():
+    """Lista perfiles municipales con contexto territorial."""
+    sql = """
+    SELECT 
+      r.slug,
+      r.name,
+      r.city,
+      r.department,
+      r.crop_focus,
+      r.production_share,
+      r.latitude,
+      r.longitude,
+      mp.year,
+      mp.flower_area_ha,
+      mp.greenhouse_area_ha,
+      mp.workers,
+      mp.workers_female,
+      mp.workers_male,
+      mp.fisanicitary_context,
+      mp.waste_management,
+      mp.main_varieties
+    FROM flowerxi_regions r
+    LEFT JOIN flowerxi_municipality_profile mp ON mp.region_slug = r.slug
+    WHERE r.department = 'CUNDINAMARCA'
+    ORDER BY r.production_share DESC NULLS LAST;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+
+    return {"ok": True, "items": rows, "total": len(rows)}
+
+
+@app.get("/api/municipalities/{slug}")
+def municipality_detail(slug: str):
+    """Detalle de un municipio con perfil."""
+    sql = """
+    SELECT 
+      r.slug,
+      r.name,
+      r.city,
+      r.department,
+      r.crop_focus,
+      r.production_share,
+      r.latitude,
+      r.longitude,
+      mp.year,
+      mp.flower_area_ha,
+      mp.greenhouse_area_ha,
+      mp.workers,
+      mp.workers_female,
+      mp.workers_male,
+      mp.fisanicitary_context,
+      mp.waste_management,
+      mp.main_varieties,
+      mp.source AS profile_source
+    FROM flowerxi_regions r
+    LEFT JOIN flowerxi_municipality_profile mp ON mp.region_slug = r.slug
+    WHERE r.slug = %s;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (slug,))
+            row = cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Municipio '{slug}' no encontrado")
+
+    return {"ok": True, "item": row}
+
+
+@app.get("/api/municipalities/compare")
+def municipalities_compare():
+    """Comparativo entre todos los municipios."""
+    sql = """
+    SELECT 
+      r.slug,
+      r.name,
+      r.city,
+      r.production_share,
+      mp.flower_area_ha,
+      mp.greenhouse_area_ha,
+      mp.workers,
+      mp.fisanicitary_context,
+      mp.waste_management
+    FROM flowerxi_regions r
+    LEFT JOIN flowerxi_municipality_profile mp ON mp.region_slug = r.slug
+    WHERE r.department = 'CUNDINAMARCA'
+    ORDER BY r.production_share DESC NULLS LAST;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+
+    total_area = sum(to_float(r.get("flower_area_ha"), 0.0) for r in rows)
+    total_workers = sum(int(r.get("workers") or 0) for r in rows)
+
+    comparatives = []
+    for row in rows:
+        area = to_float(row.get("flower_area_ha"), 0.0)
+        workers = int(row.get("workers") or 0)
+        comparatives.append({
+            "slug": row["slug"],
+            "name": row["name"],
+            "city": row["city"],
+            "area_pct": round((area / total_area * 100.0), 1) if total_area > 0 else 0,
+            "workers_pct": round((workers / total_workers * 100.0), 1) if total_workers > 0 else 0,
+            "area_ha": area,
+            "greenhouse_area_ha": to_float(row.get("greenhouse_area_ha"), 0.0),
+            "workers": workers,
+            "fitosanitary": row.get("fisanicitary_context"),
+            "waste": row.get("waste_management"),
+        })
+
+    return {"ok": True, "items": comparatives, "totals": {"area_ha": total_area, "workers": total_workers}}
+
+
+@app.get("/api/exports")
+def exports(months: int = Query(12, ge=3, le=36)):
+    """Datos de exportaciones mensuales (DANE proxy)."""
+    sql = """
+    SELECT 
+      year_month,
+      subpartida,
+      country_dest,
+      fob_usd,
+      net_tons,
+      unit_value,
+      source
+    FROM flowerxi_exports_monthly
+    ORDER BY year_month DESC, fob_usd DESC
+    LIMIT %s;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (months * 10,))
+            rows = cur.fetchall()
+
+    if not rows:
+        return {"ok": True, "items": [], "summary": None}
+
+    month_data: dict[str, dict] = {}
+    for row in rows:
+        month = row["year_month"]
+        if month not in month_data:
+            month_data[month] = {"fob_usd": 0.0, "net_tons": 0.0}
+        month_data[month]["fob_usd"] += to_float(row.get("fob_usd"), 0.0)
+        month_data[month]["net_tons"] += to_float(row.get("net_tons"), 0.0)
+
+    total_fob = sum(m["fob_usd"] for m in month_data.values())
+    total_net = sum(m["net_tons"] for m in month_data.values())
+    avg_price = (total_fob / total_net) if total_net > 0 else 0
+
+    summary = {
+        "total_fob_usd": round(total_fob, 2),
+        "total_net_tons": round(total_net, 2),
+        "avg_price_per_kg": round(avg_price, 4),
+        "months_count": len(month_data),
+    }
+
+    return {"ok": True, "items": rows, "summary": summary, "by_month": month_data}
+
+
+@app.get("/api/risk/explain")
+def risk_explain(region: str = Query(DEFAULT_REGION)):
+    """Explica por qué subió o bajó el riesgo."""
+    sql = """
+    WITH last_7 AS (
+      SELECT 
+        observed_on,
+        precipitation_mm,
+        temp_mean_c,
+        LAG(precipitation_mm) OVER (ORDER BY observed_on DESC) AS prev_precip,
+        LAG(temp_mean_c) OVER (ORDER BY observed_on DESC) AS prev_temp
+      FROM flowerxi_weather_daily
+      WHERE region_slug = %s
+      ORDER BY observed_on DESC
+      LIMIT 7
+    ),
+    summary AS (
+      SELECT 
+        AVG(precipitation_mm) AS avg_precip,
+        AVG(temp_mean_c) AS avg_temp,
+        SUM(CASE WHEN precipitation_mm >= 4 THEN 1 ELSE 0 END)::int AS rainy_days,
+        AVG(prev_precip) AS prev_avg_precip
+      FROM last_7
+    )
+    SELECT 
+      s.avg_precip,
+      s.avg_temp,
+      s.rainy_days,
+      s.prev_avg_precip,
+      s.avg_precip - s.prev_avg_precip AS precip_change,
+      CASE 
+        WHEN s.rainy_days >= 4 THEN 'Alta precipitación acumulada (≥4 días con lluvia)'
+        WHEN s.avg_precip > (s.prev_avg_precip * 1.3) THEN 'Aumento significativo de precipitación vs semana anterior'
+        WHEN s.avg_temp <= 12 THEN 'Temperaturas bajas favorecen humedad relativa alta'
+        WHEN s.avg_temp >= 22 THEN 'Temperaturas elevadas aumentan estrés hídrico'
+        ELSE 'Condiciones dentro de rangos normales'
+      END AS primary_driver,
+      CASE 
+        WHEN s.rainy_days >= 4 THEN 'Revisar drenajes, aplicar fungicida preventivo, intensificar monitoreo fitosanitario'
+        WHEN s.avg_precip > (s.prev_avg_precip * 1.3) THEN 'Verificar acumulaciones de agua, mejorar ventilación'
+        WHEN s.avg_temp <= 12 THEN 'Controlar humedad, evitar condensación en invernadero'
+        WHEN s.avg_temp >= 22 THEN 'Aumentar riego por goteo, sombra temporal si aplica'
+        ELSE 'Mantener protocolo habitual de vigilancia'
+      END AS recommendation
+    FROM summary s;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (region,))
+            row = cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"No hay datos para explicar riesgo en '{region}'")
+
+    return {
+        "ok": True,
+        "region": region,
+        "analysis": {
+            "period": "últimos 7 días",
+            "avg_precip_mm": round(to_float(row.get("avg_precip")), 1),
+            "avg_temp_c": round(to_float(row.get("avg_temp")), 1),
+            "rainy_days": row.get("rainy_days"),
+            "precip_change_mm": round(to_float(row.get("precip_change")), 1),
+            "primary_driver": row.get("primary_driver"),
+            "recommendation": row.get("recommendation"),
+        },
+    }
+
+
+@app.get("/api/municipios")
+def municipios():
+    """Lista los 10 municipios floricultores con perfil."""
+    sql = """
+    SELECT 
+      r.slug,
+      r.name,
+      r.city,
+      r.crop_focus,
+      r.department,
+      r.production_share,
+      r.latitude,
+      r.longitude,
+      mp.area_ha,
+      mp.greenhouse_ha,
+      mp.workers,
+      mp.crop_types
+    FROM flowerxi_regions r
+    LEFT JOIN flowerxi_municipality_profile mp ON mp.region_slug = r.slug
+    WHERE r.department = 'CUNDINAMARCA'
+    ORDER BY r.production_share DESC NULLS LAST;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+
+    return {"ok": True, "items": rows, "total": len(rows)}
 
 
 @app.get("/api/dashboard")
@@ -310,7 +607,9 @@ def alerts_today(region: str = Query(DEFAULT_REGION)):
             row = cur.fetchone()
 
     if not row:
-        raise HTTPException(status_code=404, detail=f"No alert data for region '{region}'")
+        raise HTTPException(
+            status_code=404, detail=f"No alert data for region '{region}'"
+        )
 
     fungal = to_float(row.get("fungal_risk"), 0.0)
     water = to_float(row.get("waterlogging_risk"), 0.0)
@@ -346,7 +645,9 @@ def alerts_today(region: str = Query(DEFAULT_REGION)):
 
 
 @app.get("/api/recommendations/week")
-def recommendations_week(region: str = Query(DEFAULT_REGION), days: int = Query(7, ge=3, le=14)):
+def recommendations_week(
+    region: str = Query(DEFAULT_REGION), days: int = Query(7, ge=3, le=14)
+):
     sql = """
     SELECT
       rec.observed_on,
@@ -369,7 +670,9 @@ def recommendations_week(region: str = Query(DEFAULT_REGION), days: int = Query(
             rows = cur.fetchall()
 
     if not rows:
-        raise HTTPException(status_code=404, detail=f"No recommendations for region '{region}'")
+        raise HTTPException(
+            status_code=404, detail=f"No recommendations for region '{region}'"
+        )
 
     level_counts = {"alto": 0, "medio": 0, "bajo": 0}
     for item in rows:
@@ -377,11 +680,19 @@ def recommendations_week(region: str = Query(DEFAULT_REGION), days: int = Query(
         if level in level_counts:
             level_counts[level] += 1
 
-    return {"ok": True, "region": region, "days": days, "risk_distribution": level_counts, "items": rows}
+    return {
+        "ok": True,
+        "region": region,
+        "days": days,
+        "risk_distribution": level_counts,
+        "items": rows,
+    }
 
 
 @app.get("/api/risk/monthly")
-def risk_monthly(region: str = Query(DEFAULT_REGION), months: int = Query(6, ge=3, le=24)):
+def risk_monthly(
+    region: str = Query(DEFAULT_REGION), months: int = Query(6, ge=3, le=24)
+):
     region_name, rows = fetch_monthly_risk_rows(region, months)
     commercial = build_commercial_metrics()
     commercial_score = commercial.get("commercial_risk_score")
@@ -404,10 +715,16 @@ def risk_monthly(region: str = Query(DEFAULT_REGION), months: int = Query(6, ge=
         baseline_precip = row.get("baseline_precip_mm")
         avg_temp = to_float(row.get("avg_temp_c"), 0.0)
         avg_precip = to_float(row.get("avg_precip_mm"), 0.0)
-        temp_anomaly = avg_temp - to_float(baseline_temp, avg_temp) if baseline_temp is not None else 0.0
+        temp_anomaly = (
+            avg_temp - to_float(baseline_temp, avg_temp)
+            if baseline_temp is not None
+            else 0.0
+        )
         precip_anomaly_pct = 0.0
         if baseline_precip is not None and to_float(baseline_precip) > 0:
-            precip_anomaly_pct = ((avg_precip - to_float(baseline_precip)) / to_float(baseline_precip)) * 100.0
+            precip_anomaly_pct = (
+                (avg_precip - to_float(baseline_precip)) / to_float(baseline_precip)
+            ) * 100.0
 
         item = {
             "month_start": row["month_start"],
