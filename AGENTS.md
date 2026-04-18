@@ -14,7 +14,7 @@
 
 ### 1) Estructura y stack
 
-Ya creada en `/home/juan/lab/glovar/flowerxi`:
+Ya creada en `/home/juan/lab/flowerxi`:
 
 - `frontend/`
 - `backend/`
@@ -131,13 +131,37 @@ Variables de entorno (`backend/.env.example`):
 - `CORS_ORIGINS` — dominios permitidos (comma-separated)
 - `APP_PORT` — puerto del servidor (opcional en Render)
 
-### 7) Frontend funcional
+### 7) Frontend funcional (actualizado)
 
-Pantalla principal en `frontend/src/pages/index.astro` con dashboard Svelte:
+Pantalla principal en `frontend/src/pages/index.astro` con separación clara:
 
-- consume `PUBLIC_API_URL`
-- estilo morado (tema principal)
-- muestra snapshot de riesgo y recomendacion diaria
+- **Astro (estático):** layout, copy de decisión y estructura principal.
+- **Islas Svelte (dinámico):** datos vivos, interacción y actualización.
+
+Componentes clave implementados:
+
+- `frontend/src/islands/Sidebar.svelte`
+  - sidebar morada fija (desktop), colapsable
+  - selector de municipio + lote
+  - accesos a Chat IA y Modo campo
+- `frontend/src/islands/EvidenceSparklines.svelte`
+  - evidencia real de 14 días desde `/api/history`
+  - estado vacío cuando hay menos de 7 días
+- `frontend/src/islands/TodayChecklist.svelte`
+  - checklist diario con persistencia en `localStorage`
+  - micro-acción "Tomar foto / Sin novedad" para puntos húmedos
+
+Widgets operativos ya integrados en home:
+
+- `WeeklyKPIs.svelte`
+- `RiskHeatmap.svelte` (versión ligera en grid, sin dependencia pesada en runtime)
+- `ImpactoOperacion.svelte`
+
+Resiliencia de integración API:
+
+- fallback de base URL (`PUBLIC_API_URL` / localhost / same-origin)
+- normalización de paths para evitar `/api/api`
+- degradación controlada cuando faltan endpoints (derivando desde `/api/dashboard` o `/api/history`)
 
 Variables esperadas (`frontend/.env.example`):
 
@@ -188,27 +212,29 @@ cd flowerxi
 
 ## Proximo trabajo recomendado (para siguiente agente)
 
-1. Crear deploy configs:
+1. Deploy y operación:
    - `frontend/vercel.json` (si hace falta config extra)
    - `backend/render.yaml` o instrucciones cerradas para Render
 
-2. Mejorar backend para demo laboral:
-   - endpoint `/api/alerts/today`
-   - endpoint `/api/recommendations/week`
-   - logging estructurado JSON
+2. Checklist multiusuario:
+   - crear tabla `flowerxi_checklist` en DB
+   - exponer endpoints backend para guardar/leer tareas por fecha/lote
+   - conectar `TodayChecklist.svelte` a API (en vez de solo localStorage)
 
-3. Mejorar frontend para storytelling de postulacion:
-   - tarjetas KPI semanales
-   - mini grafica de tendencia (ultimos 14 dias)
-   - bloque "impacto en operacion" orientado a negocio
+3. Lotes reales:
+   - mover catálogo de lotes desde store frontend a backend
+   - incluir lote en endpoints de dashboard/history para segmentación real
 
-4. Seguridad/config:
+4. UX operativa final:
+   - drawer de explicabilidad al click en nivel de riesgo
+   - mostrar “Actualizado” + próximo auto-refresh en home
+   - ajustar modo campo (tipografía/targets) en más componentes
+
+5. Seguridad + CI:
    - validar `CORS_ORIGINS` de Vercel
    - revisar que no se commiteen `.env`
-
-5. GitHub + CI minimo:
    - workflow de build frontend
-   - lint/check basico backend (compile + import test)
+   - check básico backend (compile + import test)
 
 ---
 

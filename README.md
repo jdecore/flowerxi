@@ -75,15 +75,22 @@ backend/
 - Municipios principales: **Madrid**, **Facatativá**, **Funza**
 
 ### 📊 Dashboard Interactivo
-- ✅ Selección de municipio
-- ✅ Indicador diario de riesgo agroclimático
-- ✅ Recomendaciones personalizadas
-- ✅ Histórico de últimos 30 días
+- ✅ Sidebar operativa fija, oscura y colapsable (desktop)
+- ✅ Selección de municipio + lote desde navegación lateral
+- ✅ Estado diario de riesgo con recomendación accionable
+- ✅ Evidencia de 14 días (lluvia, temperatura, humedad proxy, score proxy)
+- ✅ Checklist diario persistente por región/fecha (localStorage)
+- ✅ Modo campo (tamaño/contraste mejorado para uso en invernadero)
 
 ### 🛡️ Vigilancia y Priorización
 - Capa de **riesgo agroclimático mensual** (proxy fitosanitario)
 - Algoritmo de priorización para atención temprana
 - **Nota:** Es un modelo de priorización, **NO** es diagnóstico real por finca
+
+### 🧩 Arquitectura de UI (actual)
+- **Astro**: estructura estática, layout, narrativa y bloques informativos
+- **Islas Svelte**: datos vivos y eventos (`Sidebar`, `EvidenceSparklines`, `TodayChecklist`, KPIs, heatmap, impacto)
+- Integración tolerante a fallos: si un endpoint no responde, varios widgets derivan desde `/api/dashboard` o `/api/history`
 
 ### 🤖 Asistente IA
 - Chat en navegador con **Transformers.js** (modelo local)
@@ -299,18 +306,32 @@ npm run dev
 - [x] Agregar logging estructurado
 - [x] Mejorar manejo de errores
 
+### ✅ Completado (UX Operativa Frontend)
+- [x] Separar contenido estático (Astro) y dinámico (islas Svelte)
+- [x] Recuperar sidebar morada fija y colapsable
+- [x] Agregar selector de lote (además de municipio)
+- [x] Reemplazar gráficos mock por evidencia real desde `/api/history`
+- [x] Agregar estados vacíos cuando hay pocos días de historial
+- [x] Persistir checklist diario en cliente (localStorage)
+- [x] Corregir errores SSR (`window is not defined`) para build en Vercel
+
 ### 🎯 Próximas Mejoras (Para Agente Futuro)
 
 #### 🚀 Deploy Configs
 - [ ] `frontend/vercel.json` (config extra si se necesita)
 - [ ] `backend/render.yaml` (config para Render)
 
-#### 🎨 Frontend - Storytelling Postulación
-- [ ] Tarjetas KPI semanales
-- [ ] Mini gráfica de tendencia (últimos 14 días)
-- [ ] Bloque "impacto en operación" orientado a negocio
+#### 🔄 Integración de datos operativos
+- [ ] Persistir checklist en backend (`flowerxi_checklist`) para multiusuario
+- [ ] Exponer lotes desde backend (hoy están en store frontend)
+- [ ] Añadir trazabilidad de evidencia (foto/sin novedad) en API
 
-#### 🔐 Seguridad y CI
+#### 🎨 Frontend - Afinación final
+- [ ] Drawer de explicabilidad al tocar score/nivel
+- [ ] Etiqueta de “Actualizado + próximo auto-refresh”
+- [ ] Optimizar lazy-load del chat IA para reducir bundle inicial
+
+#### 🔐 Seguridad y CI/CD
 - [ ] Validar `CORS_ORIGINS` para Vercel
 - [ ] Revisar que no se commiten `.env`
 - [ ] GitHub Actions: build frontend
