@@ -166,12 +166,12 @@
    .skeleton-grid {
      display: grid;
      grid-template-columns: 1fr;
-     gap: 1rem;
-     min-height: 320px;
+     gap: 0.5rem;
+     min-height: 300px;
    }
 
    .skeleton-card {
-     height: 80px;
+     height: 70px;
      border-radius: 12px;
      background: linear-gradient(
        90deg,
@@ -213,8 +213,8 @@
    .spark-grid {
      display: grid;
      grid-template-columns: 1fr;
-     gap: 0.75rem;
-     min-height: 280px;
+     gap: 0.5rem;
+     min-height: 300px;
    }
 
    .updated {
