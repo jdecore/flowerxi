@@ -247,6 +247,48 @@
 </script>
 
 <section class="dashboard">
+  <!-- Risk Info - loads immediately -->
+  <article class="card risk-info-card">
+    <header class="card-head">
+      <div>
+        <h2>¿Qué es este riesgo?</h2>
+        <p>Indicador proxy, no diagnóstico</p>
+      </div>
+    </header>
+    <div class="risk-info-content">
+      <div class="risk-info-static">
+        <p class="risk-info-main">
+          El riesgo es una <strong>alerta agroclimática</strong> que mide la probabilidad de condiciones favorables a problemas en el cultivo. <strong>No es un diagnóstico de plaga o enfermedad</strong>.
+        </p>
+        <div class="risk-types">
+          <div class="risk-type">
+            <span class="type-icon fungal">●</span>
+            <span class="type-name">Fúngico</span>
+            <span class="type-desc">Humedad alta + temperatura templada</span>
+          </div>
+          <div class="risk-type">
+            <span class="type-icon water">●</span>
+            <span class="type-name">Exceso agua</span>
+            <span class="type-desc">Saturación del suelo por lluvias</span>
+          </div>
+          <div class="risk-type">
+            <span class="type-icon heat">●</span>
+            <span class="type-name">Estrés térmico</span>
+            <span class="type-desc">Temperaturas extremas (>28°C o &lt;8°C)</span>
+          </div>
+        </div>
+        <div class="risk-scale">
+          <span class="scale-item low"><span class="scale-dot"></span> 0-30: Bajo</span>
+          <span class="scale-item med"><span class="scale-dot"></span> 31-60: Medio</span>
+          <span class="scale-item high"><span class="scale-dot"></span> 61-100: Alto</span>
+        </div>
+        <p class="risk-disclaimer">
+          ⚠️ Este indicador no reemplaza la inspección técnica en campo. Use esta información como guía complementaria.
+        </p>
+      </div>
+    </div>
+  </article>
+
   {#if loading}
     <div class="state loading"><p>Cargando estado del cultivo...</p></div>
   {:else if error}
@@ -455,47 +497,7 @@
           </div>
         </div>
       </article>
-      {/if}
-
-      <!-- Risk Info -->
-      <article class="card risk-info-card">
-        <header class="card-head">
-          <div>
-            <h2>¿Qué es este riesgo?</h2>
-            <p>Indicador proxy, no diagnóstico</p>
-          </div>
-        </header>
-        <div class="risk-info-content">
-          <p class="risk-info-main">
-            El riesgo es una <strong>alerta agroclimática</strong> que mide la probabilidad de condiciones favorables a problemas en el cultivo. <strong>No es un diagnóstico de plaga o enfermedad</strong>.
-          </p>
-          <div class="risk-types">
-            <div class="risk-type">
-              <span class="type-icon fungal">●</span>
-              <span class="type-name">Fúngico</span>
-              <span class="type-desc">Humedad alta + temperatura templada</span>
-            </div>
-            <div class="risk-type">
-              <span class="type-icon water">●</span>
-              <span class="type-name">Exceso agua</span>
-              <span class="type-desc">Saturación del suelo por lluvias</span>
-            </div>
-            <div class="risk-type">
-              <span class="type-icon heat">●</span>
-              <span class="type-name">Estrés térmico</span>
-              <span class="type-desc">Temperaturas extremas (>28°C o &lt;8°C)</span>
-            </div>
-          </div>
-          <div class="risk-scale">
-            <span class="scale-item low"><span class="scale-dot"></span> 0-30: Bajo</span>
-            <span class="scale-item med"><span class="scale-dot"></span> 31-60: Medio</span>
-            <span class="scale-item high"><span class="scale-dot"></span> 61-100: Alto</span>
-          </div>
-          <p class="risk-disclaimer">
-            ⚠️ Este indicador no reemplaza la inspección técnica en campo. Use esta información como guía complementaria.
-          </p>
-        </div>
-      </article>
+{/if}
 
       <!-- Metodología -->
       {#if modelVersion?.version}
@@ -763,7 +765,9 @@
   }
 
   /* Risk Info */
-  .risk-info-card { grid-area: riskinfo; }
+  .risk-info-card { 
+    margin-bottom: 1rem; 
+  }
 
   .risk-info-content { margin-top: 0.5rem; }
 
