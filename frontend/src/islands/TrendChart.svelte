@@ -1,196 +1,256 @@
 <script>
-  import { LayerCake, Svg } from 'layercake';
-  import { scaleTime, scaleLinear } from 'd3-scale';
-  import { line, area, curveMonotoneX } from 'd3-shape';
-  import { timeDay } from 'd3-time';
+  import { onMount } from 'svelte';
 
-  export let data = [];
+  export let apiUrl = '';
+  export let region = 'madrid';
 
-  const parseDate = (str) => {
-    if (!str) return new Date();
-    const d = new Date(str);
-    return isNaN(d.getTime()) ? new Date() : d;
+  let loading = true;
+  let error = '';
+  let history = [];
+
+  const fetchData = async () => {
+    loading = true;
+    error = '';
+    try {
+      const res = await fetch(`${apiUrl}/api/history?region=${region}&limit=30`);
+      if (!res.ok) throw new Error('Error al cargar histórico');
+      const data = await res.json();
+      history = Array.isArray(data?.items) ? data.items : [];
+    } catch (e) {
+      error = e.message;
+      history = [];
+    } finally {
+      loading = false;
+    }
   };
 
-  const getData = () => {
-    return data.map((d) => ({
-      date: parseDate(d.observed_on),
-      temp: d.temp_mean_c != null ? Number(d.temp_mean_c) : null,
-      precip: d.precipitation_mm != null ? Number(d.precipitation_mm) : null,
-    })).filter((d) => d.temp != null || d.precip != null);
+  const handleRegionChange = (e) => {
+    if (e.detail !== region) {
+      region = e.detail;
+      fetchData();
+    }
   };
 
-  $: chartData = getData();
+  onMount(() => {
+    fetchData();
+    window.addEventListener('regionchange', handleRegionChange);
+    return () => window.removeEventListener('regionchange', handleRegionChange);
+  });
 
-  $: xDomain = chartData.length > 0 
-    ? [chartData[0].date, chartData[chartData.length - 1].date]
-    : [new Date(), new Date()];
+  // Calcular score de riesgo a partir de precipitación y temperatura
+  $: riskSeries = history.map(day => {
+    const precip = Number(day.precipitation_mm || 0);
+    const temp = Number(day.temp_mean_c || 0);
+    let score = 15;
+    if (precip > 5) score = 85;
+    else if (precip > 2) score = 55;
+    else if (temp > 28 || temp < 12) score = 35;
+    return {
+      date: new Date(day.observed_on),
+      score,
+    };
+  });
 
-  $: yTempMin = chartData.length > 0 ? Math.min(...chartData.map(d => d.temp).filter(t => t != null)) - 2 : 5;
-  $: yTempMax = chartData.length > 0 ? Math.max(...chartData.map(d => d.temp).filter(t => t != null)) + 2 : 20;
-  $: yPrecipMax = chartData.length > 0 ? Math.max(...chartData.map(d => d.precip).filter(p => p != null)) : 10;
+  $: recentRisks = riskSeries.slice(-14);
 
-  $: x = scaleTime().domain(xDomain).range([0, 100]);
-  $: yTemp = scaleLinear().domain([yTempMin, yTempMax]).range([100, 0]);
-  $: yPrecip = scaleLinear().domain([0, yPrecipMax]).range([100, 0]);
+  function getRiskColor(score) {
+    if (score >= 70) return '#dc2626';
+    if (score >= 40) return '#ea580c';
+    return '#16a34a';
+  }
 
-  $: lineTemp = line()
-    .x(d => x(d.date))
-    .y(d => yTemp(d.temp))
-    .curve(curveMonotoneX);
+  function buildPath(data, width = 100, height = 40) {
+    if (data.length === 0) return '';
+    const stepX = width / (data.length - 1);
+    let path = `M0,${height}`;
+    data.forEach((d, i) => {
+      const x = i * stepX;
+      const y = height - (d.score / 100 * height);
+      path += ` L${x},${y}`;
+    });
+    path += ` L${width},${height} Z`;
+    return path;
+  }
 
-  $: areaPrecip = area()
-    .x(d => x(d.date))
-    .y0(100)
-    .y1(d => yPrecip(d.precip))
-    .curve(curveMonotoneX);
-
-  $: pathTemp = chartData.length > 0 ? lineTemp(chartData) : '';
-  $: pathPrecip = chartData.length > 0 ? areaPrecip(chartData) : '';
-
-  const formatX = (d) => {
-    const idx = Math.round((d - xDomain[0]) / (xDomain[1] - xDomain[0]) * (chartData.length - 1));
-    const item = chartData[Math.max(0, Math.min(idx, chartData.length - 1))];
-    if (!item) return '';
-    return item.date.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
-  };
-
-  const ticksX = chartData.length > 0 
-    ? timeDay.range(xDomain[0], xDomain[1], Math.ceil(chartData.length / 7))
-    : [];
-
-  $: xTicks = ticksX.length > 0 ? ticksX : xDomain;
+  function buildLine(data, width = 100, height = 40) {
+    if (data.length === 0) return '';
+    const stepX = width / (data.length - 1);
+    let path = '';
+    data.forEach((d, i) => {
+      const x = i * stepX;
+      const y = height - (d.score / 100 * height);
+      path += `${i === 0 ? 'M' : 'L'}${x},${y}`;
+    });
+    return path;
+  }
 </script>
 
-<div class="chart-container">
-  <LayerCake
-    padding={{ top: 10, right: 10, bottom: 28, left: 36 }}
-    x={x}
-    y={yTemp}
-    {chartData}
-  >
-    <Svg>
-      <defs>
-        <linearGradient id="precip-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.5" />
-          <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.15" />
-        </linearGradient>
-      </defs>
-
-      {#if pathPrecip}
-        <path 
-          d={pathPrecip} 
-          fill="url(#precip-gradient)" 
-          stroke="none"
-        />
-      {/if}
-
-      {#if pathTemp}
-        <path 
-          d={pathTemp} 
-          fill="none" 
-          stroke="#c084fc" 
-          stroke-width="2.5" 
-          stroke-linecap="round" 
-          stroke-linejoin="round"
-        />
-      {/if}
-
-      {#each chartData as d, i}
-        {#if d.temp != null}
-          <circle 
-            cx={x(d.date)} 
-            cy={yTemp(d.temp)} 
-            r="3" 
-            fill="#c084fc"
-          />
-        {/if}
-      {/each}
-
-      <g class="axis x-axis">
-        {#each xTicks as tick}
-          <g class="tick" transform="translate({x(tick)}, 0)">
-            <line y1="0" y2="4" stroke="#6b5b8c" stroke-width="1" />
-            <text y="16" text-anchor="middle" fill="#9d8abf" font-size="9">
-              {formatX(tick)}
-            </text>
-          </g>
-        {/each}
-      </g>
-
-      <g class="axis y-axis-left">
-        {#each yTemp.ticks(5) as tick}
-          <g class="tick" transform="translate(0, {yTemp(tick)})">
-            <line x1="0" x2="-4" stroke="#6b5b8c" stroke-width="1" />
-            <text x="-8" text-anchor="end" dominant-baseline="middle" fill="#9d8abf" font-size="9">
-              {tick}°
-            </text>
-          </g>
-        {/each}
-      </g>
-
-      <g class="axis y-axis-right">
-        {#each yPrecip.ticks(4) as tick}
-          <g class="tick" transform="translate(100, {yPrecip(tick)})">
-            <line x1="0" x2="4" stroke="#06b6d4" stroke-width="1" stroke-dasharray="2,2" />
-            <text x="8" text-anchor="start" dominant-baseline="middle" fill="#06b6d4" font-size="9">
-              {tick}mm
-            </text>
-          </g>
-        {/each}
-      </g>
-    </Svg>
-  </LayerCake>
-
-  <div class="legend">
-    <span class="legend-item">
-      <span class="legend-dot" style="background: #c084fc;"></span>
-      Temperatura (°C)
-    </span>
-    <span class="legend-item">
-      <span class="legend-box" style="background: linear-gradient(180deg, #06b6d4 0%, #06b6d4 100%);"></span>
-      Precipitación (mm)
-    </span>
+<article class="trend-chart">
+  <div class="chart-header">
+    <div>
+      <h3>Riesgo agroclimático</h3>
+      <p class="subtitle">Evolución (últimos 14 días)</p>
+    </div>
+    {#if recentRisks.length > 0}
+      {@const last = recentRisks[recentRisks.length - 1]}
+      <div class="current-score" style="--badge-color: {getRiskColor(last.score)};">
+        Hoy: <strong>{last.score}</strong>
+      </div>
+    {/if}
   </div>
-</div>
+
+  {#if loading}
+    <div class="chart-skeleton">
+      <div class="spinner"></div>
+      <span>Cargando tendencia...</span>
+    </div>
+  {:else if error}
+    <div class="error-message">{error}</div>
+  {:else if recentRisks.length === 0}
+    <div class="no-data">Sin datos históricos</div>
+  {:else}
+    <div class="spark-wrapper">
+      <svg viewBox="0 0 100 40" class="spark-svg" preserveAspectRatio="none">
+        <!-- área de fondo -->
+        <path d={buildPath(recentRisks)} fill="rgba(99, 102, 241, 0.1)" />
+        <!-- línea de riesgo -->
+        <path d={buildLine(recentRisks)} fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- puntos destacados (máximos) -->
+        {#each recentRisks as d, i}
+          {@const isHigh = d.score >= 70}
+          {@const x = (i / (recentRisks.length - 1)) * 100}
+          {@const y = 40 - (d.score / 100 * 40)}
+          {#if isHigh}
+            <circle cx={x} cy={y} r="1.5" fill="#dc2626" stroke="white" stroke-width="0.5"/>
+          {/if}
+        {/each}
+      </svg>
+    </div>
+
+    <!-- marcas inferiores -->
+    <div class="x-marks">
+      {#each recentRisks.filter((_,i) => i % Math.ceil(recentRisks.length/5) === 0 || i === recentRisks.length-1) as d}
+        <span>{d.date.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' })}</span>
+      {/each}
+    </div>
+
+    <!-- Leyenda de niveles -->
+    <div class="risk-legend">
+      <span class="level"><span class="dot low"></span>Bajo (&lt;40)</span>
+      <span class="level"><span class="dot medium"></span>Medio (40-70)</span>
+      <span class="level"><span class="dot high"></span>Alto (&gt;70)</span>
+    </div>
+  {/if}
+</article>
 
 <style>
-  .chart-container {
-    width: 100%;
-    height: 240px;
-    position: relative;
+  .trend-chart {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
-  :global(.chart-container svg) {
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .chart-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .subtitle {
+    display: block;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.2rem;
+  }
+
+  .current-score {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--badge-color, #6366f1);
+    background: color-mix(in srgb, var(--badge-color, #6366f1) 12%, white);
+    border: 1px solid var(--badge-color, #6366f1);
+  }
+
+  .spark-wrapper {
+    height: 80px;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 0.5rem;
+  }
+
+  .spark-svg {
     width: 100%;
     height: 100%;
-    overflow: visible;
+    display: block;
   }
 
-  .legend {
+  .x-marks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: #64748b;
+    padding: 0 0.25rem;
+  }
+
+  .risk-legend {
     display: flex;
     justify-content: center;
-    gap: 1.2rem;
-    margin-top: 0.6rem;
-    font-size: 0.78rem;
-    color: #D4C4E8;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #64748b;
   }
 
-  .legend-item {
+  .level {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 
-  .legend-dot {
-    width: 10px;
-    height: 10px;
+  .dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
   }
 
-  .legend-box {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
+  .dot.low { background: #16a34a; }
+  .dot.medium { background: #ea580c; }
+  .dot.high { background: #dc2626; }
+
+  .chart-skeleton,
+  .error-message,
+  .no-data {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.5rem;
+    color: #64748b;
+    font-size: 0.85rem;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>

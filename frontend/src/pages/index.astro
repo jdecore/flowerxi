@@ -1,9 +1,13 @@
 ---
-import EstadoOperativo from '../islands/EstadoOperativo.svelte';
-import AccionDiaria from '../islands/AccionDiaria.svelte';
-import MetricsClima from '../islands/MetricsClima.svelte';
-import ChatBot from '../islands/ChatBot.svelte';
 import '../styles/index.css';
+import RiskHero from '../islands/RiskHero.svelte';
+import DailyAction from '../islands/DailyAction.svelte';
+import WeatherMetrics from '../islands/WeatherMetrics.svelte';
+import TrendChart from '../islands/TrendChart.svelte';
+import WeeklyRecommendations from '../islands/WeeklyRecommendations.svelte';
+import ChatBot from '../islands/ChatBot.svelte';
+import RegionSelector from '../islands/RegionSelector.svelte';
+import Sidebar from '../islands/Sidebar.svelte';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
 const defaultRegion = 'madrid';
@@ -13,142 +17,137 @@ const defaultRegion = 'madrid';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>flowerxi | Estado de Cultivo</title>
+    <title>flowerxi | Dashboard Agroclimático</title>
   </head>
   <body>
-    <main class="be-page">
-      <section class="app-shell">
-        <aside class="sidebar">
-          <div class="sidebar-top">
+    <main class="dashboard-layout">
+       <!-- Sidebar mejorado con labels -->
+       <Sidebar {apiUrl} currentPath={Astro.url.pathname} client:load />
+
+      <!-- Contenido principal -->
+      <section class="main-content">
+        <!-- Header con selector de región -->
+        <header class="dashboard-header">
+          <div class="header-left">
             <div class="logo-mark" aria-label="flowerxi">✿</div>
-            <nav class="sidebar-nav" aria-label="Navegacion principal">
-              <a href="/" class="sidebar-icon active" aria-label="Inicio">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                  <path d="M3 10.7L12 3l9 7.7" />
-                  <path d="M5.5 9.7V21h13V9.7" />
-                </svg>
-              </a>
-              <a href="/municipios" class="sidebar-icon" aria-label="Municipios">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                  <path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z" />
-                  <circle cx="12" cy="10" r="2.8" />
-                </svg>
-              </a>
-              <a href="/exportaciones" class="sidebar-icon" aria-label="Comercial">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                  <path d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M3 12h18" />
-                </svg>
-              </a>
-              <a href="/estaciones" class="sidebar-icon" aria-label="Estaciones">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                </svg>
-              </a>
-            </nav>
-          </div>
-          <div class="sidebar-bottom">
-            <button class="sidebar-icon chat-toggle" aria-label="Chat AI">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-              </svg>
-            </button>
-          </div>
-        </aside>
-
-        <section class="main-panel">
-          <header class="top-header">
-            <div class="brand-block">
-              <p class="brand-logo">flowerxi</p>
-              <h1>Hola, cultivador. Esta es la prioridad operativa de tu cultivo hoy</h1>
+            <div>
+              <h1>flowerxi</h1>
+              <p class="subtitle">Vigilancia agroclimática para rosa de corte</p>
             </div>
-          </header>
-
-          <section class="static-decision-grid">
-            <article class="static-card">
-              <p class="static-step">Marco de decisión</p>
-              <h2>Riesgo = prioridad de atención hoy para el cultivo</h2>
-              <p>
-                No diagnostica plagas. Indica cuándo reforzar vigilancia y protocolos con base en clima reciente.
-              </p>
-            </article>
-
-            <article class="static-card">
-              <p class="static-step">Escala operativa</p>
-              <div class="static-scale">
-                <p><strong>Rutina:</strong> no hacer nada extra, mantener recorrido normal.</p>
-                <p><strong>Vigilancia:</strong> revisar hoy humedad, drenaje y ventilación.</p>
-                <p><strong>Acción:</strong> inspección en campo + registro fitosanitario + acción preventiva.</p>
-              </div>
-            </article>
-          </section>
-
-          <div class="islands-grid">
-            <EstadoOperativo apiUrl={apiUrl} region={defaultRegion} client:load />
-            <AccionDiaria apiUrl={apiUrl} region={defaultRegion} client:load />
-            <MetricsClima apiUrl={apiUrl} region={defaultRegion} client:load />
           </div>
+          <RegionSelector {apiUrl} currentRegion={defaultRegion} client:load />
+        </header>
+
+        <!-- HERO: Estado de riesgo (lo más importante) -->
+        <section class="hero-section">
+          <RiskHero {apiUrl} region={defaultRegion} client:load />
+          <DailyAction {apiUrl} region={defaultRegion} client:load />
+        </section>
+
+        <!-- Panel de 3 columnas: métricas, gráfica, recomendaciones -->
+        <section class="dashboard-grid">
+          <WeatherMetrics {apiUrl} region={defaultRegion} client:load />
+          <TrendChart {apiUrl} region={defaultRegion} client:load />
+          <WeeklyRecommendations {apiUrl} region={defaultRegion} client:load />
         </section>
       </section>
-      <ChatBot client:idle />
+
+      <!-- Chat IA -->
+      <ChatBot {apiUrl} />
     </main>
-
-    <style>
-      .islands-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
-      }
-      .islands-grid > :global(:last-child) {
-        grid-column: 1 / -1;
-      }
-      @media (max-width: 1020px) {
-        .islands-grid { grid-template-columns: 1fr; }
-      }
-
-      .static-decision-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
-
-      .static-card {
-        background: linear-gradient(180deg, #302742 0%, #261d36 100%);
-        border: 1px solid rgba(164, 127, 202, 0.3);
-        border-radius: 18px;
-        padding: 1.1rem 1.2rem;
-        color: #f7f4ff;
-      }
-
-      .static-step {
-        margin: 0;
-        text-transform: uppercase;
-        font-size: 0.74rem;
-        letter-spacing: 0.07em;
-        color: #bda6dc;
-      }
-
-      .static-card h2 {
-        margin: 0.35rem 0 0;
-        font-size: 1.05rem;
-      }
-
-      .static-card p {
-        margin: 0.55rem 0 0;
-        color: #e8ddf8;
-        line-height: 1.4;
-      }
-
-      .static-scale p {
-        margin-top: 0.45rem;
-      }
-
-      @media (max-width: 1020px) {
-        .static-decision-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
   </body>
 </html>
+
+<style>
+  .dashboard-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 1.5rem;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    min-height: 100vh;
+  }
+
+  .main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .logo-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    color: white;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+
+  .header-left h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
+    color: #64748b;
+  }
+
+  .hero-section {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 1.25rem;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1fr;
+    gap: 1.25rem;
+  }
+
+  @media (max-width: 1200px) {
+    .dashboard-layout {
+      grid-template-columns: 1fr;
+      padding: 1rem;
+    }
+
+    .hero-section,
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .logo-mark {
+      width: 40px;
+      height: 40px;
+      font-size: 1.25rem;
+    }
+  }
+</style>

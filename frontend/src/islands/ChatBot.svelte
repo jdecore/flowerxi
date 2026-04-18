@@ -117,21 +117,15 @@
     if (chatOpen && !modelReady) await loadModel();
   };
 
-  const clearHistory = () => {
-    if (typeof window === 'undefined') return;
-    if (window.confirm('Borrar historial?')) {
-      chatHistory = [];
-      window.localStorage.removeItem(CHAT_STORAGE_KEY);
-    }
-  };
+  // Escuchar evento global para abrir chat desde sidebar
+  const openFromSidebar = () => { chatOpen = true; if (!modelReady) loadModel(); };
+  window.addEventListener('openchat', openFromSidebar);
 
-  const handleKeydown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); askQuestion(); }
-  };
-
-  const formatTime = (ts) => new Date(ts).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-
-  onMount(() => { loadHistory(); });
+  onMount(() => {
+    loadHistory();
+    // Limpieza
+    return () => window.removeEventListener('openchat', openFromSidebar);
+  });
 </script>
 
 <div class="chatbot">
