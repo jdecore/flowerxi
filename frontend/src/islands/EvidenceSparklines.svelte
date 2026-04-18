@@ -167,10 +167,11 @@
      display: grid;
      grid-template-columns: repeat(4, minmax(0, 1fr));
      gap: 0.75rem;
+     min-height: 200px;
    }
 
    .skeleton-card {
-     height: 100px;
+     height: 180px;
      border-radius: 12px;
      background: linear-gradient(
        90deg,
@@ -213,6 +214,7 @@
      display: grid;
      grid-template-columns: repeat(4, minmax(0, 1fr));
      gap: 0.75rem;
+     min-height: 160px;
    }
 
    .updated {

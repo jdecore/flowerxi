@@ -344,6 +344,9 @@
     return `Aquí tienes ${regions.length} municipios disponibles: ${names.join(', ')}. Municipio actual: ${selectedName}.`;
   };
 
+  const capabilitiesAnswer = () =>
+    'Puedo ayudarte con: riesgo de hoy, recomendación operativa, explicación del riesgo, lluvia/temperatura reciente y lista de municipios.';
+
   const quickAnswer = (question, context) => {
     const q = normalizeText(question);
     const score = context?.operativo?.score;
@@ -360,6 +363,24 @@
         q.includes('lista') ||
         q.includes('cuales') ||
         q.includes('cuantos'));
+    const asksCapabilities =
+      q.includes('que puedes hacer') ||
+      q.includes('que sabes hacer') ||
+      q.includes('para que sirves') ||
+      q.includes('en que ayudas') ||
+      q.includes('como me ayudas') ||
+      q === 'ayuda' ||
+      q === 'help';
+    const asksRecommendation =
+      q.includes('recom') ||
+      q.includes('suger') ||
+      q.includes('aconsej') ||
+      q.includes('que me recom') ||
+      q.includes('que me sug');
+
+    if (asksCapabilities) {
+      return capabilitiesAnswer();
+    }
 
     if (asksMunicipalities) {
       return municipalitiesAnswer(context);
@@ -393,6 +414,7 @@
       q.includes('que debo hacer hoy') ||
       q.includes('accion recomendada') ||
       q.includes('recomendacion') ||
+      asksRecommendation ||
       asksTodayAction
     ) {
       if (action && normalizeText(action) !== 'sin datos') {
@@ -435,11 +457,8 @@
   };
 
   const noModelFallbackAnswer = (question, context) => {
-    const q = normalizeText(question);
-    if (q.includes('municipio')) return municipalitiesAnswer(context);
-    if (q.includes('riesgo') || q.includes('accion') || q.includes('hoy') || q.includes('lluvia') || q.includes('temperatura')) {
-      return fallbackContextAnswer(context);
-    }
+    const quick = quickAnswer(question, context);
+    if (quick) return quick;
     return 'Estoy cargando el modelo de IA local. Mientras termina, pregúntame por riesgo hoy, acción recomendada, lluvia/temperatura o municipios disponibles.';
   };
 
