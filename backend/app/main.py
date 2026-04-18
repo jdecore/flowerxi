@@ -769,3 +769,84 @@ def risk_monthly(
             "note": "No corresponde a diagnostico real de plagas por finca.",
         },
     }
+
+
+@app.get("/api/stations")
+def stations(region: str = Query(DEFAULT_REGION)):
+    """Lista estaciones meteorologicas."""
+    sql = """
+    SELECT station_code, station_name, region_slug, elevation_m, 
+           latitude, longitude, distance_km, data_quality, source
+    FROM flowerxi_weather_stations
+    ORDER BY distance_km ASC;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+
+    return {"ok": True, "items": rows, "total": len(rows)}
+
+
+@app.get("/api/calendar")
+def calendar(year: int = Query(2026)):
+    """Lista feriados y dias inhábiles."""
+    sql = """
+    SELECT event_date, event_name, local_name, country_code
+    FROM flowerxi_market_calendar
+    WHERE EXTRACT(YEAR FROM event_date) = %s
+    ORDER BY event_date ASC;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (year,))
+            rows = cur.fetchall()
+
+    return {"ok": True, "year": year, "items": rows, "total": len(rows)}
+
+
+@app.get("/api/model/version")
+def model_version():
+    """ get current risk model version"""
+    sql = """
+    SELECT version, formula_description, weights, author, created_at, is_active, notes
+    FROM flowerxi_risk_model_versions
+    WHERE is_active = true
+    ORDER BY created_at DESC
+    LIMIT 1;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            row = cur.fetchone()
+
+    if not row:
+        return {"ok": True, "version": "v1.0", "formula": "default", "weights": {}}
+
+    return {
+        "ok": True,
+        "version": row["version"],
+        "formula": row["formula_description"],
+        "weights": row["weights"],
+        "author": row["author"],
+        "created_at": row["created_at"],
+        "notes": row["notes"],
+    }
+
+
+@app.get("/api/alerts/history")
+def alerts_history(region: str = Query(DEFAULT_REGION), limit: int = Query(30, ge=1, le=90)):
+    """ get alert history"""
+    sql = """
+    SELECT observed_on, alert_level, alert_score, message, protocol_applied, compliance_status
+    FROM flowerxi_alert_history
+    WHERE region_slug = %s
+    ORDER BY observed_on DESC
+    LIMIT %s;
+    """
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (region, limit))
+            rows = cur.fetchall()
+
+    return {"ok": True, "region": region, "items": rows, "total": len(rows)}

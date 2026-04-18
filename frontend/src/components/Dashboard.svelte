@@ -39,6 +39,7 @@
   let data = null;
   let historyData = [];
   let riskExplain = null;
+  let modelVersion = null;
   let regions = [];
   let selectedRegion = 'madrid';
 
@@ -129,6 +130,15 @@
     }
   };
 
+  const fetchModelVersion = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/model/version`);
+      if (res.ok) modelVersion = await res.json();
+    } catch (e) {
+      modelVersion = null;
+    }
+  };
+
   const refreshAll = async () => {
     const cached = getCachedData();
     if (cached && cached.region === selectedRegion) {
@@ -147,7 +157,7 @@
     error = '';
     try {
       if (regions.length === 0) await fetchRegions();
-      await Promise.all([fetchDashboard(), fetchHistory(), fetchRiskExplain()]);
+      await Promise.all([fetchDashboard(), fetchHistory(), fetchRiskExplain(), fetchModelVersion()]);
       setCachedData({ region: selectedRegion, data, historyData, riskExplain, regions });
     } catch (err) {
       error = err instanceof Error ? err.message : 'Error';
@@ -446,6 +456,28 @@
         </div>
       </article>
       {/if}
+
+      <!-- Metodología -->
+      {#if modelVersion?.version}
+      <article class="card method-card">
+        <header class="card-head">
+          <div>
+            <h2>Metodología del Modelo</h2>
+            <p>Versión {modelVersion.version}</p>
+          </div>
+        </header>
+        <div class="method-content">
+          <p class="method-formula"><strong>Fórmula:</strong> {modelVersion.formula}</p>
+          <div class="method-weights">
+            <span class="weight-label">Pesos:</span>
+            {#each Object.entries(modelVersion.weights || {}) as [key, value]}
+              <span class="weight-chip">{key}: {Math.round(value * 100)}%</span>
+            {/each}
+          </div>
+          <p class="method-note">{modelVersion.notes}</p>
+        </div>
+      </article>
+      {/if}
     </section>
   {/if}
 </section>
@@ -692,6 +724,20 @@
 
   /* Explain */
   .explain-card { grid-area: explain; }
+
+  .method-card { grid-area: method; }
+
+  .method-content { margin-top: 0.75rem; }
+
+  .method-formula { font-size: 0.85rem; color: var(--text-primary); margin: 0 0 0.75rem; line-height: 1.4; }
+
+  .method-weights { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 0.75rem; }
+
+  .weight-label { font-size: 0.75rem; color: var(--text-secondary); }
+
+  .weight-chip { background: var(--bg-app); padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; color: var(--primary); }
+
+  .method-note { font-size: 0.75rem; color: var(--text-secondary); margin: 0; font-style: italic; }
 
   .explain-content {
     display: grid;
