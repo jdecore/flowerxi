@@ -1,9 +1,12 @@
 ---
-import Dashboard from '../islands/Dashboard.svelte';
+import EstadoOperativo from '../islands/EstadoOperativo.svelte';
+import AccionDiaria from '../islands/AccionDiaria.svelte';
+import MetricsClima from '../islands/MetricsClima.svelte';
 import ChatBot from '../islands/ChatBot.svelte';
 import '../styles/index.css';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
+const defaultRegion = 'madrid';
 ---
 
 <html lang="es">
@@ -59,16 +62,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
               <p class="brand-logo">flowerxi</p>
               <h1>Hola, cultivador. Esta es la prioridad operativa de tu cultivo hoy</h1>
             </div>
-            <div class="header-actions">
-              <label class="search-box" for="region-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                  <circle cx="11" cy="11" r="6" />
-                  <path d="M20 20l-4.2-4.2" />
-                </svg>
-                <input id="region-search" type="search" placeholder="Buscar municipio..." autocomplete="off" />
-              </label>
-              <button id="refresh-dashboard" class="refresh-btn" type="button">Actualizar datos</button>
-            </div>
           </header>
 
           <section class="static-decision-grid">
@@ -90,13 +83,29 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
             </article>
           </section>
 
-          <Dashboard apiUrl={apiUrl} client:load />
+          <div class="islands-grid">
+            <EstadoOperativo apiUrl={apiUrl} region={defaultRegion} client:load />
+            <AccionDiaria apiUrl={apiUrl} region={defaultRegion} client:load />
+            <MetricsClima apiUrl={apiUrl} region={defaultRegion} client:load />
+          </div>
         </section>
       </section>
       <ChatBot client:idle />
     </main>
 
     <style>
+      .islands-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+      .islands-grid > :global(:last-child) {
+        grid-column: 1 / -1;
+      }
+      @media (max-width: 1020px) {
+        .islands-grid { grid-template-columns: 1fr; }
+      }
+
       .static-decision-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -141,38 +150,5 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
         }
       }
     </style>
-
-    <script is:inline>
-      (() => {
-        const searchInput = document.getElementById('region-search');
-        const refreshButton = document.getElementById('refresh-dashboard');
-        let searchDebounce;
-
-        const emit = (name, detail = {}) => {
-          window.dispatchEvent(new CustomEvent(name, { detail }));
-        };
-
-        if (searchInput) {
-          searchInput.addEventListener('input', (event) => {
-            const value = event.target instanceof HTMLInputElement ? event.target.value : '';
-            window.clearTimeout(searchDebounce);
-            searchDebounce = window.setTimeout(() => {
-              emit('flowerxi:search-region', { query: value });
-            }, 220);
-          });
-
-          searchInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              emit('flowerxi:search-region', { query: searchInput.value });
-            }
-          });
-        }
-
-        if (refreshButton) {
-          refreshButton.addEventListener('click', () => emit('flowerxi:refresh'));
-        }
-      })();
-    </script>
   </body>
 </html>
