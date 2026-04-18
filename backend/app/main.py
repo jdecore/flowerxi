@@ -213,7 +213,8 @@ def risk_operativo(region: str = Query(DEFAULT_REGION)):
             cur.execute(SQL_QUERIES["risk_operativo"], (region,))
             row = cur.fetchone()
 
-    if not row:
+    days_available = int(row.get("days_available") or 0) if row else 0
+    if not row or days_available <= 0:
         return {
             "ok": True,
             "region": region,
@@ -255,8 +256,16 @@ def risk_operativo(region: str = Query(DEFAULT_REGION)):
         "details": {
             "rainy_days": row.get("rainy_days"),
             "days_with_precip": row.get("days_with_precip"),
-            "avg_temp": round(row.get("avg_temp") or 0, 1),
-            "avg_precip": round(row.get("avg_precip") or 0, 1),
+            "avg_temp": (
+                round(to_float(row.get("avg_temp")), 1)
+                if row.get("avg_temp") is not None
+                else None
+            ),
+            "avg_precip": (
+                round(to_float(row.get("avg_precip")), 1)
+                if row.get("avg_precip") is not None
+                else None
+            ),
             "days_available": row.get("days_available"),
         },
     }

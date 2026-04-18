@@ -205,6 +205,11 @@ def fetch_monthly_risk_rows(region: str, months: int):
         from .db import get_conn
 
         sql = """
+            WITH region_bounds AS (
+              SELECT MAX(observed_on) AS latest_observed_on
+              FROM flowerxi_weather_daily
+              WHERE region_slug = %s
+            )
             SELECT
               COALESCE(reg.name, %s) AS region_name,
               to_char(date_trunc('month', w.observed_on), 'YYYY-MM') AS month_label,
@@ -214,12 +219,18 @@ def fetch_monthly_risk_rows(region: str, months: int):
               AVG(COALESCE(r.waterlogging_risk, 0)) AS avg_waterlogging_risk,
               AVG(COALESCE(r.heat_risk, 0)) AS avg_heat_risk
             FROM flowerxi_weather_daily w
+            CROSS JOIN region_bounds rb
             LEFT JOIN flowerxi_risk_signals r
               ON r.region_slug = w.region_slug AND r.observed_on = w.observed_on
             LEFT JOIN flowerxi_regions reg
               ON reg.slug = w.region_slug
             WHERE w.region_slug = %s
-              AND w.observed_on >= (CURRENT_DATE - (%s::text || ' months')::interval)
+              AND (
+                rb.latest_observed_on IS NULL
+                OR date_trunc('month', w.observed_on)
+                   >= date_trunc('month', rb.latest_observed_on)
+                      - (((%s)::int - 1)::text || ' months')::interval
+              )
             GROUP BY COALESCE(reg.name, %s), date_trunc('month', w.observed_on)
             ORDER BY date_trunc('month', w.observed_on) DESC
             LIMIT %s;
@@ -227,7 +238,7 @@ def fetch_monthly_risk_rows(region: str, months: int):
 
         with get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute(sql, (region, region, months, region, months))
+                cur.execute(sql, (region, region, region, months, region, months))
                 rows = cur.fetchall()
 
         region_name = rows[0]["region_name"] if rows else region

@@ -186,7 +186,10 @@
     String(value || '')
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
   const quickAnswer = (question, context) => {
     const q = normalizeText(question);
@@ -197,13 +200,19 @@
     const humidTop = context?.humidTop;
     const latest = context?.latest;
 
-    if (q.includes('riesgo hoy') || q.includes('como esta el riesgo')) {
+    if (q.includes('riesgo hoy') || q.includes('riesgo de hoy') || q.includes('como esta el riesgo')) {
       return score !== null && score !== undefined
         ? `Hoy en ${region} el riesgo está en ${statusLabel || 'estado operativo'} (${score}).`
         : 'No tengo datos suficientes del riesgo de hoy.';
     }
 
-    if (q.includes('que debo hacer') || q.includes('que hago hoy') || q.includes('recomendacion')) {
+    if (
+      q.includes('que debo hacer') ||
+      q.includes('que hago hoy') ||
+      q.includes('que debo hacer hoy') ||
+      q.includes('accion recomendada') ||
+      q.includes('recomendacion')
+    ) {
       return action ? `Acción recomendada hoy: ${action}` : 'No hay recomendación operativa disponible.';
     }
 
@@ -237,10 +246,21 @@
   const isRefusalAnswer = (answer) => {
     const text = normalizeText(answer);
     if (!text) return true;
+    const hasRefusalStart =
+      text.includes('im sorry') ||
+      text.includes('i m sorry') ||
+      text.includes('lo siento');
+    const hasCannotIntent =
+      text.includes('cannot') || text.includes('cant') || text.includes('unable') || text.includes('no puedo');
+    const hasPromptPolicyContext =
+      text.includes('prompt') ||
+      text.includes('instruction') ||
+      text.includes('instructions') ||
+      text.includes('comply') ||
+      text.includes('respond to this');
     return (
-      text.includes("i'm sorry") ||
-      text.includes('cannot respond') ||
-      text.includes('cannot comply') ||
+      hasRefusalStart ||
+      (hasCannotIntent && hasPromptPolicyContext) ||
       text.includes('cannot help with that') ||
       text.includes('requires a detailed explanation of the instructions') ||
       text.includes('no puedo responder a este prompt')

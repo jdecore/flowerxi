@@ -70,6 +70,8 @@
 
   const badge = (index) => (index === 0 ? '🔴' : index === 1 ? '🟠' : index === 2 ? '🟡' : '⚪');
 
+  const normalizeSlug = (value) => String(value || '').trim().toLowerCase();
+
   const scoreFromDay = (day) => {
     const fungal = Number(day?.fungal_risk);
     const water = Number(day?.waterlogging_risk);
@@ -78,32 +80,99 @@
     return Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
   };
 
+  const scoreFromItem = (item) => {
+    const directScore = Number(item?.risk_score);
+    if (Number.isFinite(directScore)) return Math.round(directScore);
+    return scoreFromDay(item);
+  };
+
   const loadComparison = async () => {
     loading = true;
     error = '';
     try {
-      let compareItems = [];
-      try {
-        const compareData = await fetchJson('/api/municipalities/compare');
-        compareItems = Array.isArray(compareData?.items) ? compareData.items : [];
-      } catch {
-        const regionsData = await fetchJson('/api/regions');
-        const regions = Array.isArray(regionsData?.items) ? regionsData.items : [];
-        compareItems = regions.map((item) => ({
-          slug: item?.slug,
-          name: item?.name,
-          city: item?.city,
-        }));
-      }
-      const normalizedItems = compareItems.filter((item) => Boolean(item?.slug));
+      const [compareData, regionsData, municipalitiesData] = await Promise.all([
+        fetchJson('/api/municipalities/compare').catch(() => null),
+        fetchJson('/api/regions').catch(() => null),
+        fetchJson('/api/municipalities').catch(() => null),
+      ]);
 
-      rows = normalizedItems.map((base) => {
-        const slug = String(base.slug);
-        const directScore = Number(base?.risk_score);
-        const score = Number.isFinite(directScore) ? Math.round(directScore) : scoreFromDay(base);
+      const compareItems = Array.isArray(compareData?.items) ? compareData.items : [];
+      const regions = Array.isArray(regionsData?.items) ? regionsData.items : [];
+      const municipalityItems = Array.isArray(municipalitiesData?.items) ? municipalitiesData.items : [];
+
+      const regionBySlug = new Map(
+        regions
+          .map((item) => {
+            const slug = normalizeSlug(item?.slug);
+            return slug ? [slug, item] : null;
+          })
+          .filter(Boolean)
+      );
+
+      const compareBySlug = new Map(
+        compareItems
+          .map((item) => {
+            const slug = normalizeSlug(item?.slug);
+            return slug ? [slug, item] : null;
+          })
+          .filter(Boolean)
+      );
+
+      const profileBySlug = new Map(
+        municipalityItems
+          .map((item) => {
+            const slug = normalizeSlug(item?.slug);
+            return slug ? [slug, item] : null;
+          })
+          .filter(Boolean)
+      );
+
+      const baseSlugs = regions.length > 0 ? [...regionBySlug.keys()] : [...compareBySlug.keys()];
+      if (baseSlugs.length === 0) {
+        rows = [];
+        return;
+      }
+
+      const baseItems = baseSlugs.map((slug) => {
+        const regionItem = regionBySlug.get(slug) || {};
+        const compareItem = compareBySlug.get(slug) || {};
+        const profileItem = profileBySlug.get(slug) || {};
+        return {
+          ...regionItem,
+          ...compareItem,
+          ...profileItem,
+          slug,
+          name:
+            String(compareItem?.name || regionItem?.name || profileItem?.name || '').trim() ||
+            slug.charAt(0).toUpperCase() + slug.slice(1),
+          city: String(compareItem?.city || regionItem?.city || profileItem?.city || '').trim(),
+          area_ha: compareItem?.area_ha ?? compareItem?.flower_area_ha ?? profileItem?.flower_area_ha,
+          workers: compareItem?.workers ?? profileItem?.workers,
+        };
+      });
+
+      const missingScoreSlugs = baseItems
+        .filter((item) => scoreFromItem(item) === null)
+        .map((item) => item.slug);
+
+      const operativoEntries = await Promise.all(
+        missingScoreSlugs.map(async (slug) => {
+          const operativo = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(slug)}`);
+          const status = String(operativo?.status || '').toLowerCase();
+          const parsedScore = Number(operativo?.score);
+          const score = status !== 'sin_datos' && Number.isFinite(parsedScore) ? Math.round(parsedScore) : null;
+          return [slug, { score }];
+        })
+      );
+      const operativoBySlug = new Map(operativoEntries);
+
+      rows = baseItems.map((base) => {
+        const slug = normalizeSlug(base.slug);
+        const derivedScore = scoreFromItem(base);
+        const score = derivedScore ?? operativoBySlug.get(slug)?.score ?? null;
         return {
           slug,
-          name: base?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1),
+          name: base.name,
           city: base?.city ?? '',
           productionShare: toNum(base?.production_share, 0),
           score,
@@ -151,6 +220,7 @@
     const sb = b?.score === null ? -1 : toNum(b?.score, -1);
     return sb - sa;
   });
+  $: withScoreCount = rankedRows.filter((row) => row.score !== null).length;
 </script>
 
 {#if loading}
@@ -162,7 +232,7 @@
     <div class="ranking-wrap">
       <p class="title">Municipios con mayor riesgo hoy</p>
       <p class="coverage">
-        Cobertura actual: {rankedRows.length} municipios con información operativa.
+        Cobertura actual: {withScoreCount} de {rankedRows.length} municipios con puntaje operativo.
       </p>
       <ol>
         {#each rankedRows as row, index}

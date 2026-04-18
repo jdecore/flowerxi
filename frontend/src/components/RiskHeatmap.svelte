@@ -58,6 +58,8 @@
     throw lastError ?? new Error('network');
   };
 
+  const FALLBACK_HISTORY_LIMIT = 120;
+
   const levelFromScore = (score) => {
     if (score >= 70) return { label: 'Acción', levelClass: 'action' };
     if (score >= 40) return { label: 'Vigilancia', levelClass: 'watch' };
@@ -148,12 +150,17 @@
       try {
         const data = await fetchJson(`/api/risk/monthly?region=${encodeURIComponent(region)}&months=${months}`);
         const items = Array.isArray(data?.items) ? data.items : [];
-        monthly = items.map(normalizeMonth).reverse();
+        if (items.length > 0) {
+          monthly = items.map(normalizeMonth).reverse();
+          return;
+        }
       } catch {
-        const history = await fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=${Math.max(months * 31, 120)}`);
-        const items = Array.isArray(history?.items) ? history.items : [];
-        monthly = deriveMonthlyFromHistory(items);
       }
+
+      const fallbackLimit = Math.min(FALLBACK_HISTORY_LIMIT, Math.max(90, months * 30));
+      const history = await fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=${fallbackLimit}`);
+      const items = Array.isArray(history?.items) ? history.items : [];
+      monthly = deriveMonthlyFromHistory(items);
     } catch (e) {
       monthly = [];
       error = 'Datos no disponibles.';
