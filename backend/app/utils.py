@@ -35,15 +35,28 @@ def handle_db_error(func: Callable) -> Callable:
         except Exception as e:
             logger.error(f"DB error in {func.__name__}: {e}")
             raise HTTPException(status_code=500, detail="Error de base de datos")
+
     return wrapper
 
 
 def build_operativo_status(score: int) -> tuple[str, str, str]:
     if score <= 30:
-        return ("rutina", "Rutina normal", "Mantén la rutina de monitoreo sin acciones extraordinarias.")
+        return (
+            "rutina",
+            "Rutina normal",
+            "Mantén la rutina de monitoreo sin acciones extraordinarias.",
+        )
     if score <= 60:
-        return ("vigilancia", "Vigilancia reforzada", "Refuerza revisión de humedad, drenaje y ventilación durante el turno.")
-    return ("accion", "Acción requerida", "Ejecuta inspección en campo, registra hallazgos y aplica protocolo preventivo.")
+        return (
+            "vigilancia",
+            "Vigilancia reforzada",
+            "Refuerza revisión de humedad, drenaje y ventilación durante el turno.",
+        )
+    return (
+        "accion",
+        "Acción requerida",
+        "Ejecuta inspección en campo, registra hallazgos y aplica protocolo preventivo.",
+    )
 
 
 def calculate_risk_score(
@@ -53,7 +66,12 @@ def calculate_risk_score(
     avg_precip: float,
     prev_avg_precip: float | None,
 ) -> int:
-    if avg_precip and prev_avg_precip and avg_precip > prev_avg_precip * 1 and rainy_days >= 3:
+    if (
+        avg_precip
+        and prev_avg_precip
+        and avg_precip > prev_avg_precip
+        and rainy_days >= 3
+    ):
         return rainy_days * 15 + days_with_precip * 8
     if rainy_days >= 5:
         return 85
@@ -74,7 +92,9 @@ def calculate_risk_score(
     return 22
 
 
-def build_reason(rainy_days: int, avg_temp: float, avg_precip: float, prev_avg_precip: float | None) -> str:
+def build_reason(
+    rainy_days: int, avg_temp: float, avg_precip: float, prev_avg_precip: float | None
+) -> str:
     if rainy_days >= 5:
         return "Acumulación crítica de lluvia (5+ días)"
     if rainy_days >= 3 and 15 <= avg_temp <= 22:
@@ -94,7 +114,9 @@ def build_reason(rainy_days: int, avg_temp: float, avg_precip: float, prev_avg_p
     return "Condiciones dentro de rangos normales"
 
 
-def build_action_today(rainy_days: int, avg_temp: float, avg_precip: float, prev_avg_precip: float | None) -> str:
+def build_action_today(
+    rainy_days: int, avg_temp: float, avg_precip: float, prev_avg_precip: float | None
+) -> str:
     if rainy_days >= 5:
         return "Aplicar fungicida inmediatamente + revisar sistema de drenaje. Registra inspección."
     if rainy_days >= 3 and 15 <= avg_temp <= 22:

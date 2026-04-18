@@ -1,18 +1,24 @@
 ---
 import '../styles/index.css';
-import RiskHero from '../islands/RiskHero.svelte';
-import DailyAction from '../islands/DailyAction.svelte';
-import WeatherMetrics from '../islands/WeatherMetrics.svelte';
-import TrendChart from '../islands/TrendChart.svelte';
-import WeeklyRecommendations from '../islands/WeeklyRecommendations.svelte';
-import ChatBot from '../islands/ChatBot.svelte';
-import RegionSelector from '../islands/RegionSelector.svelte';
+
+// Componentes
 import Sidebar from '../islands/Sidebar.svelte';
+import RiskBadge from '../components/RiskBadge.svelte';
+import Sparkline from '../components/Sparkline.svelte';
+import WeeklyKPIs from '../components/WeeklyKPIs.svelte';
+import RiskHeatmap from '../components/RiskHeatmap.svelte';
+import ImpactoOperacion from '../components/ImpactoOperacion.svelte';
+import ChatBot from '../islands/ChatBot.svelte';
 
 const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
-const defaultRegion = 'madrid';
----
 
+// Mock de datos para Madrid (solo para Sparklines de evidencia)
+const mockHistory = Array.from({ length: 14 }, (_, i) => ({
+  observed_on: new Date(Date.now() - (13 - i) * 86400000).toISOString().split('T')[0],
+  precipitation_mm: [0, 1.2, 0, 0, 2.5, 0, 1, 0, 0, 0, 0.8, 0, 0, 0][i],
+  temp_mean_c: [21, 23, 24, 22, 20, 19, 21, 22, 23, 24, 22, 21, 20, 22][i],
+}));
+---
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -20,134 +26,283 @@ const defaultRegion = 'madrid';
     <title>flowerxi | Dashboard Agroclimático</title>
   </head>
   <body>
-    <main class="dashboard-layout">
-       <!-- Sidebar mejorado con labels -->
-       <Sidebar {apiUrl} currentPath={Astro.url.pathname} client:load />
+    <div class="app-root">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-start">
+          <div class="brand">🌺 flowerxi</div>
+          <nav class="top-nav-mobile">
+            <a href="/municipios">Municipios</a>
+            <a href="/estaciones">Estaciones</a>
+            <a href="/exportaciones">Comercial</a>
+          </nav>
+        </div>
 
-      <!-- Contenido principal -->
-      <section class="main-content">
-        <!-- Header con selector de región -->
-        <header class="dashboard-header">
-          <div class="header-left">
-            <div class="logo-mark" aria-label="flowerxi">✿</div>
-            <div>
-              <h1>flowerxi</h1>
-              <p class="subtitle">Vigilancia agroclimática para rosa de corte</p>
-            </div>
+        <div class="topbar-center">
+          <select id="region-select" class="region-select" on:change="(e) => { window.dispatchEvent(new CustomEvent('regionchange', { detail: e.target.value })); localStorage.setItem('flowerxi_region', e.target.value); }">
+            <option value="madrid">Madrid</option>
+            <option value="facatative">Facatativá</option>
+            <option value="funza">Funza</option>
+          </select>
+        </div>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Buscar..." />
           </div>
-          <RegionSelector {apiUrl} currentRegion={defaultRegion} client:load />
-        </header>
+          <button class="btn-icon" id="btn-refresh" title="Actualizar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
+          <button class="btn-icon" id="btn-theme" title="Modo oscuro">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          </button>
+        </div>
+      </header>
 
-        <!-- HERO: Estado de riesgo (lo más importante) -->
-        <section class="hero-section">
-          <RiskHero {apiUrl} region={defaultRegion} client:load />
-          <DailyAction {apiUrl} region={defaultRegion} client:load />
-        </section>
+      <!-- Layout principal -->
+      <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar-col">
+          <Sidebar {apiUrl} currentPath="/" client:load />
+        </aside>
 
-        <!-- Panel de 3 columnas: métricas, gráfica, recomendaciones -->
-        <section class="dashboard-grid">
-          <WeatherMetrics {apiUrl} region={defaultRegion} client:load />
-          <TrendChart {apiUrl} region={defaultRegion} client:load />
-          <WeeklyRecommendations {apiUrl} region={defaultRegion} client:load />
-        </section>
-      </section>
+        <!-- Contenido -->
+        <main class="main-col">
+          <!-- Hero KPI -->
+          <section class="hero-kpi">
+            <RiskBadge score={24} level="Rutina" client:load />
+            <div class="hero-text">
+              <p class="greeting">Buenos días, Don José. En <strong>Madrid</strong> hoy estamos en <span class="badge-rutina">Rutina</span>.</p>
+              <p class="subtext">No diagnostica plagas. Te dice cuándo mirar más de cerca según clima reciente.</p>
+            </div>
+          </section>
 
-      <!-- Chat IA -->
-      <ChatBot {apiUrl} />
-    </main>
+          <!-- Grid 12 columnas -->
+          <div class="dashboard-12">
+            <!-- Evidencia en vivo (8 cols) -->
+            <section class="col-8">
+              <h2 class="section-head">Evidencia en vivo</h2>
+              <p class="section-sub">Últimos 14 días — Madrid</p>
+              <div class="spark-grid">
+                <Sparkline title="Lluvia (mm)" data={mockHistory.map(d => d.precipitation_mm)} unit="mm" color="#3B82F6" client:load />
+                <Sparkline title="Temperatura (°C)" data={mockHistory.map(d => d.temp_mean_c)} unit="°C" color="#EF4444" client:load />
+                <Sparkline title="Humedad (%)" data={mockHistory.map(d => 60 + Math.random()*20)} unit="%" color="#10B981" client:load />
+                <Sparkline title="Puntaje riesgo" data={mockHistory.map((_,i) => i > 10 ? 45 : 22)} unit="pts" color="#7B5BA6" client:load />
+              </div>
+            </section>
+
+            <!-- Qué hacer hoy (4 cols) -->
+            <aside class="col-4">
+              <h2 class="section-head">Qué hacer hoy</h2>
+              <div class="checklist">
+                <label class="check-item checked">
+                  <input type="checkbox" checked disabled />
+                  <span>Recorrido matutino (7:00 AM)</span>
+                </label>
+                <label class="check-item checked">
+                  <input type="checkbox" checked disabled />
+                  <span>Verificar drenaje</span>
+                </label>
+                <label class="check-item">
+                  <input type="checkbox" disabled />
+                  <span>Revisar puntos húmedos</span>
+                </label>
+                <label class="check-item">
+                  <input type="checkbox" />
+                  <span>Registrar observaciones fitosanitarias</span>
+                </label>
+              </div>
+
+              <div class="info-tip">
+                <span>ℹ️</span>
+                <p><strong>Marco de decisión:</strong> Riesgo = prioridad de atención hoy. No es diagnóstico de finca.</p>
+              </div>
+            </aside>
+          </div>
+
+          <!-- Segunda fila: KPIs + Heatmap + Impacto -->
+          <div class="second-row">
+            <WeeklyKPIs {apiUrl} region="madrid" client:load />
+            <RiskHeatmap {apiUrl} region="madrid" client:load />
+            <ImpactoOperacion {apiUrl} region="madrid" client:load />
+          </div>
+        </main>
+      </div>
+
+      <!-- ChatBot -->
+      <ChatBot {apiUrl} client:load />
+
+      <!-- Scripts vanilla para tema y refresh -->
+      <script>
+        if (typeof window !== 'undefined') {
+          // Inicializar selector con región guardada
+          (function() {
+            const saved = localStorage.getItem('flowerxi_region') || 'madrid';
+            const select = document.getElementById('region-select');
+            if (select) select.value = saved;
+          })();
+
+          // Toggle modo oscuro
+          (function() {
+            const btn = document.getElementById('btn-theme');
+            const root = document.documentElement;
+            const saved = localStorage.getItem('darkMode') === 'true';
+            if (saved) root.setAttribute('data-theme', 'dark');
+
+            btn.addEventListener('click', () => {
+              const isDark = root.getAttribute('data-theme') === 'dark';
+              root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+              localStorage.setItem('darkMode', !isDark);
+            });
+          })();
+
+          // Refresh datos
+          document.getElementById('btn-refresh').addEventListener('click', () => {
+            window.dispatchEvent(new Event('refreshdata'));
+          });
+        }
+      </script>
+    </div>
+
+    <style is:global>
+      /* Variables tema Sabana */
+      :root {
+        --bg-app: #FAF9F7;
+        --bg-surface: #FFFFFF;
+        --bg-sidebar: #F6F4F8;
+        --primary: #7B5BA6;
+        --primary-hover: #63468C;
+        --secondary: #2E7D32;
+        --text-primary: #1F2937;
+        --text-secondary: #4B5563;
+        --text-tertiary: #9CA3AF;
+        --border: #E5E7EB;
+        --status-rutina: #10B981;
+        --status-rutina-bg: #D1FAE5;
+        --status-vigilancia: #F59E0B;
+        --status-vigilancia-bg: #FEF3C7;
+        --status-accion: #DC2626;
+        --status-accion-bg: #FEE2E2;
+        --shadow: 0 1px 3px rgba(31,41,55,0.06);
+        --radius: 12px;
+      }
+
+      [data-theme="dark"] {
+        --bg-app: #111827;
+        --bg-surface: #1F2937;
+        --bg-sidebar: #111827;
+        --primary: #A78BCC;
+        --primary-hover: #C4B5E0;
+        --text-primary: #F9FAFB;
+        --text-secondary: #D1D5DB;
+        --text-tertiary: #9CA3AF;
+        --border: #374151;
+        --status-rutina: #34D399;
+        --status-rutina-bg: #064E3B;
+        --status-vigilancia: #FBBF24;
+        --status-vigilancia-bg: #78350F;
+        --status-accion: #F87171;
+        --status-accion-bg: #7F1D1D;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg-app);
+        color: var(--text-primary);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Sora', 'Inter', sans-serif;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+    </style>
+
+    <style>
+      /* App root */
+      .app-root { min-height: 100vh; display: flex; flex-direction: column; }
+
+      /* Topbar */
+      .topbar {
+        position: sticky; top: 0; z-index: 50;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0.75rem 1.5rem;
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 1rem; box-shadow: var(--shadow);
+      }
+      .topbar-start { display: flex; align-items: center; gap: 1.5rem; }
+      .brand { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1.2rem; color: var(--primary); }
+      .top-nav-mobile { display: none; gap: 1rem; font-size: 0.85rem; }
+      .top-nav-mobile a { color: var(--text-secondary); text-decoration: none; }
+      .topbar-end { display: flex; align-items: center; gap: 0.5rem; }
+      .search-box { display: flex; align-items: center; gap: 0.5rem; background: var(--bg-app); border: 1px solid var(--border); border-radius: 999px; padding: 0.4rem 0.75rem; color: var(--text-tertiary); }
+      .search-box input { border: none; background: transparent; outline: none; width: 120px; font: inherit; }
+      .btn-icon { padding: 0.5rem; border: none; background: var(--bg-app); color: var(--text-secondary); border-radius: var(--radius); cursor: pointer; transition: all 150ms; }
+      .btn-icon:hover { background: var(--border); color: var(--primary); }
+
+      /* Layout principal */
+      .main-layout { display: grid; grid-template-columns: 200px 1fr; gap: 1.5rem; padding: 1.5rem; max-width: 1440px; margin: 0 auto; width: 100%; }
+      .sidebar-col { height: calc(100vh - 70px); position: sticky; top: 70px; }
+      .main-col { display: flex; flex-direction: column; gap: 1.5rem; }
+
+      /* Hero KPI */
+      .hero-kpi {
+        background: linear-gradient(135deg, var(--status-rutina-bg) 0%, #fff 100%);
+        border: 2px solid var(--status-rutina);
+        border-radius: 20px;
+        padding: 1.5rem;
+        display: flex; align-items: center; gap: 1.5rem;
+        box-shadow: 0 8px 24px rgba(16,185,129,0.15);
+      }
+      .hero-text { flex: 1; }
+      .greeting { margin: 0; font-size: 1.2rem; font-weight: 500; line-height: 1.4; }
+      .greeting strong { color: var(--secondary); }
+      .badge-rutina { color: var(--status-rutina); font-weight: 700; }
+      .subtext { margin: 0.4rem 0 0; font-size: 0.85rem; color: var(--text-secondary); }
+
+      /* Dashboard 12 cols */
+      .dashboard-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; }
+      .col-8 { grid-column: span 8; }
+      .col-4 { grid-column: span 4; }
+      @media (max-width: 1200px) { .dashboard-12 { grid-template-columns: 1fr; } .col-8, .col-4 { grid-column: span 1; } }
+
+      .section-head { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+      .section-sub { margin: 0; font-size: 0.8rem; color: var(--text-tertiary); }
+
+      .evidence-section, .action-section {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        display: flex; flex-direction: column; gap: 1rem;
+      }
+
+      .spark-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+
+      .checklist { display: flex; flex-direction: column; gap: 0.5rem; }
+      .check-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg-app); border-radius: var(--radius-md); border: 1px solid var(--border); }
+      .check-item input { width: 18px; height: 18px; }
+      .check-item.checked { border-color: var(--status-rutina); }
+
+      .info-tip { background: var(--status-vigilancia-bg); border-left: 3px solid var(--status-vigilancia); padding: 0.75rem; border-radius: var(--radius-md); display: flex; gap: 0.75rem; font-size: 0.8rem; color: #92400E; margin-top: auto; }
+      .info-tip span { font-size: 1.1rem; }
+
+      /* Segunda fila */
+      .second-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+      @media (max-width: 1024px) { .second-row { grid-template-columns: 1fr; } }
+
+      /* Responsive móvil */
+      @media (max-width: 768px) {
+        .main-layout { grid-template-columns: 1fr; padding: 1rem; }
+        .sidebar-col { display: none; }
+        .topbar { padding: 0.6rem 1rem; }
+        .topbar-start .top-nav-mobile { display: flex; }
+        .hero-kpi { flex-direction: column; text-align: center; }
+        .dashboard-12 { gap: 1rem; }
+        .spark-grid { grid-template-columns: 1fr; }
+      }
+    </style>
   </body>
 </html>
-
-<style>
-  .dashboard-layout {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-    gap: 1.5rem;
-    max-width: 1440px;
-    margin: 0 auto;
-    padding: 1.5rem;
-    min-height: 100vh;
-  }
-
-  .main-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .logo-mark {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    font-size: 1.5rem;
-    color: white;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-  }
-
-  .header-left h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1e293b;
-    letter-spacing: -0.02em;
-  }
-
-  .subtitle {
-    margin: 0.2rem 0 0;
-    font-size: 0.85rem;
-    color: #64748b;
-  }
-
-  .hero-section {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    gap: 1.25rem;
-  }
-
-  .dashboard-grid {
-    display: grid;
-    grid-template-columns: 1fr 1.2fr 1fr;
-    gap: 1.25rem;
-  }
-
-  @media (max-width: 1200px) {
-    .dashboard-layout {
-      grid-template-columns: 1fr;
-      padding: 1rem;
-    }
-
-    .hero-section,
-    .dashboard-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .dashboard-header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .logo-mark {
-      width: 40px;
-      height: 40px;
-      font-size: 1.25rem;
-    }
-  }
-</style>

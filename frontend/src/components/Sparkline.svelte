@@ -1,0 +1,98 @@
+<script>
+  export let title = '';
+  export let data = [];
+  export let unit = '';
+  export let color = '#7B5BA6';
+  export let height = 60;
+
+  // Calcular puntos del gráfico (normalizado a 0-100)
+  $: maxVal = Math.max(...data, 1);
+  $: points = data.map((val, i) => {
+    const x = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
+    const y = 100 - ((val / maxVal) * 100);
+    return `${x},${y}`;
+  }).join(' ');
+
+  $: lastValue = data.length > 0 ? data[data.length - 1] : null;
+</script>
+
+<div class="sparkline-card">
+  {#if title}
+    <span class="spark-title">{title}</span>
+  {/if}
+
+  {#if data.length > 1}
+    <svg viewBox="0 0 100 40" class="spark-svg" preserveAspectRatio="none">
+      <!-- Área -->
+      <polygon points="0,40 {points} 100,40" fill="rgba(var(--rgb), 0.15)" />
+      <!-- Línea -->
+      <polyline points={points} fill="none" stroke={color} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  {:else}
+    <div class="spark-skeleton"></div>
+  {/if}
+
+  {#if lastValue !== null}
+    <div class="spark-last">
+      <span class="last-value" style="color: {color};">
+        {typeof lastValue === 'number' ? lastValue.toFixed(1) : lastValue} <small>{unit}</small>
+      </span>
+    </div>
+  {/if}
+</div>
+
+<style>
+  .sparkline-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 100px;
+  }
+
+  .spark-title {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .spark-svg {
+    width: 100%;
+    height: 60px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+  }
+
+  .spark-svg polygon, .spark-svg polyline {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .spark-last {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+  }
+  .spark-last small {
+    font-weight: 400;
+    color: #6b7280;
+    font-size: 0.75rem;
+  }
+
+  .spark-skeleton {
+    height: 60px;
+    background: linear-gradient(90deg, #e2e8f020, #cbd5e130, #e2e8f020);
+    background-size: 200% 100%;
+    border-radius: 6px;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+</style>

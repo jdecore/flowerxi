@@ -18,6 +18,7 @@ Ya creada en `/home/juan/lab/glovar/flowerxi`:
 
 - `frontend/`
 - `backend/`
+- `backend/app/` (módulos organizados)
 - `database/`
 
 Tecnologias:
@@ -26,7 +27,21 @@ Tecnologias:
 - Backend: `fastapi`, `uvicorn`, `psycopg`
 - DB: InsForge Postgres (proyecto `glovar`)
 
-### 2) Skills de InsForge
+### 2) Backend - Estructura modular (actualizada)
+
+```
+backend/
+├── app/
+│   ├── main.py          # Endpoints FastAPI (limpiado, sin duplicados)
+│   ├── config.py        # Configuración (env vars)
+│   ├── db.py           # Conexión PostgreSQL
+│   ├── queries.py      # Consultas SQL centralizadas
+│   └── utils.py        # Utilidades y lógica de negocio
+├── run.py              # Servidor local (uvicorn)
+└── requirements.txt
+```
+
+### 3) Skills de InsForge
 
 Las skills ya estan presentes y sincronizadas en:
 
@@ -36,7 +51,7 @@ Las skills ya estan presentes y sincronizadas en:
 - `flowerxi/.agents/skills/insforge-integrations`
 - `flowerxi/.agents/skills/find-skills`
 
-### 3) Vinculacion a InsForge
+### 4) Vinculacion a InsForge
 
 `flowerxi` ya esta linked al proyecto:
 
@@ -46,7 +61,7 @@ Las skills ya estan presentes y sincronizadas en:
 
 Archivo: `flowerxi/.insforge/project.json`
 
-### 4) Base de datos creada y cargada
+### 5) Base de datos creada y cargada
 
 Tablas (`database/schema.sql`):
 
@@ -55,6 +70,11 @@ Tablas (`database/schema.sql`):
 - `flowerxi_risk_signals`
 - `flowerxi_recommendations`
 - `flowerxi_market_calendar`
+- `flowerxi_municipality_profile`
+- `flowerxi_exports_monthly`
+- `flowerxi_weather_stations`
+- `flowerxi_risk_model_versions`
+- `flowerxi_alert_history`
 
 Seed cargado con datos de internet 2026 (`database/seed_from_web.py`) usando:
 
@@ -73,21 +93,45 @@ Script de aplicacion:
 
 - `./database/apply.sh`
 
-### 5) Backend funcional
+### 6) Backend optimizado
 
-Endpoints implementados (`backend/app/main.py`):
+**Endpoints implementados** (`backend/app/main.py`):
 
-- `GET /health`
-- `GET /api/dashboard?region=sabana-bogota`
-- `GET /api/history?region=sabana-bogota&limit=30`
+- `GET /health` — estado del servicio
+- `GET /api/regions` — lista de municipios
+- `GET /api/municipalities` — perfiles municipales (Cundinamarca)
+- `GET /api/municipalities/{slug}` — detalle de municipio
+- `GET /api/municipalities/compare` — comparativo municipal
+- `GET /api/dashboard?region=...` — snapshot del día actual
+- `GET /api/dashboard/full?region=...` — datos unificados (regions + snapshot + operativo + history)
+- `GET /api/history?region=...&limit=30` — histórico climático
+- `GET /api/alerts/today?region=...` — alerta activa del día
+- `GET /api/alerts/history?region=...&limit=30` — historial de alertas
+- `GET /api/recommendations/week?region=...&days=7` — recomendaciones semanales
+- `GET /api/risk/operativo?region=...` — estado operativo con acción concreta
+- `GET /api/risk/monthly?region=...&months=6` — riesgo agroclimático mensual + narrativa
+- `GET /api/risk/explain?region=...` — explicación del riesgo reciente
+- `GET /api/stations?region=...` — estaciones meteorológicas
+- `GET /api/calendar?year=2026` — calendario de mercado
+- `GET /api/exports?months=12` — datos de exportación (DANE proxy)
+- `GET /api/model/version` — versión del modelo de riesgo
 
-Variables esperadas (`backend/.env.example`):
+**Mejoras aplicadas**:
 
-- `DATABASE_URL`
-- `CORS_ORIGINS`
-- `APP_PORT`
+- ✅ Eliminado `backend/main.py` duplicado
+- ✅ Módulos separados: `queries.py` (SQL) y `utils.py` (lógica)
+- ✅ Logging estructurado (`logging.getLogger("flowerxi-backend")`)
+- ✅ Consultas SQL centralizadas (sin duplicación)
+- ✅ Manejo de errores robusto (try/except en endpoints críticos)
+- ✅ Código más mantenible y testeable
 
-### 6) Frontend funcional
+Variables de entorno (`backend/.env.example`):
+
+- `DATABASE_URL` — conexión PostgreSQL (InsForge)
+- `CORS_ORIGINS` — dominios permitidos (comma-separated)
+- `APP_PORT` — puerto del servidor (opcional en Render)
+
+### 7) Frontend funcional
 
 Pantalla principal en `frontend/src/pages/index.astro` con dashboard Svelte:
 
@@ -101,10 +145,10 @@ Variables esperadas (`frontend/.env.example`):
 - `PUBLIC_INSFORGE_URL`
 - `PUBLIC_INSFORGE_ANON_KEY`
 
-### 7) Validaciones ya ejecutadas
+### 8) Validaciones ya ejecutadas
 
 - Frontend build OK: `cd frontend && npm run build`
-- Backend sintaxis OK: `python3 -m py_compile ...`
+- Backend sintaxis OK: `python3 -m py_compile app/main.py app/utils.py app/queries.py app/db.py app/config.py`
 - Seed dry-run OK y apply OK en InsForge
 
 ---

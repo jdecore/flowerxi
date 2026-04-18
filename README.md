@@ -37,6 +37,27 @@ graph TD
     C --> B;
 ```
 
+### 📁 Estructura del Backend (Modular)
+
+```
+backend/
+├── app/
+│   ├── main.py          # Endpoints FastAPI (sin duplicados)
+│   ├── config.py        # Configuración (env vars)
+│   ├── db.py            # Conexión PostgreSQL
+│   ├── queries.py       # Consultas SQL centralizadas
+│   └── utils.py         # Utilidades y lógica de negocio
+├── run.py               # Servidor local (uvicorn)
+└── requirements.txt
+```
+
+**Características:**
+- ✅ **Consultas centralizadas**: Todas las queries SQL en `queries.py`
+- ✅ **Lógica reutilizable**: `utils.py` con funciones compartidas
+- ✅ **Logging estructurado**: Logs con nivel INFO y formato JSON-ready
+- ✅ **Manejo robusto**: Try/except en endpoints críticos
+- ✅ **Sin duplicación**: Una única versión de cada consulta
+
 ### 📁 Estructura del Proyecto
 
 | Componente | Tecnología | Destino |
@@ -105,6 +126,54 @@ Plan de acciones para la semana.
 GET /api/risk/monthly?region=madrid&months=6
 ```
 Tendencia de riesgo agroclimático para planeación.
+
+### 🏥 Estado Operativo
+```http
+GET /api/risk/operativo?region=madrid
+```
+Estado operativo del día con acción concreta.
+
+### 📝 Explicación de Riesgo
+```http
+GET /api/risk/explain?region=madrid
+```
+Análisis de por qué subió/bajó el riesgo.
+
+### 📡 Estaciones Meteorológicas
+```http
+GET /api/stations?region=madrid
+```
+Lista de estaciones meteorológicas cercanas.
+
+### 📅 Calendario de Mercado
+```http
+GET /api/calendar?year=2026
+```
+Festivos y días inhábiles de exportación.
+
+### 📈 Exportaciones
+```http
+GET /api/exports?months=12
+```
+Datos de exportación mensuales (proxy DANE).
+
+### 🔬 Modelo de Riesgo
+```http
+GET /api/model/version
+```
+Versión activa del modelo de riesgo y sus pesos.
+
+### 🗺️ Municipios
+```http
+GET /api/municipalities
+```
+Perfiles municipales de Cundinamarca.
+
+### 🔍 Comparativo Municipal
+```http
+GET /api/municipalities/compare
+```
+Comparativa entre todos los municipios.
 
 ---
 
@@ -223,16 +292,18 @@ npm run dev
 
 ## 📊 Roadmap Sugerido
 
+### ✅ Completado (Reorganización Backend)
+- [x] Eliminar `backend/main.py` duplicado
+- [x] Separar lógica en módulos: `utils.py` y `queries.py`
+- [x] Centralizar consultas SQL (evitar duplicación)
+- [x] Agregar logging estructurado
+- [x] Mejorar manejo de errores
+
 ### 🎯 Próximas Mejoras (Para Agente Futuro)
 
 #### 🚀 Deploy Configs
 - [ ] `frontend/vercel.json` (config extra si se necesita)
 - [ ] `backend/render.yaml` (config para Render)
-
-#### 🐛 Backend - Mejoras Demo Laboral
-- [ ] Endpoint `/api/alerts/today` (alertas de hoy)
-- [ ] Endpoint `/api/recommendations/week` (recomendaciones semanales)
-- [ ] Logging estructurado JSON
 
 #### 🎨 Frontend - Storytelling Postulación
 - [ ] Tarjetas KPI semanales
