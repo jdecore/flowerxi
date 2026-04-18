@@ -1,8 +1,25 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ComposedChart, Line, Bar, CartesianGrid } from 'recharts';
 
   export let apiUrl;
+  let Recharts = null;
+  let chartLoaded = false;
+
+  const loadRecharts = async () => {
+    if (chartLoaded || Recharts) return;
+    const mod = await import('recharts');
+    Recharts = { 
+      ResponsiveContainer: mod.ResponsiveContainer, 
+      ComposedChart: mod.ComposedChart, 
+      Tooltip: mod.Tooltip, 
+      CartesianGrid: mod.CartesianGrid, 
+      Area: mod.Area, 
+      Bar: mod.Bar, 
+      XAxis: mod.XAxis, 
+      YAxis: mod.YAxis 
+    };
+    chartLoaded = true;
+  };
 
   const COLORS = {
     primary: '#756A85',
@@ -60,6 +77,27 @@
     return Math.round(global * 0.45 + fungal * 0.2 + water * 0.2 + (100 - heat) * 0.15);
   };
 
+  const CACHE_KEY = 'flowerxi_dashboard_cache';
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+  const getCachedData = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) return null;
+      const parsed = JSON.parse(cached);
+      if (Date.now() - parsed.timestamp > CACHE_TTL) return null;
+      return parsed;
+    } catch { return null; }
+  };
+
+  const setCachedData = (payload) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ...payload, timestamp: Date.now() }));
+    } catch {}
+  };
+
   const fetchRegions = async () => {
     const res = await fetch(`${apiUrl}/api/regions`);
     const payload = await res.json();
@@ -92,11 +130,25 @@
   };
 
   const refreshAll = async () => {
+    const cached = getCachedData();
+    if (cached && cached.region === selectedRegion) {
+      data = cached.data;
+      historyData = cached.historyData;
+      riskExplain = cached.riskExplain;
+      if (regions.length === 0 && cached.regions) regions = cached.regions;
+      if (regions.length > 0 && !regions.find(r => r.slug === selectedRegion)) {
+        selectedRegion = cached.regions?.[0]?.slug || 'madrid';
+      }
+      loading = false;
+      return;
+    }
+
     loading = true;
     error = '';
     try {
-      await fetchRegions();
+      if (regions.length === 0) await fetchRegions();
       await Promise.all([fetchDashboard(), fetchHistory(), fetchRiskExplain()]);
+      setCachedData({ region: selectedRegion, data, historyData, riskExplain, regions });
     } catch (err) {
       error = err instanceof Error ? err.message : 'Error';
     } finally {
@@ -122,6 +174,7 @@
 
   onMount(() => {
     refreshAll();
+    loadRecharts();
     if (typeof window !== 'undefined') {
       window.addEventListener('flowerxi:refresh', onExternalRefresh);
       window.addEventListener('flowerxi:search-region', onExternalSearch);
@@ -215,19 +268,21 @@
                   {Number(kpi.change) >= 0 ? '+' : ''}{kpi.change}% vs semana anterior
                 </div>
               {/if}
-              {#if kpi.data.length > 0}
+              {#if chartLoaded && kpi.data.length > 0}
                 <div class="kpi-sparkline">
-                  <ResponsiveContainer width="100%" height={36}>
-                    <AreaChart data={kpi.data.map((v, i) => ({ value: v, idx: i }))}>
-                      <defs>
-                        <linearGradient id="sparkGrad-{kpi.icon}" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stop-color={COLORS.primaryLight} stop-opacity={0.3}/>
-                          <stop offset="100%" stop-color={COLORS.primary} stop-opacity={0.8}/>
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke="none" fill="url(#sparkGrad-{kpi.icon})" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {#if Recharts}
+                    <svelte:component this={Recharts.ResponsiveContainer} width="100%" height={36}>
+                      <svelte:component this={Recharts.AreaChart} data={kpi.data.map((v, i) => ({ value: v, idx: i }))}>
+                        <defs>
+                          <linearGradient id="sparkGrad-{kpi.icon}" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stop-color={COLORS.primaryLight} stop-opacity={0.3}/>
+                            <stop offset="100%" stop-color={COLORS.primary} stop-opacity={0.8}/>
+                          </linearGradient>
+                        </defs>
+                        <svelte:component this={Recharts.Area} type="monotone" dataKey="value" stroke="none" fill="url(#sparkGrad-{kpi.icon})" />
+                      </svelte:component>
+                    </svelte:component>
+                  {/if}
                 </div>
               {/if}
             </div>
@@ -235,30 +290,29 @@
         </div>
 
         <!-- Mini trend chart -->
-        {#if historyData.length > 0}
+        {#if chartLoaded && historyData.length > 0}
         <div class="trend-section">
           <h3>Tendencia 14 días</h3>
           <div class="trend-chart">
-            <ResponsiveContainer width="100%" height={140}>
-              <ComposedChart data={sparklineData}>
-                <defs>
-                  <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color={COLORS.primary} stop-opacity={0.2}/>
-                    <stop offset="100%" stop-color={COLORS.primary} stop-opacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false}/>
-                <XAxis dataKey="day" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false}/>
-                <YAxis yAxisId="temp" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false} domain={['auto', 'auto']}/>
-                <YAxis yAxisId="precip" orientation="right" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false}/>
-                <Tooltip 
-                  contentStyle={{background: COLORS.textPrimary, border: 'none', borderRadius: 8, color: '#fff'}}
-                  labelStyle={{color: COLORS.textTertiary, fontSize: 11}}
-                />
-                <Area yAxisId="temp" type="monotone" dataKey="temp" stroke={COLORS.primary} fill="url(#tempGrad)" strokeWidth={2} name="Temp °C" />
-                <Bar yAxisId="precip" dataKey="precip" fill={COLORS.primaryLight} opacity={0.5} name="Precip x10" />
-              </ComposedChart>
-            </ResponsiveContainer>
+            {#if Recharts}
+              <svelte:component this={Recharts.ResponsiveContainer} width="100%" height={140}>
+                <svelte:component this={Recharts.ComposedChart} data={sparklineData}>
+                  <defs>
+                    <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color={COLORS.primary} stop-opacity={0.2}/>
+                      <stop offset="100%" stop-color={COLORS.primary} stop-opacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <svelte:component this={Recharts.CartesianGrid} strokeDasharray="3 3" stroke={COLORS.border} vertical={false}/>
+                  <svelte:component this={Recharts.XAxis} dataKey="day" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false}/>
+                  <svelte:component this={Recharts.YAxis} yAxisId="temp" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false} domain={['auto', 'auto']}/>
+                  <svelte:component this={Recharts.YAxis} yAxisId="precip" orientation="right" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false}/>
+                  <svelte:component this={Recharts.Tooltip} contentStyle={{background: COLORS.textPrimary, border: 'none', borderRadius: 8, color: '#fff'}} labelStyle={{color: COLORS.textTertiary, fontSize: 11}}/>
+                  <svelte:component this={Recharts.Area} yAxisId="temp" type="monotone" dataKey="temp" stroke={COLORS.primary} fill="url(#tempGrad)" strokeWidth={2} name="Temp °C" />
+                  <svelte:component this={Recharts.Bar} yAxisId="precip" dataKey="precip" fill={COLORS.primaryLight} opacity={0.5} name="Precip x10" />
+                </svelte:component>
+              </svelte:component>
+            {/if}
           </div>
         </div>
         {/if}
