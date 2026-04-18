@@ -1,6 +1,5 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
-  import { getAIModel, getLoadedModelId } from '../lib/ai/model.js';
 
   export let apiUrl = '';
   export let embedded = false;
@@ -8,6 +7,7 @@
   const STORAGE_REGION = 'flowerxi_region';
   const CHAT_STORAGE_KEY = 'flowerxi_chat';
   const MAX_MESSAGES = 30;
+  const CONTEXT_TTL_MS = 60_000;
 
   let chatHistory = [];
   let userQuestion = '';
@@ -20,6 +20,17 @@
   let engine = null;
   let region = 'madrid';
   let inputRef;
+  let contextCache = null;
+  let contextCacheRegion = '';
+  let contextCacheAt = 0;
+  let modelModulePromise = null;
+
+  const getModelModule = async () => {
+    if (!modelModulePromise) {
+      modelModulePromise = import('../lib/ai/model.js');
+    }
+    return modelModulePromise;
+  };
 
   const loadHistory = () => {
     if (typeof window === 'undefined') return;
@@ -98,7 +109,14 @@
     return null;
   };
 
-  const loadBackendContext = async () => {
+  const loadBackendContext = async (force = false) => {
+    const cacheValid =
+      !force &&
+      contextCache &&
+      contextCacheRegion === region &&
+      Date.now() - contextCacheAt < CONTEXT_TTL_MS;
+    if (cacheValid) return contextCache;
+
     const [operativoData, historyData, weeklyData, monthlyData, compareData] = await Promise.all([
       fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`),
       fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=14`),
@@ -112,27 +130,18 @@
     const weekly = Array.isArray(weeklyData?.items) ? weeklyData.items : [];
     const monthly = Array.isArray(monthlyData?.items) ? monthlyData.items : [];
 
-    const trackedRegions = Array.isArray(compareData?.items)
-      ? compareData.items.map((item) => ({
-          slug: String(item?.slug || '').trim(),
-          name: String(item?.name || '').trim(),
-        }))
+    const humidityByRegion = Array.isArray(compareData?.items)
+      ? compareData.items
+          .map((item) => {
+            const waterRisk = Number(item?.waterlogging_risk);
+            return {
+              slug: String(item?.slug || '').trim(),
+              name: String(item?.name || '').trim(),
+              waterRisk: Number.isFinite(waterRisk) ? Math.round(waterRisk) : null,
+            };
+          })
+          .filter((item) => item.slug)
       : [];
-    const regionList = trackedRegions.filter((item) => item.slug);
-
-    const humidityByRegion = await Promise.all(
-      regionList.map(async (regionItem) => {
-        const slug = regionItem.slug;
-        const data = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
-        const day = Array.isArray(data?.items) ? data.items[0] : null;
-        const waterRisk = Number(day?.waterlogging_risk);
-        return {
-          slug,
-          name: regionItem.name || slug,
-          waterRisk: Number.isFinite(waterRisk) ? Math.round(waterRisk) : null,
-        };
-      })
-    );
 
     const humidTop = humidityByRegion
       .filter((item) => item.waterRisk !== null)
@@ -166,11 +175,21 @@
       humidTop: humidTop ? `${humidTop.name} (${humidTop.waterRisk} pts)` : null,
     };
 
-    return { operativo: operativoData, latest, humidTop, contextSummary };
+    const payload = { operativo: operativoData, latest, humidTop, contextSummary };
+    contextCache = payload;
+    contextCacheRegion = region;
+    contextCacheAt = Date.now();
+    return payload;
   };
 
+  const normalizeText = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
   const quickAnswer = (question, context) => {
-    const q = question.toLowerCase();
+    const q = normalizeText(question);
     const score = context?.operativo?.score;
     const statusLabel = context?.operativo?.status_label;
     const action = context?.operativo?.action_today;
@@ -178,23 +197,23 @@
     const humidTop = context?.humidTop;
     const latest = context?.latest;
 
-    if (q.includes('riesgo hoy') || q.includes('como esta el riesgo') || q.includes('cómo está el riesgo')) {
+    if (q.includes('riesgo hoy') || q.includes('como esta el riesgo')) {
       return score !== null && score !== undefined
         ? `Hoy en ${region} el riesgo está en ${statusLabel || 'estado operativo'} (${score}).`
         : 'No tengo datos suficientes del riesgo de hoy.';
     }
 
-    if (q.includes('que debo hacer') || q.includes('qué debo hacer') || q.includes('recomendacion')) {
+    if (q.includes('que debo hacer') || q.includes('que hago hoy') || q.includes('recomendacion')) {
       return action ? `Acción recomendada hoy: ${action}` : 'No hay recomendación operativa disponible.';
     }
 
-    if (q.includes('donde hay mas humedad') || q.includes('dónde hay más humedad')) {
+    if (q.includes('donde hay mas humedad')) {
       return humidTop
         ? `Hoy el mayor riesgo de humedad/encharcamiento está en ${humidTop.name || humidTop.slug} (${humidTop.waterRisk} pts).`
         : 'No hay datos para comparar humedad entre municipios.';
     }
 
-    if (q.includes('por que') || q.includes('por qué')) {
+    if (q.includes('por que')) {
       return reason ? `El riesgo sube por: ${reason}` : 'No hay explicación de riesgo disponible.';
     }
 
@@ -215,16 +234,30 @@
     return `Estado actual: ${label || 'Sin datos'} (${score ?? '—'}). ${reason || ''} Acción sugerida: ${action || 'Sin datos'}`.trim();
   };
 
+  const isRefusalAnswer = (answer) => {
+    const text = normalizeText(answer);
+    if (!text) return true;
+    return (
+      text.includes("i'm sorry") ||
+      text.includes('cannot respond') ||
+      text.includes('cannot comply') ||
+      text.includes('cannot help with that') ||
+      text.includes('requires a detailed explanation of the instructions') ||
+      text.includes('no puedo responder a este prompt')
+    );
+  };
+
   const ensureModel = async () => {
     if (modelReady || isModelLoading) return;
     isModelLoading = true;
     modelProgress = 0;
     try {
-      engine = await getAIModel((progress) => {
+      const modelModule = await getModelModule();
+      engine = await modelModule.getAIModel((progress) => {
         const val = Number(progress?.progress ?? 0);
         if (Number.isFinite(val)) modelProgress = Math.max(0, Math.min(100, Math.round(val * 100)));
       });
-      modelName = getLoadedModelId() || '';
+      modelName = modelModule.getLoadedModelId() || '';
       modelReady = Boolean(engine);
     } catch (err) {
       console.error('[flowerxi-chat] webllm init error:', err);
@@ -276,12 +309,13 @@
         max_tokens: 180,
         stream: false,
       });
-      const answer = completion?.choices?.[0]?.message?.content?.trim() || fallbackContextAnswer(context);
+      const rawAnswer = completion?.choices?.[0]?.message?.content?.trim() || '';
+      const answer = isRefusalAnswer(rawAnswer) ? fallbackContextAnswer(context) : rawAnswer;
       appendHistory(question, answer);
     } catch (err) {
       console.error('[flowerxi-chat] error:', err);
       try {
-        const context = await loadBackendContext();
+        const context = await loadBackendContext(true);
         appendHistory(question, fallbackContextAnswer(context));
       } catch {
         appendHistory(question, 'No tengo datos suficientes para responder en este momento.');
@@ -294,6 +328,9 @@
   const onRegionChange = (event) => {
     if (!event?.detail) return;
     region = event.detail;
+    contextCache = null;
+    contextCacheRegion = '';
+    contextCacheAt = 0;
   };
 
   const openChat = async () => {

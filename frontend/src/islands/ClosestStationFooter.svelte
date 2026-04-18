@@ -69,6 +69,7 @@
         return;
       }
 
+      const fallbackUsed = Boolean(data?.fallback);
       const byRegion = items.filter((item) => String(item?.region_slug ?? '').toLowerCase() === region);
       const pool = byRegion.length > 0 ? byRegion : items;
       const sorted = [...pool].sort((a, b) => toNum(a?.distance_km) - toNum(b?.distance_km));
@@ -77,7 +78,9 @@
         ? `${Number(nearest.distance_km).toFixed(1)} km`
         : 'distancia no disponible';
 
-      text = `Estación más cercana: ${nearest?.station_name ?? 'N/A'} - ${distance}`;
+      text = fallbackUsed
+        ? `Estación de referencia regional: ${nearest?.station_name ?? 'N/A'} - ${distance}`
+        : `Estación más cercana: ${nearest?.station_name ?? 'N/A'} - ${distance}`;
     } catch {
       text = 'Estación más cercana: sin conexión con backend';
     }

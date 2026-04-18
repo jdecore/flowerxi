@@ -8,7 +8,6 @@
   let loading = true;
   let error = '';
   let rows = [];
-  const TOP_LIMIT = 10;
 
   const toNum = (value, fallback = 0) => {
     const parsed = Number(value);
@@ -90,47 +89,18 @@
       } catch {
         const regionsData = await fetchJson('/api/regions');
         const regions = Array.isArray(regionsData?.items) ? regionsData.items : [];
-        compareItems = regions
-          .map((item) => ({
-            slug: item.slug,
-            name: item.name,
-            city: item.city,
-            production_share: 0,
-          }));
+        compareItems = regions.map((item) => ({
+          slug: item?.slug,
+          name: item?.name,
+          city: item?.city,
+        }));
       }
-
       const normalizedItems = compareItems.filter((item) => Boolean(item?.slug));
-      const baseSlugs = normalizedItems.map((item) => item.slug).filter(Boolean);
-      const regionsToRank = baseSlugs.length > 0 ? baseSlugs : [region];
 
-      const riskResponses = await Promise.all(
-        regionsToRank.map(async (slug) => {
-          try {
-            const data = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(slug)}`);
-            let score = toNum(data?.score, null);
-            if (score === null) {
-              const history = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
-              const latest = Array.isArray(history?.items) ? history.items[0] : null;
-              score = scoreFromDay(latest);
-            }
-            return [slug, score];
-          } catch {
-            try {
-              const history = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
-              const latest = Array.isArray(history?.items) ? history.items[0] : null;
-              return [slug, scoreFromDay(latest)];
-            } catch {
-              return [slug, null];
-            }
-          }
-        })
-      );
-
-      const riskBySlug = new Map(riskResponses);
-
-      rows = regionsToRank.map((slug) => {
-        const base = normalizedItems.find((item) => item.slug === slug);
-        const score = riskBySlug.get(slug);
+      rows = normalizedItems.map((base) => {
+        const slug = String(base.slug);
+        const directScore = Number(base?.risk_score);
+        const score = Number.isFinite(directScore) ? Math.round(directScore) : scoreFromDay(base);
         return {
           slug,
           name: base?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1),
@@ -181,7 +151,6 @@
     const sb = b?.score === null ? -1 : toNum(b?.score, -1);
     return sb - sa;
   });
-  $: visibleRows = rankedRows.slice(0, TOP_LIMIT);
 </script>
 
 {#if loading}
@@ -196,7 +165,7 @@
         Cobertura actual: {rankedRows.length} municipios con información operativa.
       </p>
       <ol>
-        {#each visibleRows as row, index}
+        {#each rankedRows as row, index}
           <li class:current={row.isCurrent}>
             <span class="rank">{index + 1}.</span>
             <span class="badge">{badge(index)}</span>
@@ -214,9 +183,7 @@
           </li>
         {/each}
       </ol>
-      {#if rankedRows.length > TOP_LIMIT}
-        <p class="footnote">Mostrando top {TOP_LIMIT} de {rankedRows.length} municipios disponibles en backend.</p>
-      {/if}
+      <p class="footnote">Ranking completo según municipios con datos reales disponibles en backend.</p>
     </div>
   {/if}
 {/if}
@@ -260,6 +227,9 @@
     list-style: none;
     display: grid;
     gap: 0.45rem;
+    max-height: 620px;
+    overflow: auto;
+    padding-right: 0.2rem;
   }
 
   li {

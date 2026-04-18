@@ -82,14 +82,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
           </div>
 
           <!-- Contexto Sabana -->
-          <div class="two-col-row">
-            <details class="collapsible-card">
-              <summary>Comparativa Sabana</summary>
-              <div class="collapsible-content">
-                <SabanaComparison {apiUrl} initialRegion="madrid" client:load />
-              </div>
-            </details>
+          <div class="one-col-row">
+            <section class="comparison-card">
+              <h3 class="section-head">Comparativa Sabana</h3>
+              <SabanaComparison {apiUrl} initialRegion="madrid" client:load />
+            </section>
+          </div>
 
+          <div class="one-col-row station-row">
             <section class="station-card">
               <h3 class="section-head">Estación de referencia</h3>
               <ClosestStationFooter {apiUrl} initialRegion="madrid" client:load />
@@ -208,22 +208,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
         gap: 1.25rem;
       }
 
-      /* Contenedor colapsable */
-      .collapsible-card {
+      .comparison-card {
         background: var(--bg-surface);
         border: 1px solid var(--border-subtle);
         border-radius: 14px;
         box-shadow: var(--shadow-sm);
+        padding: 1rem;
+        min-height: 520px;
+        display: grid;
+        gap: 0.75rem;
       }
-      .collapsible-card summary {
-        cursor: pointer;
-        list-style: none;
-        padding: 0.95rem 1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-      }
-      .collapsible-card summary::-webkit-details-marker { display: none; }
-      .collapsible-content { padding: 0 1rem 1rem; }
 
       .station-card {
         background: var(--bg-surface);
@@ -233,6 +227,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
         padding: 1rem;
         display: grid;
         gap: 0.5rem;
+      }
+      .station-row {
+        margin-top: 0.35rem;
       }
       .made-by {
         margin: 0.2rem 0 0;

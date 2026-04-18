@@ -70,7 +70,11 @@ SQL_QUERIES = {
             r.city,
             r.production_share,
             mp.flower_area_ha,
-            mp.workers
+            mp.workers,
+            rs.fungal_risk,
+            rs.waterlogging_risk,
+            rs.heat_risk,
+            rs.risk_score
         FROM flowerxi_regions r
         LEFT JOIN LATERAL (
             SELECT flower_area_ha, workers
@@ -79,6 +83,17 @@ SQL_QUERIES = {
             ORDER BY year DESC NULLS LAST
             LIMIT 1
         ) mp ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT
+                fungal_risk,
+                waterlogging_risk,
+                heat_risk,
+                ROUND((fungal_risk * 0.5) + (waterlogging_risk * 0.3) + (heat_risk * 0.2))::int AS risk_score
+            FROM flowerxi_risk_signals
+            WHERE region_slug = r.slug
+            ORDER BY observed_on DESC
+            LIMIT 1
+        ) rs ON TRUE
         WHERE r.department = 'CUNDINAMARCA'
         ORDER BY r.production_share DESC NULLS LAST, r.name ASC;
     """,
@@ -97,6 +112,31 @@ SQL_QUERIES = {
         FROM flowerxi_weather_stations
         WHERE region_slug = %s
         ORDER BY distance_km ASC;
+    """,
+    "stations_fallback": """
+        WITH requested AS (
+            SELECT slug, latitude, longitude
+            FROM flowerxi_regions
+            WHERE slug = %s
+            LIMIT 1
+        )
+        SELECT
+            ws.station_name,
+            ws.region_slug,
+            ROUND(
+                (
+                    SQRT(
+                        POWER(req.latitude - rs.latitude, 2) +
+                        POWER(req.longitude - rs.longitude, 2)
+                    ) * 111.0
+                )::numeric,
+                1
+            ) AS distance_km
+        FROM requested req
+        JOIN flowerxi_weather_stations ws ON TRUE
+        JOIN flowerxi_regions rs ON rs.slug = ws.region_slug
+        ORDER BY distance_km ASC
+        LIMIT 3;
     """,
     "risk_explain": """
         WITH last_7 AS (

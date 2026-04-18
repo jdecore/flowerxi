@@ -123,6 +123,12 @@ def municipalities_compare():
                 "production_share": to_float(row.get("production_share"), 0.0),
                 "area_ha": area,
                 "workers": workers,
+                "fungal_risk": to_float(row.get("fungal_risk"), 0.0),
+                "waterlogging_risk": to_float(row.get("waterlogging_risk"), 0.0),
+                "heat_risk": to_float(row.get("heat_risk"), 0.0),
+                "risk_score": (
+                    int(row["risk_score"]) if row.get("risk_score") is not None else None
+                ),
             }
         )
 
@@ -469,4 +475,15 @@ def stations(region: str = Query(DEFAULT_REGION)):
         with conn.cursor() as cur:
             cur.execute(SQL_QUERIES["stations"], (region,))
             rows = cur.fetchall()
-    return {"ok": True, "items": rows, "total": len(rows)}
+            fallback = False
+            if not rows:
+                cur.execute(SQL_QUERIES["stations_fallback"], (region,))
+                rows = cur.fetchall()
+                fallback = bool(rows)
+    return {
+        "ok": True,
+        "region": region,
+        "items": rows,
+        "total": len(rows),
+        "fallback": fallback,
+    }
