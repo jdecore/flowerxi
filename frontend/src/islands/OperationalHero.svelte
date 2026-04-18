@@ -191,6 +191,19 @@
     return scoreFromSignals(item);
   };
 
+  const defaultRegionItems = [
+    { slug: 'madrid', name: 'Madrid' },
+    { slug: 'facatativa', name: 'Facatativá' },
+    { slug: 'funza', name: 'Funza' },
+    { slug: 'el-rosal', name: 'El Rosal' },
+    { slug: 'tocancipa', name: 'Tocancipá' },
+    { slug: 'chia', name: 'Chía' },
+    { slug: 'mosquera', name: 'Mosquera' },
+    { slug: 'sopo', name: 'Sopó' },
+    { slug: 'bojaca', name: 'Bojacá' },
+    { slug: 'cachipay', name: 'Cachipay' },
+  ];
+
   const persistTodayContext = (day) => {
     if (typeof window === 'undefined') return;
     const payload = {
@@ -288,6 +301,41 @@
         .filter((item) => item.slug && item.score !== null)
         .sort((a, b) => b.score - a.score)
         .slice(0, 3);
+
+      if (regionalTop.length === 0) {
+        const regionsData = await fetchJson('/api/regions');
+        const regionItems = Array.isArray(regionsData?.items) && regionsData.items.length > 0
+          ? regionsData.items
+          : defaultRegionItems;
+        const enriched = await Promise.all(
+          regionItems.map(async (item) => {
+            const slug = String(item?.slug || '').trim();
+            if (!slug) return null;
+            const name = String(item?.name || slug).trim();
+            const operativo = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(slug)}`);
+            const status = String(operativo?.status || '').toLowerCase();
+            const operativoScoreRaw = Number(operativo?.score);
+            let itemScore =
+              status !== 'sin_datos' && Number.isFinite(operativoScoreRaw)
+                ? Math.round(operativoScoreRaw)
+                : null;
+            if (itemScore === null) {
+              const historyOne = await fetchJson(`/api/history?region=${encodeURIComponent(slug)}&limit=1`);
+              const day = Array.isArray(historyOne?.items) ? historyOne.items[0] : null;
+              itemScore = scoreFromSignals(day);
+            }
+            return {
+              slug,
+              name,
+              score: Number.isFinite(itemScore) ? itemScore : null,
+            };
+          })
+        );
+        regionalTop = enriched
+          .filter((item) => item && item.score !== null)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+      }
       persistTodayContext(today);
     } finally {
       loading = false;

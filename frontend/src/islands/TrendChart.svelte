@@ -152,36 +152,41 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    font-family: var(--font-sans);
   }
 
   .chart-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    font-family: var(--font-sans);
   }
 
   .chart-header h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: var(--text-xl);
     font-weight: 600;
     color: #1e293b;
+    font-family: var(--font-sans);
   }
 
   .subtitle {
     display: block;
-    font-size: 0.8rem;
+    font-size: var(--text-base);
     color: #64748b;
     margin-top: 0.2rem;
+    font-family: var(--font-sans);
   }
 
   .current-score {
     padding: 0.35rem 0.75rem;
     border-radius: 999px;
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     color: var(--badge-color, #6366f1);
     background: color-mix(in srgb, var(--badge-color, #6366f1) 12%, white);
     border: 1px solid var(--badge-color, #6366f1);
+    font-family: var(--font-sans);
   }
 
   .spark-wrapper {
@@ -189,40 +194,46 @@
     background: #f8fafc;
     border-radius: 10px;
     padding: 0.5rem;
+    font-family: var(--font-sans);
   }
 
   .spark-svg {
     width: 100%;
     height: 100%;
     display: block;
+    font-family: var(--font-sans);
   }
 
   .x-marks {
     display: flex;
     justify-content: space-between;
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     color: #64748b;
     padding: 0 0.25rem;
+    font-family: var(--font-sans);
   }
 
   .risk-legend {
     display: flex;
     justify-content: center;
     gap: 1rem;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: #64748b;
+    font-family: var(--font-sans);
   }
 
   .level {
     display: flex;
     align-items: center;
     gap: 0.35rem;
+    font-family: var(--font-sans);
   }
 
   .dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    font-family: var(--font-sans);
   }
 
   .dot.low { background: #16a34a; }
@@ -238,7 +249,8 @@
     gap: 0.5rem;
     padding: 1.5rem;
     color: #64748b;
-    font-size: 0.85rem;
+    font-size: var(--text-base);
+    font-family: var(--font-sans);
   }
 
   .spinner {

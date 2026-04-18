@@ -186,18 +186,18 @@ export let region = 'madrid';
 </article>
 
 <style>
-  .impacto-operacion { background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(31,41,55,0.06)); }
-  .impact-header { display: flex; justify-content: space-between; align-items: center; }
-  .impact-header h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary, #1f2937); }
-  .impact-badge { font-size: 1.2rem; }
-  .impact-intro { margin: 0; font-size: 0.9rem; color: var(--text-secondary, #4b5563); line-height: 1.4; }
+  .impacto-operacion { background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(31,41,55,0.06)); font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); }
+  .impact-header { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-sans); }
+  .impact-header h3 { margin: 0; font-size: var(--text-xl); font-weight: 500; color: var(--text-primary, #1f2937); }
+  .impact-badge { font-size: var(--text-2xl); }
+  .impact-intro { margin: 0; font-size: var(--text-lg); line-height: 1.5; color: var(--text-secondary, #4b5563); font-family: var(--font-sans); }
   .impact-intro strong { color: var(--text-primary, #1f2937); }
-  .impact-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
-  .impact-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: var(--bg-app, #f8fafc); border-radius: 10px; border: 1px solid var(--border-subtle, #e2e8f0); }
-  .impact-icon { font-size: 1.2rem; flex-shrink: 0; }
-  .impact-list strong { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary, #374151); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; }
-  .value { font-size: 0.9rem; color: var(--text-primary, #1f2937); }
+  .impact-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; font-family: var(--font-sans); }
+  .impact-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: var(--bg-app, #f8fafc); border-radius: 10px; border: 1px solid var(--border-subtle, #e2e8f0); font-family: var(--font-sans); }
+  .impact-icon { font-size: 1.2rem; flex-shrink: 0; font-family: var(--font-sans); }
+  .impact-list strong { display: block; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary, #374151); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; font-family: var(--font-sans); }
+  .value { font-size: var(--text-lg); color: var(--text-primary, #1f2937); font-family: var(--font-sans); }
   .value.action { color: var(--status-rutina, #059669); font-weight: 500; }
-  .impact-note { margin: 0; font-size: 0.75rem; color: var(--text-secondary, #6b7280); line-height: 1.4; padding: 0.5rem 0.75rem; background: var(--status-vigilancia-bg, #fef3c7); border-radius: 8px; border-left: 3px solid var(--status-vigilancia, #F59E0B); }
-  .impact-error { margin: 0; font-size: 0.82rem; color: #b91c1c; }
+  .impact-note { margin: 0; font-size: var(--text-sm); line-height: 1.5; color: var(--text-secondary, #6b7280); padding: 0.5rem 0.75rem; background: var(--status-vigilancia-bg, #fef3c7); border-radius: 8px; border-left: 3px solid var(--status-vigilancia, #F59E0B); font-family: var(--font-sans); }
+  .impact-error { margin: 0; font-size: var(--text-base); font-weight: 500; color: #b91c1c; font-family: var(--font-sans); }
 </style>

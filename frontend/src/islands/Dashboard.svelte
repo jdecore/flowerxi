@@ -288,6 +288,7 @@
     border-radius: 18px;
     padding: 1.2rem;
     color: #f7f4ff;
+    font-family: var(--font-sans);
   }
 
   .full-width {
@@ -297,15 +298,17 @@
   .live-kicker {
     margin: 0;
     text-transform: uppercase;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
     letter-spacing: 0.07em;
     color: #bda6dc;
+    font-family: var(--font-sans);
   }
 
   .status-card h2 {
     margin-top: 0.35rem;
     margin-bottom: 0;
-    font-size: 1.5rem;
+    font-size: var(--text-3xl);
+    font-family: var(--font-sans);
   }
 
   .status-card.rutina {
@@ -329,6 +332,7 @@
     margin: 0.55rem 0 0;
     line-height: 1.45;
     color: #efe7ff;
+    font-family: var(--font-sans);
   }
 
   .live-badges {
@@ -343,7 +347,8 @@
     color: #d8c7ef;
     border-radius: 999px;
     padding: 0.2rem 0.65rem;
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
+    font-family: var(--font-sans);
   }
 
   .attention-copy {
@@ -353,8 +358,9 @@
     border: 1px solid rgba(245, 158, 11, 0.3);
     background: rgba(245, 158, 11, 0.12);
     color: #d4c4e8;
-    font-size: 0.86rem;
+    font-size: var(--text-base);
     line-height: 1.4;
+    font-family: var(--font-sans);
   }
 
   .evidence-head {
@@ -367,12 +373,14 @@
 
   .evidence-head h3 {
     margin: 0.35rem 0 0;
-    font-size: 1rem;
+    font-size: var(--text-xl);
+    font-family: var(--font-sans);
   }
 
   .evidence-head span {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: #d4c4e8;
+    font-family: var(--font-sans);
   }
 
   .evidence-metrics {
@@ -390,27 +398,31 @@
 
   .evidence-metrics p {
     margin: 0;
-    font-size: 0.78rem;
+    font-size: var(--text-base);
     color: #c9b8e4;
+    font-family: var(--font-sans);
   }
 
   .evidence-metrics strong {
     margin-top: 0.35rem;
     display: block;
-    font-size: 1rem;
+    font-size: var(--text-xl);
     color: #f5efff;
+    font-family: var(--font-sans);
   }
 
   .evidence-metrics small {
     margin-top: 0.2rem;
     display: block;
-    font-size: 0.72rem;
+    font-size: var(--text-xs);
     color: #bda6dc;
+    font-family: var(--font-sans);
   }
 
   .state-message {
     margin: 0;
     color: #d9c9f1;
+    font-family: var(--font-sans);
   }
 
   .state-message.error {

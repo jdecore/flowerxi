@@ -63,14 +63,17 @@
   .kicker {
     margin: 0;
     text-transform: uppercase;
-    font-size: 0.74rem;
-    letter-spacing: 0.07em;
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-wider);
     color: #bda6dc;
+    font-family: var(--font-sans);
   }
   .action {
     margin: 0.55rem 0 0;
+    font-size: var(--text-base);
     line-height: 1.45;
     color: #efe7ff;
+    font-family: var(--font-sans);
   }
   .attention {
     margin-top: 0.75rem;
@@ -78,9 +81,10 @@
     border-radius: 10px;
     border: 1px solid rgba(245, 158, 11, 0.3);
     background: rgba(245, 158, 11, 0.12);
-    color: #d4c4e8;
-    font-size: 0.86rem;
+    font-size: var(--text-base);
     line-height: 1.4;
+    color: #d4c4e8;
+    font-family: var(--font-sans);
   }
   .loading, .error {
     margin: 0.55rem 0 0;

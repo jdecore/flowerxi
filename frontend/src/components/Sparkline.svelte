@@ -54,6 +54,7 @@
 
 <style>
   .sparkline-card {
+    font-family: var(--font-sans);
     background: var(--bg-surface, #fff);
     border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 12px;
@@ -65,7 +66,8 @@
   }
 
   .spark-title {
-    font-size: 0.75rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
     font-weight: 500;
     color: var(--text-secondary, #64748b);
     text-transform: uppercase;
@@ -73,6 +75,7 @@
   }
 
   .spark-svg {
+    font-family: var(--font-sans);
     width: 100%;
     height: 60px;
     border-radius: 6px;
@@ -84,17 +87,20 @@
   }
 
   .spark-last {
-    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
     font-weight: 600;
     color: var(--text-primary, #1f2937);
   }
   .spark-last small {
+    font-family: var(--font-sans);
     font-weight: 400;
     color: var(--text-tertiary, #6b7280);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
   }
 
   .spark-skeleton {
+    font-family: var(--font-sans);
     height: 60px;
     background: linear-gradient(90deg, #e2e8f020, #cbd5e130, #e2e8f020);
     background-size: 200% 100%;

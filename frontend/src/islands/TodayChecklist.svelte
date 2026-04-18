@@ -165,15 +165,17 @@
 <style>
   .subtitle {
     margin: 0;
-    font-size: 0.83rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary, #64748b);
+    font-family: var(--font-sans);
   }
 
   .counter {
     margin: 0.25rem 0 0.8rem;
-    font-size: 0.82rem;
+    font-size: var(--text-base);
     color: var(--primary, #7b5ba6);
     font-weight: 600;
+    font-family: var(--font-sans);
   }
 
   .checklist {
@@ -190,7 +192,8 @@
     background: var(--bg-app, #f8fafc);
     border-radius: 10px;
     border: 1px solid var(--border-subtle, #e2e8f0);
-    font-size: 0.9rem;
+    font-size: var(--text-base);
+    font-family: var(--font-sans);
   }
 
   .check-item.checked {
@@ -204,12 +207,13 @@
 
   .micro-status {
     margin: 0.9rem 0 0;
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     color: var(--text-secondary, #4b5563);
     background: var(--status-vigilancia-bg, #fef3c7);
     border-left: 3px solid var(--status-vigilancia, #f59e0b);
     border-radius: 8px;
     padding: 0.55rem 0.7rem;
+    font-family: var(--font-sans);
   }
 
   .hidden-file {
@@ -236,15 +240,18 @@
 
   .modal h3 {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--text-xl);
     color: var(--text-primary, #1f2937);
+    font-weight: 600;
+    font-family: var(--font-sans);
   }
 
   .modal p {
     margin: 0.5rem 0 0;
-    font-size: 0.86rem;
+    font-size: var(--text-base);
     line-height: 1.4;
     color: var(--text-secondary, #4b5563);
+    font-family: var(--font-sans);
   }
 
   .modal-actions {
@@ -258,8 +265,9 @@
     border-radius: 10px;
     padding: 0.55rem 0.75rem;
     font: inherit;
-    font-size: 0.86rem;
+    font-size: var(--text-base);
     cursor: pointer;
+    font-family: var(--font-sans);
   }
 
   .modal-actions .primary {

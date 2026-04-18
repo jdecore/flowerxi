@@ -125,28 +125,36 @@
 </div>
 
 <style>
+  :global(body) { font-family: var(--font-sans); }
+  .static-content h2 { font-size: var(--text-2xl); color: var(--primary); margin: 0 0 0.5rem; }
+  .static-content p { font-size: var(--text-base); line-height: 1.5; margin: 0; color: var(--text-secondary); }
+  .muni-card h3 { font-size: var(--text-lg); color: var(--primary); margin: 0; }
+  .muni-card .muted { font-size: var(--text-base); margin: 0.25rem 0 0.75rem; color: var(--text-secondary); }
+  .muni-stats { font-size: var(--text-sm); display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .muni-stats span { background: var(--bg-app); padding: 0.25rem 0.5rem; border-radius: 6px; color: var(--text-secondary); }
+  .stat-label { font-size: var(--text-xs); text-transform: uppercase; display: block; color: var(--text-secondary); }
+  .stat-value { font-size: var(--text-2xl); font-weight: 600; color: var(--primary); display: block; margin-top: 0.25rem; }
+  .context-box h4 { font-size: var(--text-base); color: var(--primary); margin: 1rem 0 0.5rem; }
+  .context-box h4:first-child { margin-top: 0; }
+  .context-box p { font-size: var(--text-base); margin: 0; color: var(--text-primary); }
   .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
   .muni-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 1.25rem; cursor: pointer; transition: all 160ms; }
   .muni-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
-  .muni-card h3 { margin: 0; color: var(--primary); font-size: 1rem; }
-  .muni-card .muted { margin: 0.25rem 0 0.75rem; font-size: 0.85rem; color: var(--text-secondary); }
-  .muni-stats { display: flex; gap: 0.5rem; font-size: 0.75rem; flex-wrap: wrap; }
-  .muni-stats span { background: var(--bg-app); padding: 0.25rem 0.5rem; border-radius: 6px; color: var(--text-secondary); }
   .detail-view { max-width: 700px; }
-  .back-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.9rem; margin-bottom: 1rem; }
+   .back-btn {
+     background: none;
+     border: none;
+     color: var(--primary, #7b5ba6);
+     cursor: pointer;
+     font-family: var(--font-sans);
+     font-size: var(--text-lg);
+     margin-bottom: 1rem;
+   }
   .back-btn:hover { color: var(--primary-hover); }
   .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin: 1rem 0; }
   @media (max-width: 600px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
   .stat-box { background: var(--bg-app); padding: 0.75rem; border-radius: 10px; text-align: center; }
-  .stat-label { display: block; font-size: 0.7rem; color: var(--text-secondary); }
-  .stat-value { display: block; font-size: 1.1rem; font-weight: 600; color: var(--primary); margin-top: 0.25rem; }
-  .context-box { margin-top: 1.5rem; padding: 1rem; background: var(--bg-app); border-radius: 12px; }
-  .context-box h4 { margin: 1rem 0 0.5rem; color: var(--primary); font-size: 0.85rem; }
-  .context-box h4:first-child { margin-top: 0; }
-  .context-box p { margin: 0; font-size: 0.9rem; color: var(--text-primary); }
   .loading-text, .empty-text, .error-text { color: var(--text-secondary); text-align: center; padding: 2rem; }
   .static-content { margin-bottom: 1rem; }
-  .static-content h2 { font-size: 1.1rem; color: var(--primary); margin: 0 0 0.5rem; }
-  .static-content p { margin: 0; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; }
   .error-text { color: #C75D5D; }
 </style>

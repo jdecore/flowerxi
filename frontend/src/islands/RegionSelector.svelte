@@ -59,20 +59,21 @@
     display: inline-block;
   }
 
-  .region-selector select {
-    appearance: none;
-    -webkit-appearance: none;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 0.6rem 2.5rem 0.6rem 1rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #1e293b;
-    cursor: pointer;
-    min-width: 180px;
-    transition: all 150ms ease;
-  }
+   .region-selector select {
+     appearance: none;
+     -webkit-appearance: none;
+     background: var(--bg-app, #f8fafc);
+     border: 1px solid var(--border-subtle, #e2e8f0);
+     border-radius: 10px;
+     padding: 0.6rem 2.5rem 0.6rem 1rem;
+     font-family: var(--font-sans);
+     font-size: var(--text-lg);
+     font-weight: var(--font-medium);
+     color: var(--text-primary, #1e293b);
+     cursor: pointer;
+     min-width: 180px;
+     transition: all 150ms ease;
+   }
 
   .region-selector select:hover {
     border-color: #cbd5e1;

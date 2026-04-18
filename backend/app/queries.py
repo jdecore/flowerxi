@@ -71,10 +71,10 @@ SQL_QUERIES = {
             r.production_share,
             mp.flower_area_ha,
             mp.workers,
-            COALESCE(rs.fungal_risk, wf.fungal_risk, proxy.fungal_risk) AS fungal_risk,
-            COALESCE(rs.waterlogging_risk, wf.waterlogging_risk, proxy.waterlogging_risk) AS waterlogging_risk,
-            COALESCE(rs.heat_risk, wf.heat_risk, proxy.heat_risk) AS heat_risk,
-            COALESCE(rs.risk_score, wf.risk_score, proxy.risk_score) AS risk_score
+            rs.fungal_risk,
+            rs.waterlogging_risk,
+            rs.heat_risk,
+            rs.risk_score
         FROM flowerxi_regions r
         LEFT JOIN LATERAL (
             SELECT flower_area_ha, workers
@@ -94,107 +94,6 @@ SQL_QUERIES = {
             ORDER BY observed_on DESC
             LIMIT 1
         ) rs ON TRUE
-        LEFT JOIN LATERAL (
-            WITH weather_data AS (
-                SELECT
-                    observed_on,
-                    precipitation_mm,
-                    temp_mean_c
-                FROM flowerxi_weather_daily
-                WHERE region_slug = r.slug
-                ORDER BY observed_on DESC
-                LIMIT 7
-            ),
-            summary AS (
-                SELECT
-                    COUNT(*)::int AS days_available,
-                    AVG(precipitation_mm) AS avg_precip,
-                    AVG(temp_mean_c) AS avg_temp,
-                    SUM(CASE WHEN precipitation_mm >= 4 THEN 1 ELSE 0 END)::int AS rainy_days,
-                    SUM(CASE WHEN precipitation_mm > 0 THEN 1 ELSE 0 END)::int AS days_with_precip
-                FROM weather_data
-            ),
-            latest AS (
-                SELECT
-                    precipitation_mm,
-                    temp_mean_c
-                FROM weather_data
-                ORDER BY observed_on DESC
-                LIMIT 1
-            )
-            SELECT
-                CASE
-                    WHEN s.days_available = 0 THEN NULL
-                    WHEN s.rainy_days >= 5 THEN 85
-                    WHEN s.rainy_days >= 4 THEN 72
-                    WHEN s.rainy_days >= 3 AND s.avg_temp BETWEEN 15 AND 22 THEN 68
-                    WHEN s.rainy_days >= 3 AND s.avg_temp < 12 THEN 55
-                    WHEN s.avg_temp > 28 THEN 78
-                    WHEN s.avg_temp < 8 THEN 45
-                    WHEN s.avg_temp <= 12 AND s.rainy_days >= 2 THEN 52
-                    WHEN s.avg_temp >= 22 AND s.days_with_precip > 0 THEN 48
-                    ELSE 22
-                END::int AS risk_score,
-                CASE
-                    WHEN s.days_available = 0 THEN NULL
-                    WHEN COALESCE(l.precipitation_mm, 0) >= 4 THEN 82
-                    WHEN COALESCE(l.precipitation_mm, 0) > 0 AND COALESCE(l.temp_mean_c, 0) BETWEEN 14 AND 23 THEN 70
-                    WHEN COALESCE(l.precipitation_mm, 0) > 0 THEN 58
-                    WHEN COALESCE(l.temp_mean_c, 0) <= 11 THEN 46
-                    ELSE 28
-                END::int AS fungal_risk,
-                CASE
-                    WHEN s.days_available = 0 THEN NULL
-                    WHEN COALESCE(l.precipitation_mm, 0) >= 6 THEN 88
-                    WHEN COALESCE(l.precipitation_mm, 0) >= 4 THEN 76
-                    WHEN COALESCE(l.precipitation_mm, 0) > 0 THEN 54
-                    ELSE 24
-                END::int AS waterlogging_risk,
-                CASE
-                    WHEN s.days_available = 0 THEN NULL
-                    WHEN COALESCE(l.temp_mean_c, 0) >= 30 THEN 86
-                    WHEN COALESCE(l.temp_mean_c, 0) >= 26 THEN 74
-                    WHEN COALESCE(l.temp_mean_c, 0) <= 8 THEN 64
-                    WHEN COALESCE(l.temp_mean_c, 0) <= 11 THEN 52
-                    ELSE 32
-                END::int AS heat_risk
-            FROM summary s
-            LEFT JOIN latest l ON TRUE
-        ) wf ON TRUE
-        LEFT JOIN LATERAL (
-            SELECT
-                nearby.fungal_risk,
-                nearby.waterlogging_risk,
-                nearby.heat_risk,
-                nearby.risk_score
-            FROM (
-                SELECT
-                    rs2.fungal_risk,
-                    rs2.waterlogging_risk,
-                    rs2.heat_risk,
-                    ROUND((rs2.fungal_risk * 0.5) + (rs2.waterlogging_risk * 0.3) + (rs2.heat_risk * 0.2))::int AS risk_score,
-                    (
-                        SQRT(
-                            POWER(r.latitude - rd.latitude, 2) +
-                            POWER(r.longitude - rd.longitude, 2)
-                        ) * 111.0
-                    ) AS distance_km
-                FROM flowerxi_regions rd
-                JOIN LATERAL (
-                    SELECT
-                        fungal_risk,
-                        waterlogging_risk,
-                        heat_risk
-                    FROM flowerxi_risk_signals rs3
-                    WHERE rs3.region_slug = rd.slug
-                    ORDER BY observed_on DESC
-                    LIMIT 1
-                ) rs2 ON TRUE
-                WHERE rd.department = 'CUNDINAMARCA'
-            ) nearby
-            ORDER BY nearby.distance_km ASC
-            LIMIT 1
-        ) proxy ON TRUE
         WHERE r.department = 'CUNDINAMARCA'
         ORDER BY r.production_share DESC NULLS LAST, r.name ASC;
     """,

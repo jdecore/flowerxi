@@ -202,14 +202,16 @@ export let initialRegion = 'madrid';
 
   header h3 {
     margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
     color: var(--text-primary, #1f2937);
   }
 
   header p {
     margin: 0.3rem 0 0;
-    font-size: 0.84rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
     color: var(--text-secondary, #64748b);
   }
 
@@ -229,20 +231,25 @@ export let initialRegion = 'madrid';
   }
 
   .metric span {
-    font-size: 0.72rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
     color: var(--text-secondary, #64748b);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   .metric strong {
-    font-size: 0.95rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
     color: var(--text-primary, #1f2937);
   }
 
   .campaigns h4 {
     margin: 0;
-    font-size: 0.83rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
     color: var(--primary, #7b5ba6);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -250,14 +257,17 @@ export let initialRegion = 'madrid';
 
   .campaigns p {
     margin: 0.35rem 0 0;
-    font-size: 0.86rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
     color: var(--text-secondary, #475569);
   }
 
   .state.error {
     margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    font-weight: var(--font-medium);
     color: #b91c1c;
-    font-size: 0.85rem;
   }
 
   .skeleton-grid {

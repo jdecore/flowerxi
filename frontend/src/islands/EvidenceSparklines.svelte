@@ -149,15 +149,18 @@
 <style>
   .state {
     margin: 0;
-    font-size: 0.88rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
   }
 
   .state.muted {
     color: var(--text-secondary, #64748b);
+    font-family: var(--font-sans);
   }
 
   .state.error {
     color: #dc2626;
+    font-family: var(--font-sans);
   }
 
   .skeleton-grid {
@@ -191,18 +194,20 @@
     padding: 0.85rem;
   }
 
-  .empty-state p {
-    margin: 0;
-    color: var(--text-primary, #1f2937);
-    font-size: 0.9rem;
-  }
+   .empty-state p {
+     margin: 0;
+     color: var(--text-primary, #1f2937);
+     font-family: var(--font-sans);
+     font-size: var(--text-lg);
+   }
 
-  .empty-state small {
-    display: block;
-    margin-top: 0.35rem;
-    color: var(--text-secondary, #64748b);
-    font-size: 0.76rem;
-  }
+   .empty-state small {
+     display: block;
+     margin-top: 0.35rem;
+     color: var(--text-secondary, #64748b);
+     font-family: var(--font-sans);
+     font-size: var(--text-sm);
+   }
 
   .spark-grid {
     display: grid;
@@ -210,11 +215,12 @@
     gap: 1rem;
   }
 
-  .updated {
-    margin: 0.45rem 0 0;
-    color: var(--text-tertiary, #9ca3af);
-    font-size: 0.76rem;
-  }
+   .updated {
+     margin: 0.45rem 0 0;
+     color: var(--text-tertiary, #9ca3af);
+     font-family: var(--font-sans);
+     font-size: var(--text-sm);
+   }
 
   @media (max-width: 900px) {
     .skeleton-grid {

@@ -150,35 +150,181 @@
 </section>
 
 <style>
-  .comercial-section { padding: 0.5rem 0; }
-  .section-block { margin-bottom: 2rem; }
-  .section-block h2 { font-size: 1.1rem; color: var(--primary); margin: 0 0 0.75rem; }
-  .section-static { margin-bottom: 1rem; padding: 0.85rem; background: var(--bg-app); border-radius: 10px; border-left: 3px solid var(--primary); }
-  .section-static p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
-  .prices-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
-  .summary-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem; text-align: center; }
-  .summary-card .label { display: block; font-size: 0.75rem; color: var(--text-secondary); }
-  .summary-card .value { display: block; font-size: 1rem; font-weight: 600; color: var(--primary); margin-top: 0.25rem; }
-  .prices-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
-  .price-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 1rem; }
-  .price-header { font-weight: 600; color: var(--primary); }
-  .price-unit { font-size: 0.8rem; color: var(--text-secondary); }
-  .price-value { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin: 0.5rem 0; }
-  .price-value .currency { font-size: 0.9rem; font-weight: 400; }
-  .price-source { font-size: 0.75rem; color: var(--text-tertiary); }
-  .exports-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
-  .sum-card { background: linear-gradient(135deg, rgba(117,106,133,0.12), rgba(117,106,133,0.05)); border: 1px solid rgba(117,106,133,0.2); border-radius: 12px; padding: 1rem; text-align: center; }
-  .sum-card .l { display: block; font-size: 0.75rem; color: var(--text-secondary); }
-  .sum-card .v { display: block; font-size: 1.2rem; font-weight: 600; color: var(--primary); margin-top: 0.25rem; }
-  .exports-table { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
-  .table-h, .table-r { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr 1fr; gap: 0.5rem; padding: 0.6rem 1rem; }
-  .table-h { background: var(--bg-app); font-weight: 600; font-size: 0.75rem; color: var(--primary); }
-  .table-r { border-top: 1px solid var(--border-subtle); font-size: 0.8rem; }
-  .month { font-weight: 600; }
-  .dest { font-weight: 500; }
-  .loading, .empty, .error { color: var(--text-secondary); text-align: center; padding: 2rem; }
-  .error { color: #C75D5D; }
+  .comercial-section {
+    padding: 0.5rem 0;
+    font-family: var(--font-sans);
+  }
+  .section-block {
+    margin-bottom: 2rem;
+    font-family: var(--font-sans);
+  }
+  .section-block h2 {
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    color: var(--primary);
+    margin: 0 0 0.75rem;
+    font-family: var(--font-sans);
+  }
+  .section-static {
+    margin-bottom: 1rem;
+    padding: 0.85rem;
+    background: var(--bg-app);
+    border-radius: 10px;
+    border-left: 3px solid var(--primary);
+    font-family: var(--font-sans);
+  }
+  .section-static p {
+    margin: 0;
+    font-size: var(--text-base);
+    line-height: 1.5;
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+  }
+  .prices-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+    font-family: var(--font-sans);
+  }
+  .summary-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    font-family: var(--font-sans);
+  }
+  .summary-card .label {
+    display: block;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+  }
+  .summary-card .value {
+    display: block;
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 0.25rem;
+    font-family: var(--font-sans);
+  }
+  .prices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    font-family: var(--font-sans);
+  }
+  .price-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem;
+    font-family: var(--font-sans);
+  }
+  .price-header {
+    font-weight: 600;
+    color: var(--primary);
+    font-family: var(--font-sans);
+  }
+  .price-unit {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+  }
+  .price-value {
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0.5rem 0;
+    font-family: var(--font-sans);
+  }
+  .price-value .currency {
+    font-size: var(--text-base);
+    font-weight: 400;
+    font-family: var(--font-sans);
+  }
+  .price-source {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-family: var(--font-sans);
+  }
+  .exports-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+    font-family: var(--font-sans);
+  }
+  .sum-card {
+    background: linear-gradient(135deg, rgba(117,106,133,0.12), rgba(117,106,133,0.05));
+    border: 1px solid rgba(117,106,133,0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    font-family: var(--font-sans);
+  }
+  .sum-card .l {
+    display: block;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+  }
+  .sum-card .v {
+    display: block;
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 0.25rem;
+    font-family: var(--font-sans);
+  }
+  .exports-table {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+    font-family: var(--font-sans);
+  }
+  .table-h, .table-r {
+    display: grid;
+    grid-template-columns: 1.5fr 1.5fr 1fr 1fr;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    font-family: var(--font-sans);
+  }
+  .table-h {
+    background: var(--bg-app);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--primary);
+    font-family: var(--font-sans);
+  }
+  .table-r {
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--text-base);
+    font-family: var(--font-sans);
+  }
+  .month {
+    font-weight: 600;
+    font-family: var(--font-sans);
+  }
+  .dest {
+    font-weight: 500;
+    font-family: var(--font-sans);
+  }
+  .loading, .empty, .error {
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 2rem;
+    font-family: var(--font-sans);
+  }
+  .error {
+    color: #C75D5D;
+    font-family: var(--font-sans);
+  }
   @media (max-width: 768px) {
-    .prices-summary, .exports-summary { grid-template-columns: 1fr; }
+    .prices-summary, .exports-summary {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

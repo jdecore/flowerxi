@@ -8,6 +8,8 @@
   const CHAT_STORAGE_KEY = 'flowerxi_chat';
   const MAX_MESSAGES = 30;
   const CONTEXT_TTL_MS = 60_000;
+  const NO_DATA_ANSWER =
+    'No pude cargar datos operativos en este momento. Verifica conexión al backend e intenta nuevamente en 1-2 minutos.';
 
   let chatHistory = [];
   let userQuestion = '';
@@ -302,7 +304,11 @@
       if (humidTop) {
         return `Aún no tengo score operativo para ${region}. Referencia regional disponible: ${humidTop.name || humidTop.slug} (${humidTop.waterRisk} pts de encharcamiento).`;
       }
-      return fallbackContextAnswer(context);
+      const fallback = fallbackContextAnswer(context);
+      if (fallback === NO_DATA_ANSWER) {
+        return `Aún no tengo score para ${region}. Intenta de nuevo en unos minutos o consulta “¿qué hago hoy?” para una acción operativa.`;
+      }
+      return fallback;
     }
 
     const asksTodayAction =
@@ -348,7 +354,11 @@
     const action = context?.operativo?.action_today;
     const reason = context?.operativo?.reason;
     if ((score === null || score === undefined) && !hasUsefulText(action) && !hasUsefulText(reason)) {
-      return 'No tengo datos suficientes para responder.';
+      const latest = context?.latest;
+      if (latest) {
+        return `Aún no tengo score operativo. Último dato local: lluvia ${latest.precipitation_mm ?? 'N/A'} mm y temperatura ${latest.temp_mean_c ?? 'N/A'} °C.`;
+      }
+      return NO_DATA_ANSWER;
     }
     return `Estado actual: ${label || 'Sin datos'} (${score ?? '—'}). ${reason || ''} Acción sugerida: ${action || 'Sin datos'}`.trim();
   };
@@ -396,11 +406,6 @@
     isAnswering = true;
     try {
       const context = await loadBackendContext();
-      const q = normalizeText(question);
-      if (q.includes('hoy') && (q.includes('hago') || q.includes('hacer') || q.includes('debo'))) {
-        appendHistory(question, fallbackContextAnswer(context));
-        return;
-      }
       const quick = quickAnswer(question, context);
       if (quick) {
         appendHistory(question, quick);
@@ -447,6 +452,7 @@
 
   const openChat = async () => {
     chatOpen = true;
+    ensureModel();
     await Promise.resolve();
     if (inputRef?.focus) inputRef.focus();
     if (embedded && typeof document !== 'undefined') {
@@ -538,6 +544,149 @@
     flex-direction: column;
     min-height: 460px;
   }
+
+  .chat-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem;
+    border-bottom: 1px solid var(--border-subtle, #e2e8f0);
+  }
+
+  .chat-header h3 {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+  }
+
+  .chat-header p {
+    margin: 0.2rem 0 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--text-secondary, #64748b);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .clear-btn {
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    padding: 0.3rem 0.5rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    cursor: pointer;
+  }
+
+  .clear-btn:hover {
+    background: var(--bg-app, #f8fafc);
+    color: var(--text-primary, #1f2937);
+  }
+
+  .chat-history {
+    flex: 1;
+    overflow: auto;
+    padding: 0.75rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .message {
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    border-radius: 10px;
+    padding: 0.55rem;
+    background: var(--bg-app, #f8fafc);
+  }
+
+  .q,
+  .a {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.35;
+    color: var(--text-primary, #1f2937);
+  }
+
+  .a {
+    margin-top: 0.3rem;
+    color: var(--primary, #7b5ba6);
+  }
+
+  .time {
+    margin: 0.3rem 0 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary, #94a3b8);
+  }
+
+  .status {
+    margin: 0;
+    padding: 0.5rem 0.9rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    color: var(--text-secondary, #64748b);
+  }
+
+  .status.model-ok {
+    color: #166534;
+  }
+
+  .composer {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-top: 1px solid var(--border-subtle, #e2e8f0);
+  }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 56px;
+    max-height: 130px;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    background: var(--bg-app, #f8fafc);
+    color: var(--text-primary, #1f2937);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    padding: 0.5rem 0.65rem;
+    box-sizing: border-box;
+    outline: none;
+  }
+
+  textarea:focus {
+    border-color: var(--primary, #7b5ba6);
+  }
+
+  .composer button {
+    border: none;
+    border-radius: 10px;
+    background: var(--primary, #7b5ba6);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    font-weight: 600;
+    padding: 0.55rem 0.7rem;
+    cursor: pointer;
+  }
+
+  .composer button:hover:not(:disabled) {
+    background: var(--primary-hover, #6b4f92);
+  }
+
+  .composer button:disabled,
+  textarea:disabled {
+    opacity: 0.65;
+  }
+}
 
   .chat-header {
     display: flex;

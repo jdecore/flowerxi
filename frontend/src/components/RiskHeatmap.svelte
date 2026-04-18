@@ -279,15 +279,15 @@
 </article>
 
 <style>
-  .risk-heatmap {
-    background: var(--bg-surface, #fff);
-    border: 1px solid var(--border-subtle, #e2e8f0);
-    border-radius: 16px;
-    padding: 1.1rem;
-    display: grid;
-    gap: 0.95rem;
-    box-shadow: var(--shadow-sm, 0 1px 3px rgba(31, 41, 55, 0.06));
-  }
+   .risk-heatmap {
+     background: var(--bg-surface, #fff);
+     border: 1px solid var(--border-subtle, #e2e8f0);
+     border-radius: 16px;
+     padding: 1.25rem;
+     display: grid;
+     gap: 0.95rem;
+     box-shadow: var(--shadow-sm, 0 1px 3px rgba(31, 41, 55, 0.06));
+   }
 
   .head h3 {
     margin: 0;

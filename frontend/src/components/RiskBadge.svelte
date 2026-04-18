@@ -25,22 +25,27 @@
     border: 2px solid var(--badge-color);
     border-radius: 999px;
     font-weight: 600;
+    font-family: var(--font-sans);
   }
 
   .badge-icon {
-    font-size: 1.1rem;
+    font-size: var(--text-xl);
     line-height: 1;
+    font-family: var(--font-sans);
   }
 
   .badge-label {
     color: var(--badge-color);
     text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 0.08em;
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-wider);
+    font-family: var(--font-sans);
   }
 
   .badge-score {
     color: var(--badge-color);
-    font-size: 0.9rem;
+    font-size: var(--text-base);
+    font-weight: bold;
+    font-family: var(--font-sans);
   }
 </style>

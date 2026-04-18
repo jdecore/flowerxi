@@ -117,7 +117,14 @@
 <style>
   .station-line {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: var(--text-base);
     color: var(--text-secondary, #64748b);
+    font-family: var(--font-sans);
+  }
+
+  .error {
+    font-size: var(--text-base);
+    font-weight: 500;
+    font-family: var(--font-sans);
   }
 </style>

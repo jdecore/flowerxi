@@ -157,6 +157,7 @@
     box-shadow: 0 8px 24px var(--status-shadow);
     position: relative;
     overflow: hidden;
+    font-family: var(--font-sans);
   }
 
   .hero-header {
@@ -173,26 +174,29 @@
     border-radius: 999px;
     border: 1.5px solid var(--status-border);
     font-weight: 600;
+    font-family: var(--font-sans);
   }
 
   .status-icon {
-    font-size: 1.1rem;
+    font-size: var(--text-xl);
     line-height: 1;
+    font-family: var(--font-sans);
   }
 
   .status-label {
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    font-family: var(--font-sans);
   }
 
   .region-tag {
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    font-size: 0.85rem;
-    color: #64748b;
+    font-size: var(--text-sm);
     font-weight: 500;
+    font-family: var(--font-sans);
   }
 
   .region-tag svg {
@@ -209,11 +213,12 @@
 
   .risk-title {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--text-base);
     font-weight: 500;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+    font-family: var(--font-sans);
   }
 
   .risk-gauge {
@@ -238,24 +243,27 @@
   }
 
   .gauge-value {
-    font-size: 2.75rem;
+    font-size: var(--text-3xl);
     font-weight: 700;
     line-height: 1;
+    font-family: var(--font-sans);
   }
 
   .gauge-label {
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
     color: #64748b;
     margin-top: 0.25rem;
+    font-family: var(--font-sans);
   }
 
   .risk-reason {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: var(--text-lg);
     color: #334155;
     line-height: 1.4;
     max-width: 480px;
     font-weight: 500;
+    font-family: var(--font-sans);
   }
 
   .hero-meta {
@@ -271,7 +279,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
-    font-size: 0.8rem;
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
   }
 
   .meta-label {
@@ -279,11 +288,13 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 500;
+    font-family: var(--font-sans);
   }
 
   .meta-value {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--text-base);
+    font-family: var(--font-sans);
   }
 
   .hero-loading,
@@ -296,6 +307,7 @@
     padding: 3rem;
     color: #64748b;
     text-align: center;
+    font-family: var(--font-sans);
   }
 
   .spinner {
@@ -319,24 +331,25 @@
     border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
+    font-family: var(--font-sans);
   }
 
-  @media (max-width: 600px) {
-    .risk-hero {
-      padding: 1.25rem;
-    }
+   @media (max-width: 600px) {
+     .risk-hero {
+       padding: 1.25rem;
+     }
 
-    .risk-gauge {
-      width: 120px;
-      height: 120px;
-    }
+     .risk-gauge {
+       width: 120px;
+       height: 120px;
+     }
 
-    .gauge-value {
-      font-size: 2.25rem;
-    }
+     .gauge-value {
+       font-size: var(--text-3xl);
+     }
 
-    .risk-reason {
-      font-size: 0.95rem;
-    }
-  }
+     .risk-reason {
+       font-size: var(--text-lg);
+     }
+   }
 </style>

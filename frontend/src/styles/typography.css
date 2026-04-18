@@ -1,0 +1,73 @@
+/* flowerxi — Design Tokens: Tipografía unificada */
+
+:root {
+  /* Familias */
+  --font-sans: 'Sora', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Tamaños base (en rem, base 16px = 1rem) */
+  --text-xs: 0.7rem;      /* 11.2px — metadata muy pequeña (timestamps, footnotes) */
+  --text-sm: 0.75rem;     /* 12px   — labels, kickers, small caps */
+  --text-base: 0.875rem;  /* 14px   — cuerpo normal de lectura */
+  --text-lg: 0.95rem;     /* 15.2px — texto destacado body */
+  --text-xl: 1.1rem;      /* 17.6px — títulos de card/sección (h3-equivalent) */
+  --text-2xl: 1.25rem;    /* 20px   — subtítulos principales (h2-equivalent) */
+  --text-3xl: 1.5rem;     /* 24px   — títulos hero/grande (h1-equivalent) */
+  --text-4xl: 1.65rem;    /* 26.4px — valores numéricos principales (scores) */
+  
+  /* Pesos */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  
+  /* Alturas de línea (line-height unitless) */
+  --leading-none: 1;
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+  
+  /* Tracking (letter-spacing) */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.05em;
+  --tracking-wider: 0.08em;
+  
+  /* Colores de texto */
+  --color-primary: var(--text-primary, #1f2937);
+  --color-secondary: var(--text-secondary, #64748b);
+  --color-tertiary: var(--text-tertiary, #94a3b8);
+}
+
+/* Aplicación global de familia */
+body, input, textarea, button, select {
+  font-family: var(--font-sans);
+}
+
+/* Clases utilitarias tipográficas */
+.font-xs      { font-size: var(--text-xs); }
+.font-sm      { font-size: var(--text-sm); }
+.font-base    { font-size: var(--text-base); }
+.font-lg      { font-size: var(--text-lg); }
+.font-xl      { font-size: var(--text-xl); }
+.font-2xl     { font-size: var(--text-2xl); }
+.font-3xl     { font-size: var(--text-3xl); }
+.font-4xl     { font-size: var(--text-4xl); }
+
+.font-normal  { font-weight: var(--font-normal); }
+.font-medium  { font-weight: var(--font-medium); }
+.font-semibold{ font-weight: var(--font-semibold); }
+.font-bold    { font-weight: var(--font-bold); }
+
+.leading-none { line-height: var(--leading-none); }
+.leading-tight{ line-height: var(--leading-tight); }
+.leading-snug { line-height: var(--leading-snug); }
+.leading-normal{ line-height: var(--leading-normal); }
+.leading-relaxed{ line-height: var(--leading-relaxed); }
+
+.tracking-tight { letter-spacing: var(--tracking-tight); }
+.tracking-normal{ letter-spacing: var(--tracking-normal); }
+.tracking-wide  { letter-spacing: var(--tracking-wide); }
+.tracking-wider { letter-spacing: var(--tracking-wider); }
+
+.uppercase { text-transform: uppercase; }

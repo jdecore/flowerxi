@@ -80,35 +80,42 @@
     border-radius: 18px;
     padding: 1.2rem;
     color: #f7f4ff;
+    font-family: var(--font-sans);
   }
   .kicker {
     margin: 0;
+    font-size: var(--text-xs);
     text-transform: uppercase;
-    font-size: 0.74rem;
     letter-spacing: 0.07em;
     color: #bda6dc;
+    font-family: var(--font-sans);
   }
   h2 {
     margin: 0.35rem 0 0;
-    font-size: 1.5rem;
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    font-family: var(--font-sans);
   }
   .copy {
     margin: 0.55rem 0 0;
     line-height: 1.45;
     color: #efe7ff;
+    font-family: var(--font-sans);
   }
   .badges {
     margin-top: 0.75rem;
     display: flex;
     flex-wrap: wrap;
     gap: 0.45rem;
+    font-family: var(--font-sans);
   }
   .badges span {
     background: rgba(189, 166, 220, 0.2);
     color: #d8c7ef;
     border-radius: 999px;
     padding: 0.2rem 0.65rem;
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
+    font-family: var(--font-sans);
   }
   .estado-card.rutina { border-color: rgba(122, 139, 111, 0.55); }
   .estado-card.vigilancia { border-color: rgba(245, 158, 11, 0.65); }
@@ -117,6 +124,7 @@
   .loading, .error {
     margin: 0.55rem 0 0;
     color: #d9c9f1;
+    font-family: var(--font-sans);
   }
   .error { color: #fecaca; }
 </style>
