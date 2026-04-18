@@ -48,19 +48,20 @@ const formatHour = (isoDate) =>
     <title>flowerxi | Precios de mercado</title>
     <style>
       :root {
-        --bg: #160a2f;
-        --bg-soft: #241046;
-        --card: #2e1460;
-        --text: #f5efff;
-        --muted: #cdb8f5;
-        --accent: #b16cff;
+        --primary: #756A85;
+        --primary-hover: #5F546E;
+        --bg-app: #F6F4F8;
+        --bg-surface: #FFFFFF;
+        --text: #2B2730;
+        --text-muted: #6B6573;
+        --accent: #8B7AA3;
       }
 
       body {
         margin: 0;
-        font-family: Inter, system-ui, Arial, sans-serif;
+        font-family: 'Inter', system-ui, Arial, sans-serif;
         color: var(--text);
-        background: radial-gradient(circle at 15% 20%, #2d1264 0%, var(--bg) 45%, #0c0620 100%);
+        background: var(--bg-app);
       }
 
       .wrapper {
@@ -101,8 +102,8 @@ const formatHour = (isoDate) =>
       }
 
       .card {
-        background: linear-gradient(180deg, rgba(46, 20, 96, 0.95), rgba(35, 14, 72, 0.95));
-        border: 1px solid rgba(177, 108, 255, 0.35);
+        background: var(--bg-surface);
+        border: 1px solid #E5E0EB;
         border-radius: 16px;
         padding: 1rem;
       }

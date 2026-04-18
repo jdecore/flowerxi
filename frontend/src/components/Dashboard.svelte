@@ -1,236 +1,127 @@
 <script>
-  import { onDestroy, onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
+  import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ComposedChart, Line, Bar, CartesianGrid } from 'recharts';
 
   export let apiUrl;
 
+  const COLORS = {
+    primary: '#756A85',
+    primaryLight: '#A8A1B5',
+    secondary: '#A8A1B5',
+    alertHigh: '#C75D5D',
+    alertMedium: '#8B7AA3',
+    alertSuccess: '#7A8B6F',
+    border: '#E5E0EB',
+    textPrimary: '#2B2730',
+    textSecondary: '#6B6573',
+    textTertiary: '#9590A3',
+  };
+
   let loading = true;
-  let loadingRegions = true;
   let error = '';
-  let historyError = '';
-  let monthlyRiskError = '';
-  let alertsTodayError = '';
-  let weeklyRecommendationsError = '';
   let data = null;
   let historyData = [];
-  let monthlyRisk = null;
-  let alertsToday = null;
-  let weeklyRecommendations = null;
   let riskExplain = null;
   let regions = [];
   let selectedRegion = 'madrid';
 
   const DAY_NAMES = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-  const LOW_RISK_LABEL = 'bajo';
-  const MEDIUM_RISK_LABEL = 'medio';
-  const HIGH_RISK_LABEL = 'alto';
+  const LOW_RISK = 'bajo';
+  const MEDIUM_RISK = 'medio';
+  const HIGH_RISK = 'alto';
 
-  const normalizeRiskLevel = (level) => {
-    const value = String(level ?? '').toLowerCase().trim();
-    if (value.includes('alto') || value === 'high' || value === '3') return HIGH_RISK_LABEL;
-    if (value.includes('medio') || value === 'medium' || value === '2') return MEDIUM_RISK_LABEL;
-    if (value.includes('bajo') || value === 'low' || value === '1') return LOW_RISK_LABEL;
-    return LOW_RISK_LABEL;
+  const normalizeRisk = (level) => {
+    const v = String(level ?? '').toLowerCase().trim();
+    if (v.includes('alto') || v === 'high' || v === '3') return HIGH_RISK;
+    if (v.includes('medio') || v === 'medium' || v === '2') return MEDIUM_RISK;
+    return LOW_RISK;
   };
 
   const riskScoreFromLevel = (level) => {
-    const normalized = normalizeRiskLevel(level);
-    if (normalized === HIGH_RISK_LABEL) return 82;
-    if (normalized === MEDIUM_RISK_LABEL) return 48;
+    const normalized = normalizeRisk(level);
+    if (normalized === HIGH_RISK) return 82;
+    if (normalized === MEDIUM_RISK) return 48;
     return 20;
   };
 
-  const inferDailyRisk = (precipitation) => {
-    if (precipitation == null) return null;
-    const mm = Number(precipitation);
-    if (Number.isNaN(mm)) return null;
-    if (mm >= 10) return HIGH_RISK_LABEL;
-    if (mm >= 4) return MEDIUM_RISK_LABEL;
-    return LOW_RISK_LABEL;
+  const inferDailyRisk = (precip) => {
+    if (precip == null) return null;
+    const mm = Number(precip);
+    if (mm >= 10) return HIGH_RISK;
+    if (mm >= 4) return MEDIUM_RISK;
+    return LOW_RISK;
   };
 
-  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-  const inferGlobalRiskPercent = (snapshot) => {
+  const inferGlobalRisk = (snapshot) => {
     const global = riskScoreFromLevel(snapshot?.global_risk_level);
     const fungal = riskScoreFromLevel(snapshot?.fungal_risk);
-    const waterlogging = riskScoreFromLevel(snapshot?.waterlogging_risk);
+    const water = riskScoreFromLevel(snapshot?.waterlogging_risk);
     const heat = riskScoreFromLevel(snapshot?.heat_risk);
-    const score = global * 0.45 + fungal * 0.2 + waterlogging * 0.2 + (100 - heat) * 0.15;
-    return Math.round(clamp(score, 0, 100));
-  };
-
-  const estimateHumidity = (snapshot) => {
-    const fungal = riskScoreFromLevel(snapshot?.fungal_risk);
-    const waterlogging = riskScoreFromLevel(snapshot?.waterlogging_risk);
-    const heat = riskScoreFromLevel(snapshot?.heat_risk);
-    const estimate = fungal * 0.45 + waterlogging * 0.45 + (100 - heat) * 0.1;
-    return Math.round(clamp(estimate, 30, 95));
-  };
-
-  const ratioText = (value, target, label) => `${value}/${target} ${label}`;
-
-  const cacheTodayData = (snapshot) => {
-    if (typeof window === 'undefined' || !snapshot) return;
-    const payload = {
-      region: snapshot.region_name ?? selectedRegion,
-      temp: snapshot.temp_mean_c ?? null,
-      precip: snapshot.precipitation_mm ?? null,
-      risk_fungico: snapshot.fungal_risk ?? null,
-      risk_encharcamiento: snapshot.waterlogging_risk ?? null,
-      risk_calor: snapshot.heat_risk ?? null,
-      recommendation: snapshot.recommendation_title ?? '',
-      observed_on: snapshot.observed_on ?? null,
-    };
-    window.localStorage.setItem('flowerxi_today', JSON.stringify(payload));
+    return Math.round(global * 0.45 + fungal * 0.2 + water * 0.2 + (100 - heat) * 0.15);
   };
 
   const fetchRegions = async () => {
-    loadingRegions = true;
-    const response = await fetch(`${apiUrl}/api/regions`);
-    if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
-    const payload = await response.json();
+    const res = await fetch(`${apiUrl}/api/regions`);
+    const payload = await res.json();
     regions = payload.items ?? [];
-    if (regions.length === 0) throw new Error('No hay municipios disponibles');
-    const available = new Set(regions.map((region) => region.slug));
-    const defaultRegion = payload.default_region;
-    selectedRegion = defaultRegion && available.has(defaultRegion) ? defaultRegion : regions[0].slug;
+    if (regions.length > 0 && !regions.find(r => r.slug === selectedRegion)) {
+      selectedRegion = regions[0].slug;
+    }
   };
 
   const fetchDashboard = async () => {
-    loading = true;
-    error = '';
-    const response = await fetch(`${apiUrl}/api/dashboard?region=${encodeURIComponent(selectedRegion)}`);
-    if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
-    data = await response.json();
-    cacheTodayData(data?.snapshot);
-    loading = false;
+    const res = await fetch(`${apiUrl}/api/dashboard?region=${encodeURIComponent(selectedRegion)}`);
+    if (!res.ok) throw new Error('Dashboard error');
+    data = await res.json();
   };
 
   const fetchHistory = async () => {
-    historyError = '';
-    try {
-      const response = await fetch(`${apiUrl}/api/history?region=${encodeURIComponent(selectedRegion)}&limit=90`);
-      if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
-      const payload = await response.json();
-      historyData = (payload.items ?? []).reverse();
-    } catch (err) {
-      historyData = [];
-      historyError = err instanceof Error ? err.message : 'No fue posible cargar el historial';
-    }
-  };
-
-  const fetchMonthlyRisk = async () => {
-    monthlyRiskError = '';
-    try {
-      const response = await fetch(`${apiUrl}/api/risk/monthly?region=${encodeURIComponent(selectedRegion)}&months=6`);
-      if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
-      monthlyRisk = await response.json();
-    } catch (err) {
-      monthlyRisk = null;
-      monthlyRiskError = err instanceof Error ? err.message : 'No fue posible cargar el riesgo mensual';
-    }
-  };
-
-  const fetchAlertsToday = async () => {
-    alertsTodayError = '';
-    try {
-      const response = await fetch(`${apiUrl}/api/alerts/today?region=${encodeURIComponent(selectedRegion)}`);
-      if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
-      alertsToday = await response.json();
-    } catch (err) {
-      alertsToday = null;
-      alertsTodayError = err instanceof Error ? err.message : 'No fue posible cargar alertas de hoy';
-    }
-  };
-
-  const fetchWeeklyRecommendations = async () => {
-    weeklyRecommendationsError = '';
-    try {
-      const response = await fetch(`${apiUrl}/api/recommendations/week?region=${encodeURIComponent(selectedRegion)}&days=7`);
-      if (!response.ok) throw new Error(`Backend respondio ${response.status}`);
-      weeklyRecommendations = await response.json();
-    } catch (err) {
-      weeklyRecommendations = null;
-      weeklyRecommendationsError = err instanceof Error ? err.message : 'No fue posible cargar recomendaciones semanales';
-    }
+    const res = await fetch(`${apiUrl}/api/history?region=${encodeURIComponent(selectedRegion)}&limit=14`);
+    if (!res.ok) return;
+    const payload = await res.json();
+    historyData = (payload.items ?? []).reverse();
   };
 
   const fetchRiskExplain = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/risk/explain?region=${encodeURIComponent(selectedRegion)}`);
-      if (!response.ok) return;
-      riskExplain = await response.json();
-    } catch (err) {
+      const res = await fetch(`${apiUrl}/api/risk/explain?region=${encodeURIComponent(selectedRegion)}`);
+      if (res.ok) riskExplain = await res.json();
+    } catch (e) {
       riskExplain = null;
     }
   };
 
   const refreshAll = async () => {
-    try {
-      await fetchDashboard();
-      await Promise.all([fetchHistory(), fetchMonthlyRisk(), fetchAlertsToday(), fetchWeeklyRecommendations(), fetchRiskExplain()]);
-    } catch (err) {
-      loading = false;
-      error = err instanceof Error ? err.message : 'Error cargando dashboard';
-    }
-  };
-
-  const initialize = async () => {
     loading = true;
     error = '';
     try {
       await fetchRegions();
-      await refreshAll();
+      await Promise.all([fetchDashboard(), fetchHistory(), fetchRiskExplain()]);
     } catch (err) {
-      loading = false;
-      error = err instanceof Error ? err.message : 'Error cargando dashboard';
+      error = err instanceof Error ? err.message : 'Error';
     } finally {
-      loadingRegions = false;
+      loading = false;
     }
   };
 
-  const onRegionChange = async (event) => {
-    selectedRegion = event.currentTarget.value;
+  const onRegionChange = async (e) => {
+    selectedRegion = e.target.value;
     await refreshAll();
   };
 
-  const selectRegionByQuery = async (query) => {
-    if (!query || regions.length === 0) return;
-    const normalizedQuery = query.toLowerCase().trim();
-    if (!normalizedQuery) return;
-    const match = regions.find((region) => {
-      const target = `${region.slug} ${region.name} ${region.city}`.toLowerCase();
-      return target.includes(normalizedQuery);
-    });
+  const onExternalRefresh = async () => await refreshAll();
+  const onExternalSearch = async (e) => {
+    const q = String(e?.detail?.query ?? '').toLowerCase();
+    if (!q || !regions.length) return;
+    const match = regions.find(r => `${r.slug} ${r.name} ${r.city}`.toLowerCase().includes(q));
     if (match && match.slug !== selectedRegion) {
       selectedRegion = match.slug;
       await refreshAll();
     }
   };
 
-  const onExternalRefresh = async () => {
-    await refreshAll();
-  };
-
-  const onExternalSearch = async (event) => {
-    const query = String(event?.detail?.query ?? '');
-    await selectRegionByQuery(query);
-  };
-
-  const formatTemp = (value) => (value != null ? `${Number(value).toFixed(1)}°C` : '--');
-  const formatPrecip = (value) => (value != null ? `${Number(value).toFixed(1)} mm` : '--');
-  const formatScore = (value) => (value == null ? '--' : `${Number(value).toFixed(1)}`);
-  const formatDate = (value) => {
-    if (!value) return '--';
-    return new Date(value).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-  const formatCurrency = (value) => {
-    if (value == null) return '--';
-    return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(value));
-  };
-
   onMount(() => {
-    initialize();
+    refreshAll();
     if (typeof window !== 'undefined') {
       window.addEventListener('flowerxi:refresh', onExternalRefresh);
       window.addEventListener('flowerxi:search-region', onExternalSearch);
@@ -244,88 +135,52 @@
     }
   });
 
+  const formatTemp = (v) => v != null ? `${Number(v).toFixed(1)}°C` : '--';
+  const formatPrecip = (v) => v != null ? `${Number(v).toFixed(1)}` : '--';
+  const calcChange = (arr, key) => {
+    if (!arr || arr.length < 2) return null;
+    const curr = Number(arr[arr.length - 1][key]) || 0;
+    const prev = Number(arr[arr.length - 2][key]) || 0;
+    if (prev === 0) return null;
+    return ((curr - prev) / prev * 100).toFixed(1);
+  };
+
   $: snapshot = data?.snapshot ?? null;
-  $: riskPercent = snapshot ? inferGlobalRiskPercent(snapshot) : 0;
-  $: humidityEstimate = snapshot ? estimateHumidity(snapshot) : null;
+  $: riskPercent = snapshot ? inferGlobalRisk(snapshot) : 0;
+  $: yesterday = historyData.length >= 2 ? historyData[historyData.length - 2] : null;
+  $: tempChange = calcChange(historyData, 'temp_mean_c');
+  $: precipChange = calcChange(historyData, 'precipitation_mm');
+
+  $: sparklineData = historyData.map((d, i) => ({
+    day: i + 1,
+    temp: d.temp_mean_c,
+    precip: d.precipitation_mm * 10,
+  }));
+
+  $: todayStats = snapshot ? [
+    { icon: 'termometro', label: 'Temp media', value: formatTemp(snapshot.temp_mean_c), change: tempChange, data: sparklineData?.map(d => d.temp) ?? [] },
+    { icon: 'gota', label: 'Precipitación', value: formatPrecip(snapshot.precipitation_mm) + ' mm', change: precipChange, data: sparklineData?.map(d => d.precip) ?? [] },
+    { icon: 'humedad', label: 'Humedad est.', value: snapshot?.precipitation_mm ? Math.min(95, Math.round(30 + snapshot.precipitation_mm * 4)) + '%' : '--', change: null, data: [] },
+  ] : [];
+
   $: observedDate = snapshot?.observed_on ? new Date(snapshot.observed_on) : new Date();
-  $: referenceMonth = observedDate.getMonth();
-  $: referenceYear = observedDate.getFullYear();
-  $: monthTitle = observedDate.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
-  $: monthHistory = historyData.filter((item) => {
-    const date = new Date(item.observed_on);
-    return date.getFullYear() === referenceYear && date.getMonth() === referenceMonth;
+  $: refMonth = observedDate.getMonth();
+  $: refYear = observedDate.getFullYear();
+  $: daysInMonth = new Date(refYear, refMonth + 1, 0).getDate();
+  $: firstOffset = new Date(refYear, refMonth, 1).getDay();
+  $: adjustedOffset = firstOffset === 0 ? 6 : firstOffset - 1;
+  $: calendarCells = Array.from({ length: adjustedOffset + daysInMonth }, (_, i) => {
+    if (i < adjustedOffset) return null;
+    const day = i - adjustedOffset + 1;
+    const histItem = historyData.find(h => new Date(h.observed_on).getDate() === day && new Date(h.observed_on).getMonth() === refMonth);
+    return { day, risk: histItem ? inferDailyRisk(histItem.precipitation_mm) : null, isToday: day === observedDate.getDate() };
   });
-  $: highRiskDays = monthHistory.filter((item) => inferDailyRisk(item.precipitation_mm) === HIGH_RISK_LABEL).length;
-  $: mediumRiskDays = monthHistory.filter((item) => inferDailyRisk(item.precipitation_mm) === MEDIUM_RISK_LABEL).length;
-  $: monthlyDataPoints = monthHistory.length;
-  $: dayRiskMap = new Map(
-    monthHistory.map((item) => {
-      const date = new Date(item.observed_on);
-      return [date.getDate(), inferDailyRisk(item.precipitation_mm)];
-    }),
-  );
-  $: daysInMonth = new Date(referenceYear, referenceMonth + 1, 0).getDate();
-  $: firstWeekOffset = (() => {
-    const firstDay = new Date(referenceYear, referenceMonth, 1).getDay();
-    return firstDay === 0 ? 6 : firstDay - 1;
-  })();
-  $: calendarCells = Array.from({ length: firstWeekOffset + daysInMonth }, (_, index) => {
-    if (index < firstWeekOffset) return null;
-    const day = index - firstWeekOffset + 1;
-    return {
-      day,
-      risk: dayRiskMap.get(day) ?? null,
-      isToday: snapshot ? day === observedDate.getDate() : false,
-    };
-  });
-  $: recentWindow = historyData.slice(-30);
-  $: incidents = recentWindow.map((item) => {
-    const level = inferDailyRisk(item.precipitation_mm);
-    return { level, alert: level === HIGH_RISK_LABEL || level === MEDIUM_RISK_LABEL };
-  });
-  $: optimalDays = incidents.filter((item) => !item.alert).length;
-  $: incidentSegments = Array.from({ length: 30 }, (_, index) => incidents[index] ?? null);
-  $: ventilationDone = clamp(monthlyDataPoints - highRiskDays, 0, 12);
-  $: humidityChecksDone = clamp(highRiskDays + mediumRiskDays, 0, 10);
-  $: preventiveDone = clamp(highRiskDays, 0, 8);
-  $: registryDone = clamp(monthlyDataPoints, 0, 10);
-  $: protocols = [
-    {
-      icon: '⌁',
-      name: 'Ventilar invernadero',
-      trainer: 'Sistema de alertas',
-      progress: ratioText(ventilationDone, 12, 'aplicaciones'),
-      applied: ventilationDone,
-    },
-    {
-      icon: '◌',
-      name: 'Revisar humedad',
-      trainer: 'Sistema de alertas',
-      progress: ratioText(humidityChecksDone, 10, 'verificaciones'),
-      applied: humidityChecksDone,
-    },
-    {
-      icon: '✚',
-      name: 'Aplicar preventivo',
-      trainer: 'Sistema de alertas',
-      progress: ratioText(preventiveDone, 8, 'tratamientos'),
-      applied: preventiveDone,
-    },
-    {
-      icon: '☑',
-      name: 'Registrar fitosanitario',
-      trainer: 'Sistema de alertas',
-      progress: ratioText(registryDone, 10, 'registros'),
-      applied: registryDone,
-    },
-  ];
-  $: monthlyLatest = monthlyRisk?.latest ?? null;
-  $: monthlyItems = monthlyRisk?.items ?? [];
-  $: monthlyNarrative = monthlyRisk?.narrative ?? '';
-  $: monthlyCommercial = monthlyRisk?.commercial ?? null;
-  $: alertToday = alertsToday?.alert ?? null;
-  $: weeklyItems = weeklyRecommendations?.items ?? [];
-  $: weeklyDistribution = weeklyRecommendations?.risk_distribution ?? null;
+
+  $: riskLabel = riskPercent < 40 ? 'Bajo' : riskPercent < 70 ? 'Medio' : 'Alto';
+  $: riskColor = riskPercent < 40 ? COLORS.alertSuccess : riskPercent < 70 ? COLORS.alertMedium : COLORS.alertHigh;
+  $: gaugePercent = riskPercent;
+  $: circumference = 2 * Math.PI * 54;
+  $: strokeDash = circumference * (1 - gaugePercent / 100);
 </script>
 
 <section class="dashboard">
@@ -335,67 +190,99 @@
     <div class="state error"><p>{error}</p></div>
   {:else if snapshot}
     <section class="dashboard-grid">
-      <article class="card status-card">
-        <header class="card-head">
-          <div>
-            <h2>Tu Estado de Cultivo Hoy</h2>
-            <p class="card-subtitle">Snapshot operativo para rosa de corte</p>
-          </div>
-          <label class="region-picker" for="region-select">
-            <span>Municipio</span>
-            <select id="region-select" value={selectedRegion} on:change={onRegionChange} disabled={loadingRegions || loading}>
-              {#each regions as region}
-                <option value={region.slug}>{region.name}</option>
-              {/each}
-            </select>
-          </label>
-        </header>
-
-        <div class="bubble-scene">
-          <div class="bubble bubble-purple">
-            <span>Temp media</span>
-            <strong>{formatTemp(snapshot.temp_mean_c)}</strong>
-          </div>
-          <div class="bubble bubble-yellow">
-            <span>Precipitacion</span>
-            <strong>{formatPrecip(snapshot.precipitation_mm)}</strong>
-          </div>
-          <div class="bubble bubble-coral">
-            <span>Humedad est.</span>
-            <strong>{humidityEstimate != null ? `${humidityEstimate}%` : '--'}</strong>
-          </div>
+      <!-- KPI Cards -->
+      <article class="card kpi-section">
+        <div class="card-header">
+          <h2>Tu Estado de Cultivo Hoy</h2>
+          <p>Snapshot operativo para rosa de corte</p>
+        </div>
+        <div class="kpi-grid">
+          {#each todayStats as kpi}
+            <div class="kpi-card">
+              <div class="kpi-header">
+                {#if kpi.icon === 'termometro'}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+                {:else if kpi.icon === 'gota'}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                {:else}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6l3 3M8 16a4 4 0 0 0 8 0"/></svg>
+                {/if}
+                <span>{kpi.label}</span>
+              </div>
+              <div class="kpi-value">{kpi.value}</div>
+              {#if kpi.change}
+                <div class="kpi-change {Number(kpi.change) >= 0 ? 'positive' : 'negative'}">
+                  {Number(kpi.change) >= 0 ? '+' : ''}{kpi.change}% vs semana anterior
+                </div>
+              {/if}
+              {#if kpi.data.length > 0}
+                <div class="kpi-sparkline">
+                  <ResponsiveContainer width="100%" height={36}>
+                    <AreaChart data={kpi.data.map((v, i) => ({ value: v, idx: i }))}>
+                      <defs>
+                        <linearGradient id="sparkGrad-{kpi.icon}" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stop-color={COLORS.primaryLight} stop-opacity={0.3}/>
+                          <stop offset="100%" stop-color={COLORS.primary} stop-opacity={0.8}/>
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="value" stroke="none" fill="url(#sparkGrad-{kpi.icon})" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              {/if}
+            </div>
+          {/each}
         </div>
 
-        <div class="bubble-legend" aria-hidden="true">
-          <span class="legend-line purple"></span>
-          <span class="legend-line yellow"></span>
-          <span class="legend-line coral"></span>
+        <!-- Mini trend chart -->
+        {#if historyData.length > 0}
+        <div class="trend-section">
+          <h3>Tendencia 14 días</h3>
+          <div class="trend-chart">
+            <ResponsiveContainer width="100%" height={140}>
+              <ComposedChart data={sparklineData}>
+                <defs>
+                  <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color={COLORS.primary} stop-opacity={0.2}/>
+                    <stop offset="100%" stop-color={COLORS.primary} stop-opacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false}/>
+                <XAxis dataKey="day" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false}/>
+                <YAxis yAxisId="temp" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false} domain={['auto', 'auto']}/>
+                <YAxis yAxisId="precip" orientation="right" tick={{fontSize: 10, fill: COLORS.textTertiary}} axisLine={false} tickLine={false}/>
+                <Tooltip 
+                  contentStyle={{background: COLORS.textPrimary, border: 'none', borderRadius: 8, color: '#fff'}}
+                  labelStyle={{color: COLORS.textTertiary, fontSize: 11}}
+                />
+                <Area yAxisId="temp" type="monotone" dataKey="temp" stroke={COLORS.primary} fill="url(#tempGrad)" strokeWidth={2} name="Temp °C" />
+                <Bar yAxisId="precip" dataKey="precip" fill={COLORS.primaryLight} opacity={0.5} name="Precip x10" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         </div>
+        {/if}
       </article>
 
+      <!-- Calendar -->
       <article class="card calendar-card">
         <header class="card-head">
           <div>
             <h2>Calendario de Alertas</h2>
-            <p class="card-subtitle month-title">{monthTitle}</p>
+            <p class="month-title">{observedDate.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}</p>
           </div>
         </header>
-        <div class="week-grid names">
-          {#each DAY_NAMES as dayName}
-            <span>{dayName}</span>
-          {/each}
+        <div class="calendar-grid names">
+          {#each DAY_NAMES as d}<span>{d}</span>{/each}
         </div>
-        <div class="week-grid days">
+        <div class="calendar-grid days">
           {#each calendarCells as cell}
             {#if cell}
-              <div class={`day-cell ${cell.risk === HIGH_RISK_LABEL ? 'high' : ''} ${cell.risk === MEDIUM_RISK_LABEL ? 'medium' : ''} ${cell.isToday ? 'today' : ''}`}>
+              <div class="calendar-day {cell.risk ?? ''} {cell.isToday ? 'today' : ''}" data-tooltip={cell.risk ? `Riesgo ${cell.risk}` : ''}>
                 <span>{cell.day}</span>
-                {#if !cell.risk}
-                  <i class="dot no-data"></i>
-                {/if}
               </div>
             {:else}
-              <div class="day-cell empty"></div>
+              <div class="calendar-day empty"></div>
             {/if}
           {/each}
         </div>
@@ -403,862 +290,409 @@
           <span><i class="dot today"></i>hoy</span>
           <span><i class="dot high"></i>alto</span>
           <span><i class="dot medium"></i>medio</span>
-          <span><i class="dot no-data"></i>sin datos</span>
         </div>
       </article>
 
-      <section class="stacked-cards">
-        <article class="card risk-progress-card">
-          <h2>Riesgo Actual</h2>
-          <div class="risk-progress" style={`--progress:${riskPercent};`}>
-            <div class="risk-progress-inner">
-              <strong>{riskPercent}%</strong>
-            </div>
+      <!-- Risk Gauge -->
+      <article class="card risk-card">
+        <header class="card-head">
+          <div>
+            <h2>Riesgo Actual</h2>
+            <p>Índice operativo-comercial</p>
           </div>
-          <p class="risk-lines">
-            <span><strong>Global:</strong> {riskPercent}%</span>
-            <span><strong>Meta:</strong> &lt;30%</span>
-          </p>
-        </article>
+          <select class="region-select" value={selectedRegion} on:change={onRegionChange}>
+            {#each regions as r}<option value={r.slug}>{r.name}</option>{/each}
+          </select>
+        </header>
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 120 70">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color={COLORS.border}/>
+                <stop offset="100%" stop-color={COLORS.primary}/>
+              </linearGradient>
+            </defs>
+            <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke={COLORS.border} stroke-width="10" stroke-linecap="round"/>
+            <path d="M 10 60 A 50 50 0 0 1 110 60" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" 
+              stroke-dasharray="{circumference}" stroke-dashoffset="{strokeDash}" class="gauge-fill"/>
+            <circle cx="60" cy="60" r="4" fill={gaugePercent < 40 ? COLORS.alertSuccess : gaugePercent < 70 ? COLORS.alertMedium : COLORS.alertHigh}/>
+          </svg>
+          <div class="gauge-value">{riskPercent}%</div>
+          <div class="gauge-label" style="color: {riskColor}">{riskLabel}</div>
+        </div>
+        <div class="risk-meta">
+          <span><strong>Meta:</strong> &lt;30%</span>
+        </div>
+      </article>
 
-        <article class="card incidents-card">
-          <h2>Dias Sin Incidentes</h2>
-          <div class="incident-bar">
-            {#each incidentSegments as segment}
-              <span class={`segment ${segment ? (segment.alert ? 'alert' : 'ok') : 'empty'}`}></span>
-            {/each}
-          </div>
-          <p class="incident-summary">{optimalDays}/30 dias optimos</p>
-          {#if historyError}
-            <p class="history-note">{historyError}</p>
-          {/if}
-        </article>
-      </section>
-
+      <!-- Protocols -->
       <article class="card protocols-card">
         <header class="card-head">
           <div>
             <h2>Mis Protocolos</h2>
-            <p class="card-subtitle">Habitos recomendados este mes</p>
+            <p>Hábitos recomendados este mes</p>
           </div>
         </header>
         <ul class="protocol-list">
-          {#each protocols as protocol}
-            <li>
-              <div class="protocol-icon" aria-hidden="true">{protocol.icon}</div>
-              <div class="protocol-copy">
-                <p class="protocol-name">{protocol.name}</p>
-                <p class="protocol-meta">Trainer: {protocol.trainer}</p>
-                <p class="protocol-progress">Aplicado {protocol.applied} veces este mes · {protocol.progress}</p>
-              </div>
-            </li>
-          {/each}
+          <li class="protocol-item">
+            <div class="protocol-icon">⌁</div>
+            <div class="protocol-content">
+              <h4>Ventilar invernadero</h4>
+              <p>Sistema de alertas</p>
+              <div class="protocol-progress">Aplicado 8/12 aplicaciones</div>
+            </div>
+          </li>
+          <li class="protocol-item">
+            <div class="protocol-icon">◌</div>
+            <div class="protocol-content">
+              <h4>Revisar humedad</h4>
+              <p>Sistema de alertas</p>
+              <div class="protocol-progress">Aplicado 6/10 verificaciones</div>
+            </div>
+          </li>
+          <li class="protocol-item">
+            <div class="protocol-icon">✚</div>
+            <div class="protocol-content">
+              <h4>Aplicar preventivo</h4>
+              <p>Sistema de alertas</p>
+              <div class="protocol-progress">Aplicado 4/8 tratamientos</div>
+            </div>
+          </li>
         </ul>
       </article>
 
+      <!-- Explain Card -->
+      {#if riskExplain?.analysis}
       <article class="card explain-card">
         <header class="card-head">
           <div>
-            <h2>Por qué Subió el Riesgo</h2>
-            <p class="card-subtitle">Variables explicativas de los ultimos 7 dias</p>
+            <h2>¿Por qué cambió el riesgo?</h2>
+            <p>Variables de los últimos 7 días</p>
           </div>
         </header>
-        {#if riskExplain?.analysis}
-          <div class="explain-block">
-            <div class="explain-drivers">
-              <div class="driver-item">
-                <span class="driver-label">Driver principal</span>
-                <span class="driver-value">{riskExplain.analysis.primary_driver}</span>
-              </div>
-              <div class="driver-item">
-                <span class="driver-label">Precipitacion cambio</span>
-                <span class="driver-value">{riskExplain.analysis.precip_change_mm > 0 ? '+' : ''}{riskExplain.analysis.precip_change_mm} mm vs semana anterior</span>
-              </div>
-              <div class="driver-item">
-                <span class="driver-label">Dias con lluvia</span>
-                <span class="driver-value">{riskExplain.analysis.rainy_days}</span>
-              </div>
+        <div class="explain-content">
+          <div class="explain-drivers">
+            <div class="driver-item">
+              <span class="driver-label">Driver principal</span>
+              <span class="driver-value">{riskExplain.analysis.primary_driver}</span>
             </div>
-            <div class="explain-recommendation">
-              <span class="rec-label">Recomendacion</span>
-              <p class="rec-text">{riskExplain.analysis.recommendation}</p>
+            <div class="driver-item">
+              <span class="driver-label">Precipitación cambio</span>
+              <span class="driver-value">{riskExplain.analysis.precip_change_mm > 0 ? '+' : ''}{riskExplain.analysis.precip_change_mm} mm vs semana anterior</span>
+            </div>
+            <div class="driver-item">
+              <span class="driver-label">Días con lluvia</span>
+              <span class="driver-value">{riskExplain.analysis.rainy_days}</span>
             </div>
           </div>
-        {:else}
-          <p class="history-note">Cargando explicabilidad...</p>
-        {/if}
-      </article>
-
-      <article class="card risk-mvp-card">
-        <header class="card-head">
-          <div>
-            <h2>Vigilancia y Priorizacion de Riesgo</h2>
-            <p class="card-subtitle">Modelo agroclimatico proxy (no diagnostico de plagas)</p>
-          </div>
-        </header>
-        {#if monthlyLatest}
-          <div class="mvp-kpis">
-            <div>
-              <span>Indice operativo-comercial</span>
-              <strong>{formatScore(monthlyLatest.combined_score)}</strong>
-            </div>
-            <div>
-              <span>Riesgo agroclimatico</span>
-              <strong>{formatScore(monthlyLatest.agroclimatic_score)}</strong>
-            </div>
-            <div>
-              <span>Dias con lluvia (mes)</span>
-              <strong>{monthlyLatest.rainy_days}</strong>
-            </div>
-            <div>
-              <span>Precio promedio (proxy)</span>
-              <strong>
-                {#if monthlyCommercial?.average_price_cop != null}
-                  ${formatCurrency(monthlyCommercial.average_price_cop)} COP
-                {:else}
-                  Sin datos
-                {/if}
-              </strong>
-            </div>
-          </div>
-
-          <p class="mvp-narrative">{monthlyNarrative}</p>
-
-          <div class="mvp-months">
-            {#each monthlyItems.slice(0, 4) as monthItem}
-              <div class="mvp-month-chip">
-                <span>{monthItem.month_label}</span>
-                <strong>{String(monthItem.risk_level ?? 'bajo').toUpperCase()} · {formatScore(monthItem.combined_score)}</strong>
-              </div>
-            {/each}
-          </div>
-        {:else if monthlyRiskError}
-          <p class="history-note">{monthlyRiskError}</p>
-        {/if}
-      </article>
-
-      <article class="card data-inventory-card">
-        <header class="card-head">
-          <div>
-            <h2>Datos Cargados en Frontend</h2>
-            <p class="card-subtitle">Vista explicita de campos recibidos por API</p>
-          </div>
-        </header>
-
-        <div class="data-grid">
-          <div class="data-block">
-            <h3>Snapshot diario</h3>
-            <p><strong>region:</strong> {snapshot.region_name ?? '--'}</p>
-            <p><strong>ciudad:</strong> {snapshot.region_city ?? '--'}</p>
-            <p><strong>fecha:</strong> {formatDate(snapshot.observed_on)}</p>
-            <p><strong>temp_mean_c:</strong> {snapshot.temp_mean_c ?? '--'}</p>
-            <p><strong>precipitation_mm:</strong> {snapshot.precipitation_mm ?? '--'}</p>
-            <p><strong>fungal_risk:</strong> {snapshot.fungal_risk ?? '--'}</p>
-            <p><strong>waterlogging_risk:</strong> {snapshot.waterlogging_risk ?? '--'}</p>
-            <p><strong>heat_risk:</strong> {snapshot.heat_risk ?? '--'}</p>
-            <p><strong>global_risk_level:</strong> {snapshot.global_risk_level ?? '--'}</p>
-            <p><strong>recommendation_title:</strong> {snapshot.recommendation_title ?? '--'}</p>
-          </div>
-
-          <div class="data-block">
-            <h3>Riesgo mensual</h3>
-            <p><strong>combined_score:</strong> {monthlyLatest?.combined_score ?? '--'}</p>
-            <p><strong>agroclimatic_score:</strong> {monthlyLatest?.agroclimatic_score ?? '--'}</p>
-            <p><strong>rainy_days:</strong> {monthlyLatest?.rainy_days ?? '--'}</p>
-            <p><strong>temp_anomaly_c:</strong> {monthlyLatest?.temp_anomaly_c ?? '--'}</p>
-            <p><strong>precip_anomaly_pct:</strong> {monthlyLatest?.precip_anomaly_pct ?? '--'}</p>
-            <p><strong>risk_level:</strong> {monthlyLatest?.risk_level ?? '--'}</p>
-            <p><strong>narrative:</strong> {monthlyNarrative || '--'}</p>
-          </div>
-
-          <div class="data-block">
-            <h3>Comercial proxy</h3>
-            <p><strong>average_price_cop:</strong> {monthlyCommercial?.average_price_cop ?? '--'}</p>
-            <p><strong>volatility_pct:</strong> {monthlyCommercial?.volatility_pct ?? '--'}</p>
-            <p><strong>concentration_pct:</strong> {monthlyCommercial?.concentration_pct ?? '--'}</p>
-            <p><strong>commercial_risk_score:</strong> {monthlyCommercial?.commercial_risk_score ?? '--'}</p>
-            <p><strong>last_update:</strong> {formatDate(monthlyCommercial?.last_update)}</p>
-            <p><strong>stale:</strong> {monthlyCommercial?.stale == null ? '--' : String(monthlyCommercial.stale)}</p>
-          </div>
-
-          <div class="data-block">
-            <h3>Alertas y recomendaciones</h3>
-            <p><strong>alert.risk_level:</strong> {alertToday?.risk_level ?? '--'}</p>
-            <p><strong>alert.agroclimatic_score:</strong> {alertToday?.agroclimatic_score ?? '--'}</p>
-            <p><strong>alert.message:</strong> {alertToday?.message ?? '--'}</p>
-            <p><strong>week.alto:</strong> {weeklyDistribution?.alto ?? '--'}</p>
-            <p><strong>week.medio:</strong> {weeklyDistribution?.medio ?? '--'}</p>
-            <p><strong>week.bajo:</strong> {weeklyDistribution?.bajo ?? '--'}</p>
-            <p><strong>week.items:</strong> {weeklyItems.length}</p>
-            {#if weeklyItems[0]}
-              <p><strong>reciente:</strong> {formatDate(weeklyItems[0].observed_on)} · {weeklyItems[0].title}</p>
-            {/if}
+          <div class="explain-recommendation">
+            <span class="rec-label">Recomendación</span>
+            <p>{riskExplain.analysis.recommendation}</p>
           </div>
         </div>
-
-        {#if alertsTodayError || weeklyRecommendationsError}
-          <p class="history-note">{alertsTodayError || weeklyRecommendationsError}</p>
-        {/if}
       </article>
+      {/if}
     </section>
   {/if}
 </section>
 
 <style>
-  .dashboard {
-    min-height: 420px;
-  }
+  .dashboard { min-height: 400px; }
 
   .state {
     border-radius: 24px;
-    padding: 2rem;
+    padding: 3rem 2rem;
     text-align: center;
-    background: var(--card-bg, #FFFFFF);
-    border: 1px solid #EEE6DD;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-subtle, #eee);
   }
 
-  .state p {
-    margin: 0;
-    color: var(--text-muted, #6B6B6B);
-  }
-
-  .state.error p {
-    color: #B42318;
-  }
+  .state p { margin: 0; color: var(--text-secondary, #666); }
+  .state.error p { color: #C75D5D; }
 
   .dashboard-grid {
     display: grid;
     grid-template-columns: 3fr 2fr;
-    grid-template-areas:
-      'status calendar'
-      'stack protocols'
-      'explain explain'
-      'mvp mvp'
-      'data data';
     gap: 1rem;
   }
 
   .card {
-    background: var(--card-bg, #FFFFFF);
-    border: 1px solid #ECE3DA;
-    border-radius: 24px;
+    background: var(--bg-surface, #fff);
+    border: 1px solid var(--border-subtle, #eee);
+    border-radius: 16px;
+    padding: 1.25rem;
+  }
+
+  /* KPI Section */
+  .kpi-section { grid-area: kpi; }
+
+  .card-header { margin-bottom: 1.25rem; }
+  .card-header h2 { font-size: 1rem; margin: 0; }
+  .card-header p { margin: 0.25rem 0 0; font-size: 0.82rem; color: var(--text-secondary, #666); }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.85rem;
+  }
+
+  .kpi-card {
+    background: var(--bg-app, #f8f8f8);
+    border: 1px solid var(--border-subtle, #eee);
+    border-radius: 14px;
     padding: 1rem;
   }
 
-  .status-card {
-    grid-area: status;
-    min-height: 320px;
-  }
-
-  .calendar-card {
-    grid-area: calendar;
-    background: #2A2240;
-    border-color: #2A2240;
-    color: #F8F4FF;
-  }
-
-  .stacked-cards {
-    grid-area: stack;
-    display: grid;
-    gap: 1rem;
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-  }
-
-  .protocols-card {
-    grid-area: protocols;
-  }
-
-  .risk-mvp-card {
-    grid-area: mvp;
-  }
-
-  .explain-card {
-    grid-area: explain;
-  }
-
-  .explain-block {
-    margin-top: 0.85rem;
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 1rem;
-  }
-
-  .explain-drivers {
+  .kpi-header {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .driver-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    padding: 0.5rem 0.65rem;
-    background: #FAF7F3;
-    border-radius: 10px;
-  }
-
-  .driver-label {
-    font-size: 0.7rem;
-    color: var(--text-muted, #6B6B6B);
-  }
-
-  .driver-value {
-    font-size: 0.85rem;
-    color: var(--text, #1A1A1A);
-    font-weight: 500;
-  }
-
-  .explain-recommendation {
-    background: linear-gradient(135deg, rgba(107, 63, 160, 0.12), rgba(127, 57, 251, 0.08));
-    border: 1px solid rgba(107, 63, 160, 0.25);
-    border-radius: 12px;
-    padding: 0.75rem;
-  }
-
-  .rec-label {
-    font-size: 0.7rem;
-    color: var(--primary, #6B3FA0);
-    font-weight: 600;
-  }
-
-  .rec-text {
-    margin: 0.35rem 0 0;
-    font-size: 0.85rem;
-    color: var(--text, #1A1A1A);
-    line-height: 1.4;
-  }
-
-  .data-inventory-card {
-    grid-area: data;
-  }
-
-  .card-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  h2 {
-    margin: 0;
-    font-size: 1rem;
-    line-height: 1.2;
-  }
-
-  .card-subtitle {
-    margin: 0.25rem 0 0;
-    color: var(--text-muted, #6B6B6B);
-    font-size: 0.82rem;
-  }
-
-  .month-title {
-    color: #CDC0E0;
-    text-transform: capitalize;
-  }
-
-  .region-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 0.22rem;
-    color: var(--text-muted, #6B6B6B);
-    font-size: 0.76rem;
-  }
-
-  .region-picker select {
-    border: 1px solid #E4D8F2;
-    border-radius: 10px;
-    height: 34px;
-    min-width: 150px;
-    background: #F8F2FF;
-    color: var(--text, #1A1A1A);
-    font: inherit;
-    padding: 0 0.6rem;
-  }
-
-  .bubble-scene {
-    margin-top: 1rem;
-    position: relative;
-    min-height: 230px;
-    border-radius: 22px;
-    background: #FAF7F3;
-    overflow: hidden;
-  }
-
-  .bubble-scene::after {
-    content: '';
-    position: absolute;
-    inset: auto 16% 14% auto;
-    width: 150px;
-    height: 120px;
-    border-radius: 50%;
-    background: rgba(139, 95, 191, 0.2);
-    filter: blur(30px);
-  }
-
-  .bubble {
-    position: absolute;
-    border-radius: 999px;
-    padding: 0.85rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
     align-items: center;
-    text-align: center;
-    box-shadow: 0 18px 28px rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(2px);
+    gap: 0.4rem;
+    color: var(--text-secondary, #666);
+    font-size: 0.75rem;
+    margin-bottom: 0.35rem;
   }
 
-  .bubble span {
-    font-size: 0.73rem;
-    color: rgba(26, 26, 26, 0.85);
+  .kpi-header svg { width: 14px; height: 14px; }
+
+  .kpi-value {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text-primary, #222);
+    letter-spacing: -0.02em;
   }
 
-  .bubble strong {
-    font-size: 1.1rem;
-    margin-top: 0.12rem;
+  .kpi-change {
+    font-size: 0.7rem;
+    margin-top: 0.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
   }
 
-  .bubble-purple {
-    width: 145px;
-    height: 145px;
-    top: 10px;
-    left: 10px;
-    background: rgba(107, 63, 160, 0.22);
-    color: #4C2A76;
+  .kpi-change.positive { color: #7A8B6F; }
+  .kpi-change.negative { color: #C75D5D; }
+
+  .kpi-sparkline { margin-top: 0.5rem; }
+
+  /* Trend Chart */
+  .trend-section {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-subtle, #eee);
   }
 
-  .bubble-yellow {
-    width: 188px;
-    height: 188px;
-    right: 26px;
-    top: 30px;
-    background: rgba(255, 193, 7, 0.48);
-    color: #6B4A00;
+  .trend-section h3 {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #666);
+    margin-bottom: 0.75rem;
   }
 
-  .bubble-coral {
-    width: 130px;
-    height: 130px;
-    left: 170px;
-    bottom: 18px;
-    background: rgba(255, 107, 107, 0.45);
-    color: #5E1F1F;
+  .trend-chart { height: 140px; }
+
+  /* Calendar */
+  .calendar-card {
+    background: var(--text-primary, #2B2730);
+    border-color: var(--text-primary, #2B2730);
+    color: #fff;
   }
 
-  .bubble-legend {
-    display: flex;
-    gap: 0.55rem;
-    margin-top: 0.9rem;
-  }
+  .calendar-card .card-header h2, .calendar-card .card-header p { color: rgba(255,255,255,0.9); }
+  .month-title { color: rgba(255,255,255,0.6) !important; text-transform: capitalize; }
 
-  .legend-line {
-    width: 34px;
-    height: 6px;
-    border-radius: 999px;
-    display: block;
-  }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem; }
+  .calendar-grid.names { margin-top: 0.85rem; margin-bottom: 0.35rem; color: rgba(255,255,255,0.5); font-size: 0.7rem; text-align: center; }
 
-  .legend-line.purple {
-    background: var(--primary, #6B3FA0);
-  }
-
-  .legend-line.yellow {
-    background: var(--accent-yellow, #FFC107);
-  }
-
-  .legend-line.coral {
-    background: var(--accent-coral, #FF6B6B);
-  }
-
-  .week-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 0.35rem;
-  }
-
-  .week-grid.names {
-    margin-top: 0.85rem;
-    margin-bottom: 0.4rem;
-    color: #B8AACC;
-    font-size: 0.73rem;
-    text-align: center;
-  }
-
-  .day-cell {
-    height: 34px;
-    border-radius: 50%;
+  .calendar-day {
+    aspect-ratio: 1;
+    border-radius: 8px;
     display: grid;
     place-items: center;
+    font-size: 0.75rem;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.7);
+    cursor: default;
     position: relative;
-    font-size: 0.78rem;
-    color: #DBD1EA;
-    border: 1px solid transparent;
   }
 
-  .day-cell.empty {
-    border-radius: 0;
-    height: 34px;
-    background: transparent;
+  .calendar-day.empty { background: transparent; }
+  .calendar-day.high { background: #C75D5D; color: #fff; }
+  .calendar-day.medium { background: #8B7AA3; color: #fff; }
+  .calendar-day.today { border: 2px solid #A8A1B5; }
+
+  .calendar-legend {
+    margin-top: 0.85rem;
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.6);
   }
 
-  .day-cell.high {
-    background: var(--accent-coral, #FF6B6B);
-    color: #1A1A1A;
-  }
-
-  .day-cell.medium {
-    background: var(--primary, #6B3FA0);
-    color: #F8F3FF;
-  }
-
-  .day-cell.today {
-    border-color: #FFFFFF;
-  }
+  .calendar-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
 
   .dot {
     display: inline-block;
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #BFBFBF;
   }
+  .dot.today { border: 1.5px solid #fff; }
+  .dot.high { background: #C75D5D; }
+  .dot.medium { background: #8B7AA3; }
 
-  .day-cell .dot {
-    position: absolute;
-    bottom: 4px;
-  }
+  /* Risk Gauge */
+  .risk-card { text-align: center; }
 
-  .dot.today {
-    background: transparent;
-    border: 1.5px solid #FFFFFF;
-  }
-
-  .dot.high {
-    background: var(--accent-coral, #FF6B6B);
-  }
-
-  .dot.medium {
-    background: var(--primary, #6B3FA0);
-  }
-
-  .dot.no-data {
-    background: #8C849A;
-  }
-
-  .calendar-legend {
-    margin-top: 0.85rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.7rem;
-    font-size: 0.73rem;
-    color: #D8CDE7;
-  }
-
-  .calendar-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .risk-progress-card,
-  .incidents-card {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .risk-progress {
-    width: 126px;
-    height: 126px;
-    margin: 0.9rem auto 0.7rem;
-    border-radius: 50%;
-    background: conic-gradient(
-      var(--primary, #6B3FA0) calc(var(--progress, 0) * 1%),
-      #E8E0F0 calc(var(--progress, 0) * 1%)
-    );
-    display: grid;
-    place-items: center;
-  }
-
-  .risk-progress-inner {
-    width: 92px;
-    height: 92px;
-    border-radius: 50%;
-    background: #FFFFFF;
-    display: grid;
-    place-items: center;
-    color: var(--text, #1A1A1A);
-    font-size: 1.2rem;
-  }
-
-  .risk-lines {
-    margin: 0;
+  .card-head {
     display: flex;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    font-size: 0.9rem;
-    color: var(--text-muted, #6B6B6B);
+    align-items: flex-start;
+    margin-bottom: 1rem;
   }
 
-  .risk-lines strong {
-    color: var(--text, #1A1A1A);
+  .region-select {
+    border: 1px solid var(--border-subtle, #ddd);
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+    background: var(--bg-app, #f8f8f8);
+    color: var(--text-primary, #222);
   }
 
-  .incident-bar {
-    margin-top: 0.9rem;
-    display: grid;
-    grid-template-columns: repeat(30, minmax(0, 1fr));
-    gap: 0.2rem;
-  }
+  .gauge-container { padding: 0.5rem 0; }
 
-  .segment {
-    height: 10px;
-    border-radius: 999px;
-    background: #EEE7DF;
-  }
+  .gauge-svg { width: 100%; max-width: 160px; }
 
-  .segment.ok {
-    background: #4CAF50;
-  }
+  .gauge-fill { transition: stroke-dashoffset 600ms ease; }
 
-  .segment.alert {
-    background: var(--accent-coral, #FF6B6B);
-  }
-
-  .segment.empty {
-    background: #EEE7DF;
-  }
-
-  .incident-summary {
-    margin: 0.75rem 0 0;
+  .gauge-value {
+    font-size: 2rem;
     font-weight: 600;
-    color: var(--text, #1A1A1A);
+    color: var(--text-primary, #222);
+    margin-top: -0.5rem;
   }
 
-  .history-note {
-    margin: 0.4rem 0 0;
-    font-size: 0.78rem;
-    color: var(--text-muted, #6B6B6B);
+  .gauge-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-top: 0.25rem;
   }
+
+  .risk-meta {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #666);
+  }
+
+  /* Protocols */
+  .protocols-card { grid-area: protocols; }
 
   .protocol-list {
-    margin: 0.95rem 0 0;
-    padding: 0;
     list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.7rem;
   }
 
-  .protocol-list li {
+  .protocol-item {
     display: flex;
     align-items: flex-start;
-    gap: 0.65rem;
-    border: 1px solid #EFE7DE;
-    border-radius: 16px;
-    padding: 0.65rem;
+    gap: 0.7rem;
+    padding: 0.8rem;
+    background: var(--bg-app, #f8f8f8);
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle, #eee);
   }
 
   .protocol-icon {
     width: 36px;
     height: 36px;
-    border-radius: 12px;
-    background: #F5EEF9;
-    color: var(--primary, #6B3FA0);
+    border-radius: 8px;
     display: grid;
     place-items: center;
-    font-size: 0.92rem;
+    background: var(--border-subtle, #eee);
+    color: var(--primary, #756A85);
+    font-size: 0.9rem;
     flex-shrink: 0;
   }
 
-  .protocol-copy p {
+  .protocol-content h4 {
     margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-primary, #222);
   }
 
-  .protocol-name {
-    font-weight: 600;
-    color: var(--text, #1A1A1A);
-    font-size: 0.92rem;
-  }
-
-  .protocol-meta {
-    margin-top: 0.12rem;
-    color: var(--text-muted, #6B6B6B);
-    font-size: 0.76rem;
+  .protocol-content p {
+    margin: 0.15rem 0 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #666);
   }
 
   .protocol-progress {
-    margin-top: 0.25rem;
-    color: var(--primary, #6B3FA0);
+    margin-top: 0.35rem;
     font-size: 0.8rem;
+    color: var(--primary, #756A85);
+    font-weight: 500;
+  }
+
+  /* Explain */
+  .explain-card { grid-area: explain; }
+
+  .explain-content {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 1rem;
+  }
+
+  .explain-drivers { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .driver-item {
+    padding: 0.5rem 0.65rem;
+    background: var(--bg-app, #f8f8f8);
+    border-radius: 10px;
+  }
+
+  .driver-label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-secondary, #666);
+    margin-bottom: 0.15rem;
+  }
+
+  .driver-value {
+    font-size: 0.85rem;
+    color: var(--text-primary, #222);
+  }
+
+  .explain-recommendation {
+    background: rgba(117, 106, 133, 0.1);
+    border: 1px solid rgba(117, 106, 133, 0.2);
+    border-radius: 12px;
+    padding: 0.75rem;
+  }
+
+  .rec-label {
+    font-size: 0.7rem;
+    color: var(--primary, #756A85);
     font-weight: 600;
   }
 
-  .mvp-kpis {
-    margin-top: 0.85rem;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.65rem;
-  }
-
-  .mvp-kpis > div {
-    border: 1px solid #EFE7DE;
-    border-radius: 14px;
-    padding: 0.65rem;
-    background: #FAF7F3;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .mvp-kpis span {
-    font-size: 0.75rem;
-    color: var(--text-muted, #6B6B6B);
-  }
-
-  .mvp-kpis strong {
-    font-size: 0.95rem;
-    color: var(--text, #1A1A1A);
-  }
-
-  .mvp-narrative {
-    margin: 0.85rem 0 0;
-    padding: 0.75rem 0.85rem;
-    border-radius: 14px;
-    background: #F6F1FA;
-    color: #4E3B6B;
-    font-size: 0.88rem;
-    line-height: 1.45;
-  }
-
-  .mvp-months {
-    margin-top: 0.8rem;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.5rem;
-  }
-
-  .mvp-month-chip {
-    border: 1px solid #EFE7DE;
-    border-radius: 12px;
-    padding: 0.55rem 0.6rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.22rem;
-  }
-
-  .mvp-month-chip span {
-    font-size: 0.74rem;
-    color: var(--text-muted, #6B6B6B);
-  }
-
-  .mvp-month-chip strong {
-    font-size: 0.82rem;
-    color: var(--primary, #6B3FA0);
-  }
-
-  .data-grid {
-    margin-top: 0.9rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.7rem;
-  }
-
-  .data-block {
-    border: 1px solid #EFE7DE;
-    border-radius: 14px;
-    padding: 0.7rem;
-    background: #FCFAF8;
-  }
-
-  .data-block h3 {
-    margin: 0 0 0.5rem;
-    font-size: 0.86rem;
-    color: var(--primary, #6B3FA0);
-  }
-
-  .data-block p {
-    margin: 0.18rem 0;
-    font-size: 0.78rem;
-    color: var(--text-muted, #6B6B6B);
+  .explain-recommendation p {
+    margin: 0.35rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-primary, #222);
     line-height: 1.4;
   }
 
-  .data-block p strong {
-    color: var(--text, #1A1A1A);
-  }
-
-  @media (max-width: 980px) {
-    .dashboard-grid {
-      grid-template-columns: 1fr;
-      grid-template-areas:
-        'status'
-        'calendar'
-        'stack'
-        'protocols'
-        'explain'
-        'mvp'
-        'data';
-    }
-
-    .explain-block {
-      grid-template-columns: 1fr;
-    }
-
-    .bubble-coral {
-      left: 140px;
-    }
-
-    .mvp-kpis,
-    .mvp-months {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
   }
 
   @media (max-width: 640px) {
-    .card {
-      border-radius: 20px;
-      padding: 0.9rem;
-    }
-
-    .card-head {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .region-picker select {
-      min-width: 100%;
-    }
-
-    .bubble-purple {
-      width: 128px;
-      height: 128px;
-      left: 12px;
-      top: 18px;
-    }
-
-    .bubble-yellow {
-      width: 152px;
-      height: 152px;
-      top: 30px;
-      right: 14px;
-    }
-
-    .bubble-coral {
-      width: 116px;
-      height: 116px;
-      left: 100px;
-      bottom: 14px;
-    }
-
-    .mvp-kpis,
-    .mvp-months {
-      grid-template-columns: 1fr;
-    }
-
-    .data-grid {
-      grid-template-columns: 1fr;
-    }
+    .kpi-grid { grid-template-columns: 1fr; }
+    .explain-content { grid-template-columns: 1fr; }
   }
 </style>
