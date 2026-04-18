@@ -4,15 +4,82 @@
   export let apiUrl = '';
   export let region = 'madrid';
 
-  let kpis = { surveillanceDays: 0, avgScore: 0, topRecommendation: '' };
+  let kpis = { surveillanceDays: 0, avgScore: 0, topRecommendation: '', observedDays: 0 };
+  let guidanceMessage = '';
   let loading = true;
+
+  const toNum = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
+
+  const riskProxy = (temp, precip) => {
+    const rainFactor = Math.min(55, toNum(precip) * 9);
+    const tempFactor = toNum(temp) < 12 ? 16 : toNum(temp) > 24 ? 10 : 4;
+    return clamp(Math.round(18 + rainFactor + tempFactor), 12, 95);
+  };
+
+  const recommendationFromScore = (score) => {
+    if (score >= 70) return 'Inspección en campo y registro fitosanitario';
+    if (score >= 40) return 'Revisar humedad, drenaje y ventilación';
+    return 'Mantener rutina, sin preventivo adicional';
+  };
+
+  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
+
+  const buildApiBases = (raw) => {
+    const configured = normalizeBaseUrl(raw);
+    const candidates = [];
+    if (configured) candidates.push(configured);
+
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        candidates.push(`${window.location.protocol}//${host}:8000`);
+        candidates.push('http://localhost:8000');
+        candidates.push('http://127.0.0.1:8000');
+      }
+    }
+
+    candidates.push('');
+    return [...new Set(candidates)];
+  };
+
+  const endpoint = (base, path) => {
+    if (!base) return path;
+    if (base.endsWith('/api') && path.startsWith('/api/')) {
+      return `${base}${path.slice(4)}`;
+    }
+    return `${base}${path}`;
+  };
+
+  const fetchJson = async (path) => {
+    const apiBases = buildApiBases(apiUrl);
+    let lastError = null;
+
+    for (const base of apiBases) {
+      try {
+        const res = await fetch(endpoint(base, path), { headers: { Accept: 'application/json' } });
+        if (!res.ok) {
+          lastError = new Error(`HTTP ${res.status}`);
+          continue;
+        }
+        return await res.json();
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error('network');
+      }
+    }
+
+    throw lastError ?? new Error('network');
+  };
 
   const fetchKPIs = async () => {
     loading = true;
     try {
-      const res = await fetch(`${apiUrl}/api/recommendations/week?region=${region}&days=7`);
-      if (res.ok) {
-        const data = await res.json();
+      try {
+        const data = await fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`);
         const items = Array.isArray(data?.items) ? data.items : [];
         const surveillanceDays = items.filter(r => {
           const level = (r.global_risk_level || '').toLowerCase();
@@ -22,9 +89,34 @@
           ? Math.round(items.reduce((sum, r) => sum + (Number(r.fungal_risk) || 0), 0) / items.length)
           : 0;
         const topRecommendation = items.length > 0 ? items[0].title || 'Sin recomendaciones' : 'Sin datos';
-        kpis = { surveillanceDays, avgScore, topRecommendation };
+        kpis = { surveillanceDays, avgScore, topRecommendation, observedDays: items.length };
+        guidanceMessage = items.length < 7
+          ? `Necesitamos una semana completa para tu promedio. Hoy es día ${Math.max(items.length, 1)}.`
+          : '';
+        return;
+      } catch {
+        const historyData = await fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=7`);
+        const days = Array.isArray(historyData?.items) ? historyData.items : [];
+        const scoreSeries = days.map((d) => riskProxy(d?.temp_mean_c, d?.precipitation_mm));
+        const surveillanceDays = scoreSeries.filter((score) => score >= 40).length;
+        const avgScore = scoreSeries.length
+          ? Math.round(scoreSeries.reduce((sum, score) => sum + score, 0) / scoreSeries.length)
+          : 0;
+        kpis = {
+          surveillanceDays,
+          avgScore,
+          topRecommendation: recommendationFromScore(avgScore),
+          observedDays: days.length,
+        };
+        guidanceMessage = days.length < 7
+          ? `Necesitamos una semana completa para tu promedio. Hoy es día ${Math.max(days.length, 1)}.`
+          : '';
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      kpis = { surveillanceDays: 0, avgScore: 0, topRecommendation: 'Sin datos', observedDays: 0 };
+      guidanceMessage = 'No hay datos suficientes para mostrar KPIs semanales.';
+      console.error(e);
+    }
     finally { loading = false; }
   };
 
@@ -35,16 +127,22 @@
     }
   };
 
+  const handleRefresh = () => {
+    fetchKPIs();
+  };
+
   onMount(() => {
     fetchKPIs();
     if (typeof window !== 'undefined') {
       window.addEventListener('regionchange', handleRegionChange);
+      window.addEventListener('flowerxi:refresh', handleRefresh);
     }
   });
 
   onDestroy(() => {
     if (typeof window !== 'undefined') {
       window.removeEventListener('regionchange', handleRegionChange);
+      window.removeEventListener('flowerxi:refresh', handleRefresh);
     }
   });
 </script>
@@ -62,12 +160,15 @@
       {/each}
     </div>
   {:else}
+    {#if guidanceMessage}
+      <p class="weekly-note">{guidanceMessage}</p>
+    {/if}
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-icon surveillance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
         <div class="kpi-content">
           <span class="kpi-label">Días en vigilancia</span>
-          <strong class="kpi-value">{kpis.surveillanceDays} días</strong>
+          <strong class="kpi-value">{kpis.observedDays < 7 ? '—' : `${kpis.surveillanceDays} días`}</strong>
         </div>
       </div>
 
@@ -75,7 +176,7 @@
         <div class="kpi-icon score"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div>
         <div class="kpi-content">
           <span class="kpi-label">Puntaje promedio</span>
-          <strong class="kpi-value">{kpis.avgScore.toFixed(0)} pts</strong>
+          <strong class="kpi-value">{kpis.observedDays < 7 ? '—' : `${kpis.avgScore.toFixed(0)} pts`}</strong>
         </div>
       </div>
 
@@ -93,6 +194,15 @@
 <style>
   .weekly-kpis { background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(31,41,55,0.06)); }
   .weekly-kpis h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary, #1f2937); }
+  .weekly-note {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748b);
+    padding: 0.6rem 0.75rem;
+    border: 1px dashed var(--border-subtle, #e2e8f0);
+    border-radius: 10px;
+    background: var(--bg-app, #f8fafc);
+  }
 
   .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
 

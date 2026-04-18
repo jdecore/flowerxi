@@ -1,45 +1,131 @@
 <script>
-  import ApexCharts from 'apexcharts';
-  import { onMount, onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
 
   export let apiUrl = '';
   export let region = 'madrid';
   export let months = 6;
 
   let loading = true;
-  let chartEl;
-  let chart;
+  let error = '';
+  let monthly = [];
+
+  const toNum = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
+
+  const riskProxy = (temp, precip) => {
+    const rainFactor = Math.min(55, toNum(precip) * 9);
+    const tempFactor = toNum(temp) < 12 ? 16 : toNum(temp) > 24 ? 10 : 4;
+    return clamp(Math.round(18 + rainFactor + tempFactor), 12, 95);
+  };
+
+  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
+
+  const buildApiBases = (raw) => {
+    const configured = normalizeBaseUrl(raw);
+    const candidates = [];
+    if (configured) candidates.push(configured);
+
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        candidates.push(`${window.location.protocol}//${host}:8000`);
+        candidates.push('http://localhost:8000');
+        candidates.push('http://127.0.0.1:8000');
+      }
+    }
+
+    candidates.push('');
+    return [...new Set(candidates)];
+  };
+
+  const endpoint = (base, path) => {
+    if (!base) return path;
+    if (base.endsWith('/api') && path.startsWith('/api/')) {
+      return `${base}${path.slice(4)}`;
+    }
+    return `${base}${path}`;
+  };
+
+  const fetchJson = async (path) => {
+    const apiBases = buildApiBases(apiUrl);
+    let lastError = null;
+
+    for (const base of apiBases) {
+      try {
+        const res = await fetch(endpoint(base, path), { headers: { Accept: 'application/json' } });
+        if (!res.ok) {
+          lastError = new Error(`HTTP ${res.status}`);
+          continue;
+        }
+        return await res.json();
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error('network');
+      }
+    }
+
+    throw lastError ?? new Error('network');
+  };
+
+  const levelFromScore = (score) => {
+    if (score >= 70) return { label: 'Acción', levelClass: 'action' };
+    if (score >= 40) return { label: 'Vigilancia', levelClass: 'watch' };
+    return { label: 'Rutina', levelClass: 'routine' };
+  };
+
+  const parseMonthItem = (item) => {
+    const score = Math.round(toNum(item?.combined_score, 0));
+    const month = item?.month_label ?? item?.month ?? 'Mes';
+    const level = levelFromScore(score);
+    return { month, score, ...level };
+  };
+
+  const deriveMonthlyFromHistory = (historyItems) => {
+    const byMonth = new Map();
+    const ordered = [...historyItems].sort((a, b) => String(a.observed_on).localeCompare(String(b.observed_on)));
+
+    for (const day of ordered) {
+      const date = String(day?.observed_on ?? '');
+      const monthKey = date.slice(0, 7);
+      if (!monthKey || monthKey.length < 7) continue;
+      const list = byMonth.get(monthKey) ?? [];
+      list.push(riskProxy(day?.temp_mean_c, day?.precipitation_mm));
+      byMonth.set(monthKey, list);
+    }
+
+    return Array.from(byMonth.entries())
+      .slice(-months)
+      .map(([month, values]) => {
+        const avg = values.length
+          ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+          : 0;
+        const level = levelFromScore(avg);
+        return { month, score: avg, ...level };
+      });
+  };
 
   const fetchHeatmap = async () => {
     loading = true;
+    error = '';
     try {
-      const res = await fetch(`${apiUrl}/api/risk/monthly?region=${region}&months=${months}`);
-      if (res.ok) {
-        const data = await res.json();
+      try {
+        const data = await fetchJson(`/api/risk/monthly?region=${encodeURIComponent(region)}&months=${months}`);
         const items = Array.isArray(data?.items) ? data.items : [];
-        initChart(items);
+        monthly = items.map(parseMonthItem);
+      } catch {
+        const history = await fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=${Math.max(months * 31, 90)}`);
+        const items = Array.isArray(history?.items) ? history.items : [];
+        monthly = deriveMonthlyFromHistory(items);
       }
-    } catch (e) { console.error(e); }
-    finally { loading = false; }
-  };
-
-  const initChart = (series) => {
-    const options = {
-      chart: { type: 'heatmap', height: 220, toolbar: { show: false }, fontFamily: 'Inter, sans-serif' },
-      dataLabels: { enabled: true, style: { colors: ['#fff'], fontSize: '10px' } },
-      colors: ['#10B981', '#F59E0B', '#DC2626'],
-      xaxis: { type: 'category', labels: { style: { colors: '#1f2937', fontSize: '11px' } } },
-      yaxis: { show: false },
-      grid: { padding: { left: -8, right: -8, bottom: -8 } },
-      plotOptions: { heatmap: { shadeIntensity: 0.5, radius: 6, enableGradients: false, } },
-      legend: { show: false }
-    };
-
-    if (chart) { chart.updateOptions(options); chart.updateSeries([{ name: 'Riesgo', data: series.map((s,i)=>[i, s.combined_score, s.month_label]) }]); }
-    else if (chartEl && series.length > 0) {
-      chart = new ApexCharts(chartEl, options);
-      chart.render();
-      chart.updateSeries([{ name: 'Riesgo', data: series.map((s,i)=>[i, s.combined_score, s.month_label]) }]);
+    } catch (e) {
+      monthly = [];
+      error = 'No se pudo cargar el calendario de riesgo.';
+      console.error(e);
+    } finally {
+      loading = false;
     }
   };
 
@@ -50,33 +136,55 @@
     }
   };
 
+  const handleRefresh = () => {
+    fetchHeatmap();
+  };
+
   onMount(() => {
     fetchHeatmap();
     if (typeof window !== 'undefined') {
       window.addEventListener('regionchange', handleRegionChange);
+      window.addEventListener('flowerxi:refresh', handleRefresh);
     }
   });
 
   onDestroy(() => {
     if (typeof window !== 'undefined') {
       window.removeEventListener('regionchange', handleRegionChange);
+      window.removeEventListener('flowerxi:refresh', handleRefresh);
     }
-    if (chart) chart.destroy();
   });
 </script>
 
 <article class="risk-heatmap">
   <h3>Calendario de riesgo</h3>
-  <p class="subtitle">Próximos {months} meses — {region}</p>
+  <p class="subtitle">Últimos {months} meses — {region}</p>
 
   {#if loading}
     <div class="heatmap-skeleton">
-      {#each Array(6) as _}
+      {#each Array(months) as _}
         <div class="skeleton-month"></div>
       {/each}
     </div>
+  {:else if error}
+    <p class="state error">{error}</p>
+  {:else if monthly.length === 0}
+    <p class="state muted">Aún no hay datos suficientes para construir el calendario.</p>
   {:else}
-    <div class="heatmap-wrapper" bind:this={chartEl}></div>
+    <div class="heatmap-grid">
+      {#each monthly as month}
+        <article class="month-cell {month.levelClass}">
+          <span class="month">{month.month}</span>
+          <strong>{month.score}</strong>
+          <small>{month.label}</small>
+        </article>
+      {/each}
+    </div>
+    <div class="legend">
+      <span class="dot routine"></span> Rutina
+      <span class="dot watch"></span> Vigilancia
+      <span class="dot action"></span> Acción
+    </div>
   {/if}
 </article>
 
@@ -84,20 +192,103 @@
   .risk-heatmap { background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 16px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; box-shadow: var(--shadow-sm, 0 1px 3px rgba(31,41,55,0.06)); }
   .risk-heatmap h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary, #1f2937); }
   .subtitle { margin: 0; font-size: 0.8rem; color: var(--text-secondary, #64748b); }
-  .heatmap-wrapper { min-height: 200px; }
+
+  .state {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  .state.muted { color: var(--text-secondary, #64748b); }
+  .state.error { color: #b91c1c; }
+
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .month-cell {
+    border-radius: 12px;
+    padding: 0.72rem;
+    display: grid;
+    gap: 0.22rem;
+    border: 1px solid transparent;
+  }
+
+  .month-cell .month {
+    font-size: 0.74rem;
+    color: var(--text-secondary, #64748b);
+  }
+
+  .month-cell strong {
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--text-primary, #111827);
+  }
+
+  .month-cell small {
+    font-size: 0.76rem;
+    font-weight: 600;
+  }
+
+  .month-cell.routine {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+  }
+
+  .month-cell.watch {
+    background: #fffbeb;
+    border-color: #fde68a;
+  }
+
+  .month-cell.action {
+    background: #fef2f2;
+    border-color: #fecaca;
+  }
+
+  .month-cell.routine small { color: #047857; }
+  .month-cell.watch small { color: #b45309; }
+  .month-cell.action small { color: #b91c1c; }
+
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.76rem;
+    color: var(--text-secondary, #64748b);
+    flex-wrap: wrap;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    display: inline-block;
+    margin-left: 0.4rem;
+  }
+
+  .dot.routine { background: #10b981; }
+  .dot.watch { background: #f59e0b; }
+  .dot.action { background: #ef4444; }
 
   .heatmap-skeleton {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
-    padding: 1rem 0;
+    padding: 0.35rem 0;
   }
+
   .skeleton-month {
-    height: 32px;
+    height: 62px;
     background: linear-gradient(90deg, var(--border-subtle, #e2e8f0) 25%, var(--bg-app, #f1f5f9) 50%, var(--border-subtle, #e2e8f0) 75%);
     background-size: 200% 100%;
-    border-radius: 6px;
+    border-radius: 8px;
     animation: shimmer 1.5s infinite linear;
   }
+
   @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+  @media (max-width: 900px) {
+    .heatmap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .heatmap-skeleton { grid-template-columns: repeat(2, 1fr); }
+  }
 </style>
