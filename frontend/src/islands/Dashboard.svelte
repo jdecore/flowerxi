@@ -196,46 +196,56 @@
 </script>
 
 <section class="live-grid">
-  {#if loading}
-    <article class="live-card full-width">
-      <p class="state-message">Cargando estado en vivo...</p>
-    </article>
-  {:else if error}
-    <article class="live-card full-width">
+  <article class="live-card status-card {statusUi.tone}">
+    <p class="live-kicker">Estado en vivo</p>
+    {#if loading}
+      <p class="state-message">Cargando...</p>
+    {:else if error}
       <p class="state-message error">{error}</p>
-    </article>
-  {:else}
-    <article class="live-card status-card {statusUi.tone}">
-      <p class="live-kicker">Estado en vivo</p>
+    {:else}
       <h2>{statusUi.label}</h2>
       <p class="live-copy">{operativo?.reason ?? 'Sin razón principal disponible.'}</p>
       <div class="live-badges">
         <span>Municipio: {regionName}</span>
         <span>Puntaje: {toNumberOrNull(operativo?.score) ?? 'Sin dato'}</span>
       </div>
-    </article>
+    {/if}
+  </article>
 
-    <article class="live-card">
-      <p class="live-kicker">Qué hacer hoy</p>
+  <article class="live-card">
+    <p class="live-kicker">Qué hacer hoy</p>
+    {#if loading}
+      <p class="state-message">Cargando...</p>
+    {:else if error}
+      <p class="state-message error">{error}</p>
+    {:else}
       <p class="action-copy">
         {operativo?.action_today ?? 'Mantén protocolo base y espera el siguiente corte de datos.'}
       </p>
       {#if operativo?.attention}
         <p class="attention-copy">{operativo.attention}</p>
       {/if}
-    </article>
+    {/if}
+  </article>
 
-    <article class="live-card evidence-card full-width">
-      <div class="evidence-head">
-        <div>
-          <p class="live-kicker">Evidencia en vivo</p>
-          <h3>Lluvia, temperatura, humedad y tendencia (14 días)</h3>
-        </div>
-        {#if lastUpdated}
-          <span>Actualizado: {lastUpdated}</span>
-        {/if}
+  <article class="live-card evidence-card full-width">
+    <div class="evidence-head">
+      <div>
+        <p class="live-kicker">Evidencia en vivo</p>
+        <h3>Lluvia, temperatura, humedad y tendencia (14 días)</h3>
       </div>
+      {#if lastUpdated}
+        <span>Actualizado: {lastUpdated}</span>
+      {/if}
+    </div>
 
+    {#if loading}
+      <div class="evidence-metrics">
+        {#each [1,2,3,4] as _}
+          <article><p>Cargando...</p><strong>--</strong></article>
+        {/each}
+      </div>
+    {:else}
       <div class="evidence-metrics">
         <article>
           <p>Lluvia hoy</p>
@@ -261,8 +271,8 @@
       {:else}
         <p class="state-message">Sin historial disponible para el municipio seleccionado.</p>
       {/if}
-    </article>
-  {/if}
+    {/if}
+  </article>
 </section>
 
 <style>
