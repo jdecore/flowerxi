@@ -1,5 +1,6 @@
 <script>
-  import { onDestroy, onMount } from 'svelte';
+  import { onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let embedded = false;
@@ -96,44 +97,12 @@
     }
   };
 
-  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
-
-  const buildApiBases = (raw) => {
-    const configured = normalizeBaseUrl(raw);
-    const candidates = [];
-    if (configured) candidates.push(configured);
-
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      if (host === 'localhost' || host === '127.0.0.1') {
-        candidates.push(`${window.location.protocol}//${host}:8000`);
-        candidates.push('http://localhost:8000');
-        candidates.push('http://127.0.0.1:8000');
-      }
-    }
-
-    candidates.push('');
-    return [...new Set(candidates)];
-  };
-
-  const endpoint = (base, path) => {
-    if (!base) return path;
-    if (base.endsWith('/api') && path.startsWith('/api/')) return `${base}${path.slice(4)}`;
-    return `${base}${path}`;
-  };
-
   const fetchJson = async (path) => {
-    const apiBases = buildApiBases(apiUrl);
-    for (const base of apiBases) {
-      try {
-        const res = await fetch(endpoint(base, path), { headers: { Accept: 'application/json' } });
-        if (!res.ok) continue;
-        return await res.json();
-      } catch {
-        continue;
-      }
-    }
-    return null;
+    return fetchJsonCached(path, {
+      apiUrl,
+      cacheTtlMs: 18_000,
+      throwOnError: false,
+    });
   };
 
   const toNumOrNull = (value) => {
@@ -582,7 +551,6 @@
   const openChat = async () => {
     chatOpen = true;
     ensureModel();
-    await Promise.resolve();
     if (inputRef?.focus) inputRef.focus();
     if (embedded && typeof document !== 'undefined') {
       const section = document.getElementById('chat-section');

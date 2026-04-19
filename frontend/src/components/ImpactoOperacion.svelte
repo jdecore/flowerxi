@@ -1,67 +1,26 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
-export let apiUrl = '';
-export let region = 'madrid';
+  export let apiUrl = '';
+  export let region = 'madrid';
 
   let currentScore = null;
   let currentStatus = 'Sin datos';
   let surveillanceDays = null;
   let observedDays = null;
   let recommendation = 'Datos no disponibles.';
-  let loading = true;
   let error = '';
 
-  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
-
-  const buildApiBases = (raw) => {
-    const configured = normalizeBaseUrl(raw);
-    const candidates = [];
-    if (configured) candidates.push(configured);
-
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      if (host === 'localhost' || host === '127.0.0.1') {
-        candidates.push(`${window.location.protocol}//${host}:8000`);
-        candidates.push('http://localhost:8000');
-        candidates.push('http://127.0.0.1:8000');
-      }
-    }
-
-    candidates.push('');
-    return [...new Set(candidates)];
-  };
-
-  const endpoint = (base, path) => {
-    if (!base) return path;
-    if (base.endsWith('/api') && path.startsWith('/api/')) {
-      return `${base}${path.slice(4)}`;
-    }
-    return `${base}${path}`;
-  };
-
   const fetchJson = async (path) => {
-    const apiBases = buildApiBases(apiUrl);
-    let lastError = null;
-
-    for (const base of apiBases) {
-      try {
-        const res = await fetch(endpoint(base, path), { headers: { Accept: 'application/json' } });
-        if (!res.ok) {
-          lastError = new Error(`HTTP ${res.status}`);
-          continue;
-        }
-        return await res.json();
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error('network');
-      }
-    }
-
-    throw lastError ?? new Error('network');
+    return fetchJsonCached(path, {
+      apiUrl,
+      cacheTtlMs: 16_000,
+      throwOnError: true,
+    });
   };
 
   const fetchImpact = async () => {
-    loading = true;
     error = '';
     currentScore = null;
     currentStatus = 'Sin datos';
@@ -94,7 +53,7 @@ export let region = 'madrid';
         const water = Number(latest?.waterlogging_risk);
         const heat = Number(latest?.heat_risk);
         if ([fungal, water, heat].every(Number.isFinite)) {
-          currentScore = Math.round((fungal * 0.5) + (water * 0.3) + (heat * 0.2));
+          currentScore = Math.round(fungal * 0.5 + water * 0.3 + heat * 0.2);
           currentStatus = currentScore >= 70 ? 'Acción requerida' : currentScore >= 40 ? 'Vigilancia reforzada' : 'Rutina normal';
         }
       }
@@ -110,8 +69,34 @@ export let region = 'madrid';
       error = 'Datos no disponibles.';
       console.error(e);
     }
-    finally { loading = false; }
   };
+
+  const handleRegionChange = (e) => {
+    if (e.detail !== region) {
+      region = e.detail;
+      fetchImpact();
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchImpact();
+  };
+
+  onMount(() => {
+    fetchImpact();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('regionchange', handleRegionChange);
+      window.addEventListener('flowerxi:refresh', handleRefresh);
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('regionchange', handleRegionChange);
+      window.removeEventListener('flowerxi:refresh', handleRefresh);
+    }
+  });
+</script>
 
   const handleRegionChange = (e) => {
     if (e.detail !== region) {

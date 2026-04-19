@@ -7,6 +7,7 @@
 ## 📋 Índice
 
 - [🌻 Visión General](#-visión-general)
+- [🆕 Novedades recientes](#-novedades-recientes)
 - [🏗️ Arquitectura](#️-arquitectura)
 - [🌍 Enfoque Funcional](#-enfoque-funcional)
 - [🔌 API Endpoints](#-api-endpoints)
@@ -24,6 +25,16 @@
 **flowerxi** es una plataforma integral que combina **datos agroclimáticos en tiempo real** con **inteligencia artificial** para apoyar la toma de decisiones en el cultivo de **rosas de corte** en la Sabana de Bogotá.
 
 🌤️ **Monitoreo climático** → 📈 **Análisis de riesgo** → 💡 **Recomendaciones accionables**
+
+---
+
+## 🆕 Novedades recientes
+
+- 🚀 **Rendimiento:** capa compartida de cache/deduplicación para requests frontend (`fetchJsonCached`) en widgets críticos del home.
+- 🧭 **Municipios:** `StartupRegionModal` restaurado con apertura por evento, selección persistente y actualización global por `regionchange`.
+- 🌙 **Modo oscuro:** correcciones de contraste/fondos en tarjetas de comparativa y calendario de riesgo (sin “chips” blancos).
+- 🤖 **Chat IA:** fallback más útil por intención + diagnóstico explícito de WebLLM cuando no hay GPU/WebGPU disponible.
+- 🔄 **Refresh inteligente:** botón de actualizar fuerza lectura fresca para evitar datos “pegados” en cache.
 
 ---
 
@@ -75,12 +86,14 @@ backend/
 - Cobertura operativa: municipios floricultores de **Cundinamarca** (base actual del seed)
 
 ### 📊 Dashboard Interactivo
-- ✅ Selector inicial de municipio (modal) con actualización inmediata del dashboard
-- ✅ Botón primario de selección de municipio visible al inicio para priorizar contexto antes de cargar todo
-- ✅ Estado diario de riesgo con recomendación accionable
-- ✅ Evidencia de 14 días (lluvia, temperatura y señales de riesgo reales)
-- ✅ Chat IA operativo embebido en home con contexto real del backend
-- ✅ Comparativa Sabana ampliada (ranking dinámico top 10 con cobertura total disponible)
+- ✅ 🧭 Selector inicial de municipio (modal) con actualización inmediata del dashboard
+- ✅ 🔘 Botón primario “Cambiar municipio” visible al inicio para priorizar contexto
+- ✅ 📌 Estado diario de riesgo con recomendación accionable
+- ✅ 📉 Evidencia de 14 días (lluvia, temperatura y señales de riesgo reales)
+- ✅ 🤖 Chat IA operativo embebido en home con contexto real del backend + fallback robusto
+- ✅ 🗺️ Comparativa Sabana ampliada (ranking dinámico top 10 con cobertura total disponible)
+- ✅ ⚡ Carga de datos optimizada con cache en frontend y refresh forzado bajo demanda
+- ✅ 🌙 Estilos ajustados para tema oscuro en componentes operativos clave
 
 ### 🛡️ Vigilancia y Priorización
 - Capa de **riesgo agroclimático mensual** basada en `risk_signals` reales
@@ -91,6 +104,7 @@ backend/
 - **Astro**: estructura estática, layout principal y topbar
 - **Islas Svelte**: datos vivos y eventos (`StartupRegionModal`, `OperationalHero`, `EvidenceSparklines`, `RiskHeatmap`, `ImpactoOperacion`, `SabanaComparison`, `ChatBot`)
 - **Hidratación diferida**: módulos no críticos con carga `client:visible` / `client:idle` para mejorar tiempo inicial
+- **Cliente API compartido**: helper único para base URL, reintentos por origen, deduplicación de requests y cache temporal
 - Integración tolerante a fallos: si un endpoint no responde, los widgets derivan desde `/api/history` (sin datos estáticos inventados)
 
 ### 🤖 Asistente IA
@@ -286,6 +300,12 @@ cp .env.example .env
 npm run dev
 ```
 👉 Dashboard disponible en `http://localhost:4321`
+
+### 3️⃣ Validación rápida ✅
+```bash
+cd frontend && npm run build
+cd ../backend && python3 -m py_compile app/main.py app/utils.py app/queries.py app/db.py app/config.py
+```
 
 ---
 

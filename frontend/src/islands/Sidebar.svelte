@@ -27,24 +27,6 @@
   let selectedRegion = 'madrid';
   let selectedLot = 'lote-3-lavanda';
 
-  const getLotsForRegion = (regionId) => lotsByRegion[regionId] ?? [];
-  const getRegionName = (regionId) =>
-    regions.find((region) => region.id === regionId)?.name ?? 'Madrid';
-
-  const getLotName = (regionId, lotId) =>
-    getLotsForRegion(regionId).find((lot) => lot.id === lotId)?.name ?? 'Lote';
-
-  const saveLocal = (key, value) => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(key, String(value));
-  };
-
-  const applyFieldMode = () => {
-    if (typeof document === 'undefined') return;
-    if (fieldMode) document.documentElement.setAttribute('data-field-mode', 'on');
-    else document.documentElement.removeAttribute('data-field-mode');
-  };
-
   const syncRegionAndLot = () => {
     const lots = getLotsForRegion(selectedRegion);
     if (!lots.some((lot) => lot.id === selectedLot)) {

@@ -1,5 +1,6 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let region = 'madrid';
@@ -14,48 +15,12 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
-  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
-
-  const buildApiBases = (raw) => {
-    const configured = normalizeBaseUrl(raw);
-    const candidates = [];
-    if (configured) candidates.push(configured);
-
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      if (host === 'localhost' || host === '127.0.0.1') {
-        candidates.push(`${window.location.protocol}//${host}:8000`);
-        candidates.push('http://localhost:8000');
-        candidates.push('http://127.0.0.1:8000');
-      }
-    }
-
-    candidates.push('');
-    return [...new Set(candidates)];
-  };
-
-  const endpoint = (base, path) => {
-    if (!base) return path;
-    if (base.endsWith('/api') && path.startsWith('/api/')) return `${base}${path.slice(4)}`;
-    return `${base}${path}`;
-  };
-
   const fetchJson = async (path) => {
-    const apiBases = buildApiBases(apiUrl);
-    let lastError = null;
-    for (const base of apiBases) {
-      try {
-        const res = await fetch(endpoint(base, path), { headers: { Accept: 'application/json' } });
-        if (!res.ok) {
-          lastError = new Error(`HTTP ${res.status}`);
-          continue;
-        }
-        return await res.json();
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error('network');
-      }
-    }
-    throw lastError ?? new Error('network');
+    return fetchJsonCached(path, {
+      apiUrl,
+      cacheTtlMs: 22_000,
+      throwOnError: true,
+    });
   };
 
   const FALLBACK_HISTORY_LIMIT = 120;
@@ -396,7 +361,7 @@
     padding: 0.42rem 0.5rem;
     border: 1px solid var(--border-subtle, #e2e8f0);
     text-align: center;
-    background: rgba(255, 255, 255, 0.82);
+    background: color-mix(in srgb, var(--bg-surface, #fff) 88%, transparent);
   }
 
   .score-chip strong {

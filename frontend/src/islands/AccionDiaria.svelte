@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let region = 'madrid';
@@ -8,32 +9,49 @@
   let error = '';
   let operativo = null;
 
-  const fetchData = async () => {
+  const fetchJson = async (path) => {
+    return fetchJsonCached(path, { apiUrl, init: { method: 'GET' } });
+  };
+
+  const fetchAccion = async () => {
     loading = true;
     error = '';
     try {
-      let res = await fetch(`${apiUrl}/api/risk/operativo?region=${region}`);
-      if (!res.ok) throw new Error(`Error (${res.status})`);
-      operativo = await res.json();
-      if (!operativo?.action_today) throw new Error('Sin datos');
+      const data = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`);
+      operativo = data?.action_today ? { action_today: data.action_today } : null;
+      if (!operativo) throw new Error('Sin datos operativos');
     } catch (e) {
       try {
-        const snapRes = await fetch(`${apiUrl}/api/dashboard?region=${region}`);
-        if (snapRes.ok) {
-          const snap = await snapRes.json();
-          const precip = snap?.snapshot?.precipitation_mm || 0;
-          operativo = {
-            action_today: precip > 5 ? 'Revisa drenaje, evita acumulaciones de agua' : precip > 2 ? 'Monitorea humedad y ventilación' : 'Mantén protocolo habitual',
-          };
-        }
-      } catch {}
-      if (!operativo) error = e.message;
+        const snap = await fetchJson(`/api/dashboard?region=${encodeURIComponent(region)}`);
+        const precip = snap?.snapshot?.precipitation_mm || 0;
+        operativo = {
+          action_today:
+            precip > 5
+              ? 'Revisa drenaje, evita acumulaciones de agua'
+              : precip > 2
+                ? 'Monitorea humedad y ventilación'
+                : 'Mantén protocolo habitual',
+        };
+      } catch {
+        if (!operativo) error = e.message || 'Error al cargar acción';
+      }
     } finally {
       loading = false;
     }
   };
 
-  onMount(fetchData);
+  const handleRegionChange = (e) => {
+    if (e.detail !== region) {
+      region = e.detail;
+      fetchAccion();
+    }
+  };
+
+  onMount(() => {
+    fetchAccion();
+    window.addEventListener('regionchange', handleRegionChange);
+    return () => window.removeEventListener('regionchange', handleRegionChange);
+  });
 </script>
 
 <article class="card">
@@ -43,12 +61,7 @@
   {:else if error}
     <p class="error">{error}</p>
   {:else}
-    <p class="action">
-      {operativo?.action_today ?? 'Mantén protocolo base.'}
-    </p>
-    {#if operativo?.attention}
-      <p class="attention">{operativo.attention}</p>
-    {/if}
+    <p class="action">{operativo?.action_today ?? 'Mantén protocolo base.'}</p>
   {/if}
 </article>
 
@@ -75,20 +88,12 @@
     color: #efe7ff;
     font-family: var(--font-sans);
   }
-  .attention {
-    margin-top: 0.75rem;
-    padding: 0.65rem 0.75rem;
-    border-radius: 10px;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    background: rgba(245, 158, 11, 0.12);
-    font-size: var(--text-base);
-    line-height: 1.4;
-    color: #d4c4e8;
-    font-family: var(--font-sans);
-  }
-  .loading, .error {
+  .loading,
+  .error {
     margin: 0.55rem 0 0;
     color: #d9c9f1;
   }
-  .error { color: #fecaca; }
+  .error {
+    color: #fecaca;
+  }
 </style>

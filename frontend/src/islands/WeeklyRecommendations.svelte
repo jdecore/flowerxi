@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let region = 'madrid';
@@ -8,13 +9,15 @@
   let error = '';
   let recommendations = [];
 
-  const fetchData = async () => {
+  const fetchJson = async (path) => {
+    return fetchJsonCached(path, { apiUrl });
+  };
+
+  const fetchWeeklyRecs = async () => {
     loading = true;
     error = '';
     try {
-      const res = await fetch(`${apiUrl}/api/recommendations/week?region=${region}&days=7`);
-      if (!res.ok) throw new Error('Error');
-      const data = await res.json();
+      const data = await fetchJson(`/api/recommendations/week?region=${encodeURIComponent(region)}&days=7`);
       recommendations = Array.isArray(data?.recommendations) ? data.recommendations : [];
     } catch (e) {
       error = e.message;
@@ -27,12 +30,12 @@
   const handleRegionChange = (e) => {
     if (e.detail !== region) {
       region = e.detail;
-      fetchData();
+      fetchWeeklyRecs();
     }
   };
 
   onMount(() => {
-    fetchData();
+    fetchWeeklyRecs();
     window.addEventListener('regionchange', handleRegionChange);
     return () => window.removeEventListener('regionchange', handleRegionChange);
   });

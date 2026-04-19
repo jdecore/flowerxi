@@ -5,20 +5,18 @@
   let loading = true;
   let error = '';
 
-  const buildApiBases = (raw) => {
-    const candidates = [];
-    if (raw) candidates.push(raw.replace(/\/+$/, ''));
+  const apiBases = (() => {
+    const bases = [];
+    if (apiUrl) bases.push(apiUrl.replace(/\/+$/, ''));
     if (typeof window !== 'undefined') {
       const { hostname } = window.location;
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        candidates.push('http://localhost:8000', 'http://127.0.0.1:8000');
+        bases.push('http://localhost:8000', 'http://127.0.0.1:8000');
       }
     }
-    candidates.push('');
-    return [...new Set(candidates)];
-  };
-
-  const apiBases = buildApiBases(apiUrl);
+    bases.push('');
+    return [...new Set(bases)];
+  })();
 
   const fetchJson = async (path) => {
     for (const base of apiBases) {
@@ -34,7 +32,7 @@
     throw new Error('No disponible');
   };
 
-  const loadStations = async () => {
+  const fetchStations = async () => {
     loading = true;
     error = '';
     try {
@@ -47,7 +45,7 @@
     }
   };
 
-  loadStations();
+  fetchStations();
 </script>
 
 <div class="stations-grid">

@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let region = 'madrid';
@@ -23,21 +24,61 @@
     return Math.max(35, Math.min(95, Math.round(estimate)));
   };
 
-  const fetchData = async () => {
+  const metrics = [
+    {
+      key: 'precipitation',
+      label: 'Lluvia hoy',
+      field: 'precipitation_mm',
+      unit: 'mm',
+      class: 'precipitation',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 16.2A4.5 4.5 0 0012 14a4.5 4.5 0 00-8 0A4.5 4.5 0 004 16.2"/><line x1="10" y1="13" x2="10" y2="18"/><line x1="14" y1="13" x2="14" y2="18"/></svg>`
+    },
+    {
+      key: 'temperature',
+      label: 'Temp. media',
+      field: 'temp_mean_c',
+      unit: '°C',
+      class: 'temperature',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 00-5 0l9 5.76z"/><path d="M12 2v9"/></svg>`
+    },
+    {
+      key: 'humidity',
+      label: 'Humedad estimada',
+      field: null,
+      unit: '%',
+      class: 'humidity',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>`
+    },
+    {
+      key: 'days',
+      label: 'Registros',
+      field: null,
+      unit: '',
+      class: 'days',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`
+    }
+  ];
+
+  const fetchJson = async (path) => {
+    return fetchJsonCached(path, {
+      apiUrl,
+      cacheTtlMs: 14_000,
+      throwOnError: true,
+    });
+  };
+
+  const fetchMetrics = async () => {
     loading = true;
     error = '';
     try {
-      const [snapRes, histRes] = await Promise.all([
-        fetch(`${apiUrl}/api/dashboard?region=${region}`),
-        fetch(`${apiUrl}/api/history?region=${region}&limit=30`),
+      const [snapData, histData] = await Promise.all([
+        fetchJson(`/api/dashboard?region=${encodeURIComponent(region)}`),
+        fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=30`).catch(() => ({ items: [] }))
       ]);
-      if (!snapRes.ok) throw new Error('Error dashboard');
-      const snapData = await snapRes.json();
-      const histData = await histRes.ok ? await histRes.json() : { items: [] };
       snapshot = snapData?.snapshot ?? null;
       history = Array.isArray(histData?.items) ? histData.items : [];
     } catch (e) {
-      error = e.message;
+      error = e instanceof Error ? e.message : String(e);
       snapshot = null;
       history = [];
     } finally {
@@ -48,17 +89,24 @@
   const handleRegionChange = (e) => {
     if (e.detail !== region) {
       region = e.detail;
-      fetchData();
+      fetchMetrics();
     }
   };
 
   onMount(() => {
-    fetchData();
+    fetchMetrics();
     window.addEventListener('regionchange', handleRegionChange);
     return () => window.removeEventListener('regionchange', handleRegionChange);
   });
 
   $: humidityEstimate = snapshot ? estimateHumidity(snapshot?.temp_mean_c, snapshot?.precipitation_mm) : null;
+
+  $: metricValues = {
+    precipitation: formatMetric(snapshot?.precipitation_mm, 'mm'),
+    temperature: formatMetric(snapshot?.temp_mean_c, '°C'),
+    humidity: humidityEstimate !== null ? `${humidityEstimate}%` : '--',
+    days: history.length
+  };
 </script>
 
 <article class="weather-metrics">
@@ -80,51 +128,13 @@
     <div class="error">{error}</div>
   {:else}
     <div class="metrics-grid">
-      <div class="metric-card precipitation">
-        <div class="metric-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 16.2A4.5 4.5 0 0012 14a4.5 4.5 0 00-8 0A4.5 4.5 0 004 16.2"/>
-            <line x1="10" y1="13" x2="10" y2="18"/>
-            <line x1="14" y1="13" x2="14" y2="18"/>
-          </svg>
+      {#each metrics as m}
+        <div class="metric-card {m.class}">
+          <div class="metric-icon">{@html m.icon}</div>
+          <p class="metric-label">{m.label}</p>
+          <strong class="metric-value">{metricValues[m.key]}</strong>
         </div>
-        <p class="metric-label">Lluvia hoy</p>
-        <strong class="metric-value">{formatMetric(snapshot?.precipitation_mm, 'mm')}</strong>
-      </div>
-
-      <div class="metric-card temperature">
-        <div class="metric-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 14.76V3.5a2.5 2.5 0 00-5 0l9 5.76z"/>
-            <path d="M12 2v9"/>
-          </svg>
-        </div>
-        <p class="metric-label">Temp. media</p>
-        <strong class="metric-value">{formatMetric(snapshot?.temp_mean_c, '°C')}</strong>
-      </div>
-
-      <div class="metric-card humidity">
-        <div class="metric-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/>
-          </svg>
-        </div>
-        <p class="metric-label">Humedad estimada</p>
-        <strong class="metric-value">{humidityEstimate !== null ? `${humidityEstimate}%` : '--'}</strong>
-      </div>
-
-      <div class="metric-card days">
-        <div class="metric-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-        </div>
-        <p class="metric-label">Registros</p>
-        <strong class="metric-value">{history.length}</strong>
-      </div>
+      {/each}
     </div>
 
     {#if history.length > 7}

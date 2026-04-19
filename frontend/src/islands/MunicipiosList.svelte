@@ -58,10 +58,6 @@
     }
   };
 
-  const goBack = () => {
-    selected = null;
-  };
-
   loadMunicipios();
 </script>
 
@@ -95,17 +91,17 @@
     {/if}
   {:else if selected.loading}
     <div class="detail-view">
-      <button class="back-btn" on:click={goBack}>&larr; Volver</button>
+      <button class="back-btn" on:click={() => selected = null}>&larr; Volver</button>
       <p>Cargando...</p>
     </div>
   {:else if selected.error}
     <div class="detail-view">
-      <button class="back-btn" on:click={goBack}>&larr; Volver</button>
+      <button class="back-btn" on:click={() => selected = null}>&larr; Volver</button>
       <p class="error-text">{selected.error}</p>
     </div>
   {:else}
     <div class="detail-view">
-      <button class="back-btn" on:click={goBack}>&larr; Volver</button>
+      <button class="back-btn" on:click={() => selected = null}>&larr; Volver</button>
       <h2>{selected.name}</h2>
       <p class="muted">{selected.city}, {selected.department}</p>
       <div class="stats-grid">
@@ -141,15 +137,15 @@
   .muni-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 1.25rem; cursor: pointer; transition: all 160ms; }
   .muni-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
   .detail-view { max-width: 700px; }
-   .back-btn {
-     background: none;
-     border: none;
-     color: var(--primary, #7b5ba6);
-     cursor: pointer;
-     font-family: var(--font-sans);
-     font-size: var(--text-lg);
-     margin-bottom: 1rem;
-   }
+  .back-btn {
+    background: none;
+    border: none;
+    color: var(--primary, #7b5ba6);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
+    margin-bottom: 1rem;
+  }
   .back-btn:hover { color: var(--primary-hover); }
   .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin: 1rem 0; }
   @media (max-width: 600px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }

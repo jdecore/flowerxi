@@ -3,7 +3,6 @@
   export let data = [];
   export let unit = '';
   export let color = '#7B5BA6';
-  export let height = 60;
 
   const hexToRgb = (hex) => {
     const normalized = String(hex ?? '').replace('#', '').trim();
@@ -15,7 +14,6 @@
     return `${r},${g},${b}`;
   };
 
-  // Calcular puntos del gráfico (normalizado a 0-100 en X, 0-50 en Y)
   $: maxVal = Math.max(...data, 1);
   $: areaFill = `rgba(${hexToRgb(color)}, 0.16)`;
   $: points = data.map((val, i) => {
@@ -58,11 +56,11 @@
     background: var(--bg-surface, #fff);
     border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 12px;
-    padding: 0.3rem;
+    padding: 0.45rem;
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
-    min-height: 70px;
+    gap: 0.2rem;
+    min-height: 90px;
     height: 100%;
   }
 
@@ -75,13 +73,13 @@
     letter-spacing: 0.05em;
   }
 
-   .spark-svg {
-     font-family: var(--font-sans);
-     width: 100%;
-     height: 35px;
-     border-radius: 4px;
-     background: linear-gradient(180deg, color-mix(in srgb, var(--bg-app, #f8fafc) 60%, #fff), var(--bg-app, #f1f5f9));
-   }
+  .spark-svg {
+    font-family: var(--font-sans);
+    width: 100%;
+    height: 45px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg-app, #f8fafc) 60%, #fff), var(--bg-app, #f1f5f9));
+  }
 
   .spark-svg polygon, .spark-svg polyline {
     vector-effect: non-scaling-stroke;
@@ -89,7 +87,7 @@
 
   .spark-last {
     font-family: var(--font-sans);
-    font-size: var(--text-xs);
+    font-size: var(--text-base);
     font-weight: 600;
     color: var(--text-primary, #1f2937);
     margin-top: auto;
@@ -101,18 +99,18 @@
     font-size: var(--text-xs);
   }
 
-  .spark-skeleton {
-    font-family: var(--font-sans);
-    height: 35px;
-    width: 100%;
-    background: linear-gradient(90deg, #e2e8f020, #cbd5e130, #e2e8f020);
-    background-size: 200% 100%;
-    border-radius: 4px;
-    animation: shimmer 1.5s infinite linear;
-  }
+   .spark-skeleton {
+     font-family: var(--font-sans);
+     height: 45px;
+     width: 100%;
+     background: linear-gradient(90deg, #e2e8f020, #cbd5e130, #e2e8f020);
+     background-size: 200% 100%;
+     border-radius: 4px;
+     animation: shimmer 1.5s infinite linear;
+   }
 
-  @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
+   @keyframes shimmer {
+     0% { transform: translateX(-100%); }
+     100% { transform: translateX(100%); }
+   }
 </style>

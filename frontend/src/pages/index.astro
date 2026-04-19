@@ -58,7 +58,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
          </div>
       </header>
 
-      <StartupRegionModal client:load />
+      <StartupRegionModal {apiUrl} client:load />
       <section class="region-priority">
         <div class="region-info-left">
           <p class="region-current-label">Municipio actual</p>
@@ -188,6 +188,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
 
           // Refresh datos
           document.getElementById('btn-refresh')?.addEventListener('click', () => {
+            window.__flowerxiForceFreshUntil = Date.now() + 1500;
             window.dispatchEvent(new Event('refreshdata'));
             window.dispatchEvent(new Event('flowerxi:refresh'));
           });
@@ -253,7 +254,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
       .region-info-left { display: flex; flex-direction: column; gap: 0.1rem; }
       .region-priority-btn {
         border: 1px solid var(--primary, #7b5ba6); border-radius: 10px;
-        background: color-mix(in srgb, var(--primary, #7b5ba6) 12%, #fff);
+        background: color-mix(in srgb, var(--primary, #7b5ba6) 20%, var(--bg-surface, #fff));
         color: var(--primary, #7b5ba6);
         font-family: var(--font-sans); font-size: var(--text-base); font-weight: var(--font-semibold);
         padding: 0.52rem 0.75rem; cursor: pointer;

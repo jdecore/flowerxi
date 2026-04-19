@@ -22,8 +22,7 @@
   let humidAction = '';
   let photoInput;
 
-  const todayKey = () => new Date().toISOString().slice(0, 10);
-  const storageKey = () => `flowerxi_checklist:${region}:${todayKey()}`;
+  const storageKey = () => `flowerxi_checklist:${region}:${new Date().toISOString().slice(0,10)}`;
 
   const saveState = () => {
     if (typeof window === 'undefined') return;

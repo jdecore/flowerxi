@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let region = 'madrid';
@@ -16,45 +17,51 @@
     sin_datos: { label: 'Sin datos', tone: 'sin-datos' },
   };
 
-  const toNumberOrNull = (value) => {
-    if (value === null || value === undefined) return null;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+  const fetchJson = async (path) => {
+    return fetchJsonCached(path, { apiUrl });
   };
 
-  const fetchData = async () => {
+  const buildFallback = (snap) => {
+    const precip = snap?.snapshot?.precipitation_mm || 0;
+    const score = precip > 5 ? 65 : precip > 2 ? 45 : 22;
+    return {
+      status: score > 60 ? 'accion' : score > 30 ? 'vigilancia' : 'rutina',
+      reason: precip > 5 ? 'Lluvia elevada hoy' : precip > 2 ? 'Lluvia moderada' : 'Condiciones normales',
+      score,
+      action_today: precip > 5 ? 'Revisa drenaje y ventilación' : 'Mantén protocolo habitual',
+    };
+  };
+
+  const fetchEstado = async () => {
     loading = true;
     error = '';
+    operativo = null;
     try {
-      let res = await fetch(`${apiUrl}/api/risk/operativo?region=${region}`);
-      if (!res.ok) throw new Error(`Error (${res.status})`);
-      operativo = await res.json();
-      if (!operativo?.status) throw new Error('Sin datos operativos');
-      regionName = operativo?.region || region;
+      const data = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`);
+      if (data?.status) {
+        operativo = data;
+        regionName = data?.region || region;
+      } else {
+        throw new Error('Sin datos operativos');
+      }
     } catch (e) {
       try {
-        const snapRes = await fetch(`${apiUrl}/api/dashboard?region=${region}`);
-        if (snapRes.ok) {
-          const snap = await snapRes.json();
-          const precip = snap?.snapshot?.precipitation_mm || 0;
-          const temp = snap?.snapshot?.temp_mean_c || 15;
-          const score = precip > 5 ? 65 : precip > 2 ? 45 : 22;
-          operativo = {
-            status: score > 60 ? 'accion' : score > 30 ? 'vigilancia' : 'rutina',
-            reason: precip > 5 ? 'Lluvia elevada hoy' : precip > 2 ? 'Lluvia moderada' : 'Condiciones normales',
-            score,
-            action_today: precip > 5 ? 'Revisa drenaje y ventilación' : 'Mantén protocolo habitual',
-          };
-          regionName = snap?.snapshot?.region_name || region;
+        const snap = await fetchJson(`/api/dashboard?region=${encodeURIComponent(region)}`);
+        if (snap?.snapshot) {
+          operativo = buildFallback(snap);
+          regionName = snap.snapshot.region_name || region;
+        } else {
+          throw e;
         }
-      } catch {}
-      if (!operativo) error = e.message;
+      } catch (e2) {
+        error = e.message;
+      }
     } finally {
       loading = false;
     }
   };
 
-  onMount(fetchData);
+  onMount(fetchEstado);
 </script>
 
 <article class="card estado-card {loading ? '' : operativo?.status ? STATUS_UI[operativo.status]?.tone : 'sin-datos'}">
@@ -68,7 +75,7 @@
     <p class="copy">{operativo?.reason ?? 'Sin razón disponible'}</p>
     <div class="badges">
       <span>Municipio: {regionName}</span>
-      <span>Puntaje: {toNumberOrNull(operativo?.score) ?? '--'}</span>
+      <span>Puntaje: {operativo?.score ?? '--'}</span>
     </div>
   {/if}
 </article>

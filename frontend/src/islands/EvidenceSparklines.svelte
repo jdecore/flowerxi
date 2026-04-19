@@ -1,6 +1,7 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
   import Sparkline from '../components/Sparkline.svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let initialRegion = 'madrid';
@@ -22,52 +23,15 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   };
 
-  const normalizeBaseUrl = (raw) => String(raw ?? '').trim().replace(/\/+$/, '');
-
-  const buildApiBases = (raw) => {
-    const configured = normalizeBaseUrl(raw);
-    const candidates = [];
-    if (configured) candidates.push(configured);
-
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      if (host === 'localhost' || host === '127.0.0.1') {
-        candidates.push(`${window.location.protocol}//${host}:8000`);
-        candidates.push('http://localhost:8000');
-        candidates.push('http://127.0.0.1:8000');
-      }
-    }
-
-    candidates.push('');
-    return [...new Set(candidates)];
-  };
-
-  const endpoint = (base, path) => {
-    if (!base) return path;
-    if (base.endsWith('/api') && path.startsWith('/api/')) {
-      return `${base}${path.slice(4)}`;
-    }
-    return `${base}${path}`;
-  };
-
-  const fetchJson = async (path, label) => {
-    const apiBases = buildApiBases(apiUrl);
-    let lastError = null;
-
-    for (const base of apiBases) {
-      try {
-        const res = await fetch(endpoint(base, path), { headers: { Accept: 'application/json' } });
-        if (!res.ok) {
-          lastError = new Error(`${label} (${res.status})`);
-          continue;
-        }
-        return await res.json();
-      } catch {
-        continue;
-      }
-    }
-
-    throw lastError ?? new Error(label);
+  const fetchJson = async (path, label = 'network') => {
+    return fetchJsonCached(path, {
+      apiUrl,
+      cacheTtlMs: 14_000,
+      throwOnError: true,
+    }).catch((err) => {
+      const message = err instanceof Error ? err.message : String(err || label);
+      throw new Error(message || label);
+    });
   };
 
   const fetchHistory = async () => {
@@ -166,12 +130,12 @@
    .skeleton-grid {
      display: grid;
      grid-template-columns: 1fr;
-     gap: 0.5rem;
-     min-height: 300px;
+     gap: 0.75rem;
+     min-height: 400px;
    }
 
    .skeleton-card {
-     height: 70px;
+     height: 90px;
      border-radius: 12px;
      background: linear-gradient(
        90deg,
@@ -214,11 +178,11 @@
      display: grid;
      grid-template-columns: 1fr;
      gap: 0.5rem;
-     min-height: 300px;
+     min-height: 380px;
    }
 
    .updated {
-     margin: 0.25rem 0 0;
+     margin: 0.1rem 0 0;
      color: var(--text-tertiary, #9ca3af);
      font-family: var(--font-sans);
      font-size: var(--text-xs);

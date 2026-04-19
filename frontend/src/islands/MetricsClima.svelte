@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let region = 'madrid';
@@ -22,31 +23,21 @@
     return `${parsed.toFixed(decimals)} ${unit}`;
   };
 
-  const estimateHumidity = (temp, precip) => {
-    const t = toNumberOrNull(temp);
-    const p = toNumberOrNull(precip);
-    if (t === null || p === null) return null;
-    const estimate = 64 + p * 2.2 - Math.max(0, t - 20) * 1.4;
-    return Math.max(35, Math.min(95, Math.round(estimate)));
+  const fetchJson = async (path) => {
+    return fetchJsonCached(path, { apiUrl });
   };
 
-  const humidityEstimate = snapshot ? estimateHumidity(snapshot?.temp_mean_c, snapshot?.precipitation_mm) : null;
-
-  const fetchData = async () => {
+  const fetchMetrics = async () => {
     loading = true;
     error = '';
     try {
-      const [snapRes, histRes] = await Promise.all([
-        fetch(`${apiUrl}/api/dashboard?region=${region}`),
-        fetch(`${apiUrl}/api/history?region=${region}&limit=14`),
+      const [snapData, histData] = await Promise.all([
+        fetchJson(`/api/dashboard?region=${encodeURIComponent(region)}`),
+        fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=14`),
       ]);
-      if (!snapRes.ok) throw new Error(`Error dashboard (${snapRes.status})`);
-      if (!histRes.ok) throw new Error(`Error history (${histRes.status})`);
-      const snapData = await snapRes.json();
-      const histData = await histRes.json();
       snapshot = snapData?.snapshot ?? null;
       history = Array.isArray(histData?.items) ? histData.items : [];
-      lastUpdated = snapshot?.observed_on 
+      lastUpdated = snapshot?.observed_on
         ? new Date(snapshot.observed_on).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
         : null;
     } catch (e) {
@@ -56,7 +47,22 @@
     }
   };
 
-  onMount(fetchData);
+  onMount(fetchMetrics);
+
+  $: humidityEstimate = snapshot ? (() => {
+    const t = toNumberOrNull(snapshot.temp_mean_c);
+    const p = toNumberOrNull(snapshot.precipitation_mm);
+    if (t === null || p === null) return null;
+    const estimate = 64 + p * 2.2 - Math.max(0, t - 20) * 1.4;
+    return Math.max(35, Math.min(95, Math.round(estimate)));
+  })() : null;
+
+  $: metricsData = {
+    lluviaHoy: snapshot?.precipitation_mm ?? null,
+    temperatura: snapshot?.temp_mean_c ?? null,
+    humedad: humidityEstimate,
+    diasConDatos: history.length,
+  };
 </script>
 
 <article class="card evidence-card">

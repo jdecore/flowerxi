@@ -1,7 +1,6 @@
 <script>
-  import { onDestroy, onMount } from 'svelte';
+  import { onMount } from 'svelte';
 
-  export let apiUrl = '';
   export let currentRegion = 'madrid';
 
   const regions = [
@@ -16,29 +15,11 @@
     selected = e.target.value;
     if (typeof window === 'undefined') return;
 
-    // Emit custom event para que otras islas se actualicen
     window.dispatchEvent(new CustomEvent('regionchange', { detail: selected }));
-    // También actualizar URL sin recargar
     const url = new URL(window.location);
     url.searchParams.set('region', selected);
     window.history.pushState({}, '', url);
   };
-
-  const handleRegionChange = (e) => {
-    selected = e.detail;
-  };
-
-  onMount(() => {
-    if (typeof window !== 'undefined') {
-      window.addEventListener('regionchange', handleRegionChange);
-    }
-  });
-
-  onDestroy(() => {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('regionchange', handleRegionChange);
-    }
-  });
 </script>
 
 <div class="region-selector">
@@ -59,21 +40,21 @@
     display: inline-block;
   }
 
-   .region-selector select {
-     appearance: none;
-     -webkit-appearance: none;
-     background: var(--bg-app, #f8fafc);
-     border: 1px solid var(--border-subtle, #e2e8f0);
-     border-radius: 10px;
-     padding: 0.6rem 2.5rem 0.6rem 1rem;
-     font-family: var(--font-sans);
-     font-size: var(--text-lg);
-     font-weight: var(--font-medium);
-     color: var(--text-primary, #1e293b);
-     cursor: pointer;
-     min-width: 180px;
-     transition: all 150ms ease;
-   }
+  .region-selector select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--bg-app, #f8fafc);
+    border: 1px solid var(--border-subtle, #e2e8f0);
+    border-radius: 10px;
+    padding: 0.6rem 2.5rem 0.6rem 1rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-lg);
+    font-weight: var(--font-medium);
+    color: var(--text-primary, #1e293b);
+    cursor: pointer;
+    min-width: 180px;
+    transition: all 150ms ease;
+  }
 
   .region-selector select:hover {
     border-color: #cbd5e1;

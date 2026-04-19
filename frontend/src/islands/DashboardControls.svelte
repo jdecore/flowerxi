@@ -151,76 +151,44 @@
      font-family: var(--font-sans);
    }
 
-   select {
-     width: 100%;
-     border: 1px solid var(--border-subtle, #dbe3ec);
-     border-radius: 10px;
-     background: var(--bg-app, #f8fafc);
-     color: var(--text-primary, #1f2937);
-     font: inherit;
-     font-size: var(--text-base);
-     font-family: var(--font-sans);
-     padding: 0.52rem 0.6rem;
-   }
+    select {
+      width: 100%;
+      border: 1px solid var(--border-subtle, #dbe3ec);
+      border-radius: 10px;
+      background: var(--bg-app, #f8fafc);
+      color: var(--text-primary, #1f2937);
+      font: inherit;
+      font-size: var(--text-base);
+      padding: 0.52rem 0.6rem;
+    }
 
-   .current-lot {
-     margin: 0;
-     font-size: var(--text-sm);
-     color: var(--text-secondary, #64748b);
-     white-space: nowrap;
-     font-family: var(--font-sans);
-   }
+    .current-lot {
+      margin: 0;
+      font-size: var(--text-sm);
+      color: var(--text-secondary, #64748b);
+      white-space: nowrap;
+      font-family: var(--font-sans);
+    }
 
-   .action-btn {
-     border: 1px solid var(--border-subtle, #dbe3ec);
-     border-radius: 10px;
-     background: var(--bg-app, #f8fafc);
-     color: var(--text-primary, #1f2937);
-     font: inherit;
-     font-size: var(--text-base);
-     font-weight: 600;
-     font-family: var(--font-sans);
-     padding: 0.55rem 0.75rem;
-     cursor: pointer;
-     white-space: nowrap;
-   }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
 
-   select {
-     width: 100%;
-     border: 1px solid var(--border-subtle, #dbe3ec);
-     border-radius: 10px;
-     background: var(--bg-app, #f8fafc);
-     color: var(--text-primary, #1f2937);
-     font: inherit;
-     font-size: var(--text-base);
-     padding: 0.52rem 0.6rem;
-   }
-
-   .current-lot {
-     margin: 0;
-     font-family: var(--font-sans);
-     font-size: var(--text-sm);
-     color: var(--text-secondary, #64748b);
-     white-space: nowrap;
-   }
-
-   .actions {
-     display: flex; align-items: center; gap: 0.55rem;
-   }
-
-   .action-btn {
-     border: 1px solid var(--border-subtle, #dbe3ec);
-     border-radius: 10px;
-     background: var(--bg-app, #f8fafc);
-     color: var(--text-primary, #1f2937);
-     font: inherit;
-     font-size: var(--text-base);
-     font-weight: 600;
-     font-family: var(--font-sans);
-     padding: 0.55rem 0.75rem;
-     cursor: pointer;
-     white-space: nowrap;
-   }
+    .action-btn {
+      border: 1px solid var(--border-subtle, #dbe3ec);
+      border-radius: 10px;
+      background: var(--bg-app, #f8fafc);
+      color: var(--text-primary, #1f2937);
+      font: inherit;
+      font-size: var(--text-base);
+      font-weight: 600;
+      font-family: var(--font-sans);
+      padding: 0.55rem 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
 
   .action-btn:hover {
     border-color: var(--primary, #7b5ba6);

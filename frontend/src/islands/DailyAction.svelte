@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { fetchJsonCached } from '../lib/api/client.js';
 
   export let apiUrl = '';
   export let region = 'madrid';
@@ -8,13 +9,15 @@
   let error = '';
   let action = null;
 
-  const fetchData = async () => {
+  const fetchJson = async (path, init) => {
+    return fetchJsonCached(path, { init, apiUrl, cacheTtlMs: 0, timeoutMs: 10_000 });
+  };
+
+  const fetchDailyAction = async () => {
     loading = true;
     error = '';
     try {
-      const res = await fetch(`${apiUrl}/api/risk/operativo?region=${region}`);
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      const data = await res.json();
+      const data = await fetchJson(`/api/risk/operativo?region=${encodeURIComponent(region)}`);
       action = data?.action_today || null;
     } catch (e) {
       error = e.message;
@@ -27,12 +30,12 @@
   const handleRegionChange = (e) => {
     if (e.detail !== region) {
       region = e.detail;
-      fetchData();
+      fetchDailyAction();
     }
   };
 
   onMount(() => {
-    fetchData();
+    fetchDailyAction();
     window.addEventListener('regionchange', handleRegionChange);
     return () => window.removeEventListener('regionchange', handleRegionChange);
   });
