@@ -5,6 +5,16 @@ on:
     - cron: "0 11 * * 1-6"
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-data
+  cancel-in-progress: false
+
 jobs:
   update-weather:
     runs-on: ubuntu-latest
@@ -22,8 +32,19 @@ jobs:
       - name: Install dependencies
         run: pip install requests "psycopg[binary]"
 
-      - name: Run auto-seed script
+      - name: Resolve database URL
         env:
           INSFORGE_DB_URL: ${{ secrets.INSFORGE_DB_URL }}
-        run: python scripts/auto_seed.py
+          DB_URL: ${{ secrets.DB_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          DB_CONN="${INSFORGE_DB_URL:-${DB_URL:-${DATABASE_URL:-}}}"
+          if [ -z "$DB_CONN" ]; then
+            echo "::error::Missing DB secret. Configure one of: INSFORGE_DB_URL, DB_URL, DATABASE_URL"
+            exit 1
+          fi
+          echo "INSFORGE_DB_URL=$DB_CONN" >> "$GITHUB_ENV"
+          echo "DB_URL=$DB_CONN" >> "$GITHUB_ENV"
 
+      - name: Run auto-seed script
+        run: python scripts/auto_seed.py

@@ -186,45 +186,55 @@
   const loadHero = async () => {
     loading = true;
     simulation = null;
-    await new Promise(r => setTimeout(r, 200));
+    try {
+      await new Promise((r) => setTimeout(r, 200));
 
-    score = 55;
-    level = 'MEDIO';
-    delta = 30;
-    trendSource = 'stable';
-    trendLabel = '→ estable';
-    confidencePct = 78;
-    historyDaysUsed = 14;
-    criticalWindowHours = 24;
-    hoursSinceRain = 0;
-    explanation = {
-      dominant: 'encharcamiento',
-      lines: [
-        { label: 'Humedad moderada', impact: 'impacto medio' },
-        { label: 'Suelo con humedad acumulada', impact: 'impacto medio' },
-        { label: 'Temperatura templada', impact: 'impacto bajo' }
-      ]
-    };
-    reason = 'El factor dominante hoy es riesgo por encharcamiento.';
-    actionToday = 'Refuerza ventilación, drenaje y monitoreo de humedad en el turno.';
-    nextReviewLabel = 'mañana 6:00 AM';
-    regionalTop = [
-      { slug: 'madrid', name: 'Madrid', score: 55 },
-      { slug: 'facatativa', name: 'Facatativá', score: 52 },
-      { slug: 'funza', name: 'Funza', score: 48 }
-    ];
-    latestDay = {
-      temp_mean_c: 22,
-      precipitation_mm: 0,
-      fungal_risk: 38.5,
-      waterlogging_risk: 33.3,
-      heat_risk: 0.7
-    };
-    fungal_risk = 38.5;
-    waterlogging_risk = 33.3;
-    heat_risk = 0.7;
+      score = 55;
+      level = 'MEDIO';
+      delta = 30;
+      trendSource = 'stable';
+      trendLabel = '→ estable';
+      confidencePct = 78;
+      historyDaysUsed = 14;
+      criticalWindowHours = 24;
+      hoursSinceRain = 0;
+      explanation = {
+        dominant: 'encharcamiento',
+        lines: [
+          { label: 'Humedad moderada', impact: 'impacto medio' },
+          { label: 'Suelo con humedad acumulada', impact: 'impacto medio' },
+          { label: 'Temperatura templada', impact: 'impacto bajo' },
+        ],
+      };
+      reason = 'El factor dominante hoy es riesgo por encharcamiento.';
+      actionToday = 'Refuerza ventilación, drenaje y monitoreo de humedad en el turno.';
+      nextReviewLabel = 'mañana 6:00 AM';
+      regionalTop = [
+        { slug: 'madrid', name: 'Madrid', score: 55 },
+        { slug: 'facatativa', name: 'Facatativá', score: 52 },
+        { slug: 'funza', name: 'Funza', score: 48 },
+      ];
+      latestDay = {
+        temp_mean_c: 22,
+        precipitation_mm: 0,
+        fungal_risk: 38.5,
+        waterlogging_risk: 33.3,
+        heat_risk: 0.7,
+      };
 
-    persistTodayContext(latestDay);
+      persistTodayContext(latestDay);
+    } catch (err) {
+      console.error('[flowerxi-hero] load error:', err);
+      score = null;
+      level = 'SIN DATOS';
+      reason = 'Datos no disponibles';
+      actionToday = 'Datos no disponibles.';
+      explanation = { dominant: 'Sin datos', lines: [] };
+      regionalTop = [];
+      latestDay = null;
+    } finally {
+      loading = false;
+    }
   };
 
   const simulateAlert = async () => {
