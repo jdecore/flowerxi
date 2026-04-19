@@ -98,33 +98,6 @@
   });
 </script>
 
-  const handleRegionChange = (e) => {
-    if (e.detail !== region) {
-      region = e.detail;
-      fetchImpact();
-    }
-  };
-
-  const handleRefresh = () => {
-    fetchImpact();
-  };
-
-  onMount(() => {
-    fetchImpact();
-    if (typeof window !== 'undefined') {
-      window.addEventListener('regionchange', handleRegionChange);
-      window.addEventListener('flowerxi:refresh', handleRefresh);
-    }
-  });
-
-  onDestroy(() => {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('regionchange', handleRegionChange);
-      window.removeEventListener('flowerxi:refresh', handleRefresh);
-    }
-  });
-</script>
-
 <article class="impacto-operacion">
   <div class="impact-header">
     <h3>Impacto en operación</h3>

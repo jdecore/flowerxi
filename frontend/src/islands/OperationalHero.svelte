@@ -11,7 +11,6 @@
   let loading = true;
   let score = null;
   let level = 'SIN DATOS';
-  let levelClass = 'sin-datos';
   let delta = 0;
   let criticalWindowHours = null;
   let hoursSinceRain = null;
@@ -191,7 +190,6 @@
 
     score = 55;
     level = 'MEDIO';
-    levelClass = 'vigilancia';
     delta = 30;
     trendSource = 'stable';
     trendLabel = '→ estable';

@@ -51,13 +51,17 @@
 
   onMount(() => {
     loadStation();
-    window.addEventListener('regionchange', handleRegionChange);
-    window.addEventListener('flowerxi:refresh', loadStation);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('regionchange', handleRegionChange);
+      window.addEventListener('flowerxi:refresh', loadStation);
+    }
   });
 
   onDestroy(() => {
-    window.removeEventListener('regionchange', handleRegionChange);
-    window.removeEventListener('flowerxi:refresh', loadStation);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('regionchange', handleRegionChange);
+      window.removeEventListener('flowerxi:refresh', loadStation);
+    }
   });
 </script>
 
