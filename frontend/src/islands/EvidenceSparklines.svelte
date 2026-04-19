@@ -88,29 +88,44 @@
 </script>
 
 {#if loading}
-  <div class="skeleton-grid" aria-label={`Cargando evidencia de ${regionLabel}`}>
-    {#each Array(4) as _}
-      <div class="skeleton-card"></div>
-    {/each}
+  <div class="evidence-root">
+    <div class="skeleton-grid" aria-label={`Cargando evidencia de ${regionLabel}`}>
+      {#each Array(4) as _}
+        <div class="skeleton-card"></div>
+      {/each}
+    </div>
   </div>
 {:else if error}
-  <p class="state error">{error}</p>
+  <div class="evidence-root">
+    <p class="state error">{error}</p>
+  </div>
 {:else if !enoughData}
-  <div class="empty-state">
-    <p>Aún recopilando datos de {regionLabel} ({history.length}/14 días).</p>
-    <small>Mostraremos la tendencia completa cuando tengamos al menos 7 días.</small>
+  <div class="evidence-root">
+    <div class="empty-state">
+      <p>Aún recopilando datos de {regionLabel} ({history.length}/14 días).</p>
+      <small>Mostraremos la tendencia completa cuando tengamos al menos 7 días.</small>
+    </div>
   </div>
 {:else}
-  <div class="spark-grid">
-    <Sparkline title="Lluvia (mm)" data={rainSeries} unit="mm" color="#3B82F6" />
-    <Sparkline title="Temperatura (°C)" data={tempSeries} unit="°C" color="#EF4444" />
-    <Sparkline title="Riesgo encharcamiento" data={waterSeries} unit="pts" color="#10B981" />
-    <Sparkline title="Riesgo fúngico" data={fungalSeries} unit="pts" color="#7B5BA6" />
+  <div class="evidence-root">
+    <div class="spark-grid">
+      <Sparkline title="Lluvia (mm)" data={rainSeries} unit="mm" color="#3B82F6" />
+      <Sparkline title="Temperatura (°C)" data={tempSeries} unit="°C" color="#EF4444" />
+      <Sparkline title="Riesgo encharcamiento" data={waterSeries} unit="pts" color="#10B981" />
+      <Sparkline title="Riesgo fúngico" data={fungalSeries} unit="pts" color="#7B5BA6" />
+    </div>
+    <p class="updated">Actualizado: {updatedAt}</p>
   </div>
-  <p class="updated">Actualizado: {updatedAt}</p>
 {/if}
 
 <style>
+  .evidence-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 420px;
+    height: 100%;
+  }
+
   .state {
     margin: 0;
     font-family: var(--font-sans);
@@ -127,19 +142,21 @@
     font-family: var(--font-sans);
   }
 
-   .skeleton-grid {
-     display: grid;
-     grid-template-columns: 1fr;
-     gap: 0.75rem;
-     min-height: 400px;
-   }
+    .skeleton-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+      flex: 1;
+      min-height: 0;
+    }
 
-   .skeleton-card {
-     height: 90px;
-     border-radius: 12px;
-     background: linear-gradient(
-       90deg,
-       var(--border-subtle, #e2e8f0) 25%,
+    .skeleton-card {
+      height: auto;
+      border-radius: 12px;
+      background: linear-gradient(
+        90deg,
+        var(--border-subtle, #e2e8f0) 25%,
        var(--bg-app, #f1f5f9) 50%,
        var(--border-subtle, #e2e8f0) 75%
      );
@@ -152,12 +169,13 @@
     100% { background-position: 200% 0; }
   }
 
-   .empty-state {
-     border: 1px dashed var(--border-medium, #cbd5e1);
-     border-radius: 12px;
-     background: var(--bg-app, #f8fafc);
-     padding: 0.75rem;
-   }
+    .empty-state {
+      border: 1px dashed var(--border-medium, #cbd5e1);
+      border-radius: 12px;
+      background: var(--bg-app, #f8fafc);
+      padding: 0.75rem;
+      min-height: 0;
+    }
 
    .empty-state p {
      margin: 0;
@@ -174,28 +192,36 @@
      font-size: var(--text-xs);
    }
 
-   .spark-grid {
-     display: grid;
-     grid-template-columns: 1fr;
-     gap: 0.5rem;
-     min-height: 380px;
-   }
+    .spark-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(4, minmax(0, 1fr));
+      gap: 0.55rem;
+      flex: 1;
+      min-height: 0;
+    }
 
-   .updated {
-     margin: 0.1rem 0 0;
-     color: var(--text-tertiary, #9ca3af);
-     font-family: var(--font-sans);
-     font-size: var(--text-xs);
-     text-align: right;
+    .updated {
+      margin: 0.35rem 0 0;
+      color: var(--text-tertiary, #9ca3af);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      text-align: right;
    }
 
   @media (max-width: 900px) {
+    .evidence-root {
+      min-height: 360px;
+    }
+
     .skeleton-grid {
       grid-template-columns: 1fr;
+      grid-template-rows: none;
     }
 
     .spark-grid {
       grid-template-columns: 1fr;
+      grid-template-rows: none;
     }
   }
 </style>

@@ -32,7 +32,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
      {preconnectApiOrigin && <link rel="preconnect" href={preconnectApiOrigin} crossorigin />}
      <link rel="preconnect" href="https://fonts.googleapis.com">
      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
    </head>
   <body>
     <div class="app-root">
@@ -75,7 +75,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
           <section class="hero-shell">
             <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
             <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual.</p>
-            <OperationalHero {apiUrl} initialRegion="madrid" client:load />
+            <OperationalHero {apiUrl} initialRegion="madrid" client:idle={{ timeout: 200 }} />
           </section>
 
           <!-- Grid 12 columnas -->
@@ -84,13 +84,13 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
             <section class="col-8">
               <h2 class="section-head">Evidencia en vivo</h2>
               <p class="section-sub">Últimos 14 días por municipio activo</p>
-              <EvidenceSparklines {apiUrl} initialRegion="madrid" client:load />
+              <EvidenceSparklines {apiUrl} initialRegion="madrid" client:idle={{ timeout: 450 }} />
             </section>
 
             <!-- Chat operativo (4 cols) -->
             <aside class="col-4">
               <h2 class="section-head">Chat IA operativo</h2>
-              <ChatBot {apiUrl} embedded={true} client:idle />
+              <ChatBot {apiUrl} embedded={true} client:idle={{ timeout: 1200 }} />
             </aside>
           </div>
 

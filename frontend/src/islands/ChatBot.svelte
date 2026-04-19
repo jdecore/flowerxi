@@ -564,15 +564,6 @@
       region = window.localStorage.getItem(STORAGE_REGION) || region;
       window.addEventListener('openchat', openChat);
       window.addEventListener('regionchange', onRegionChange);
-      if ('requestIdleCallback' in window) {
-        window.requestIdleCallback(() => {
-          ensureModel();
-        });
-      } else {
-        window.setTimeout(() => {
-          ensureModel();
-        }, 1200);
-      }
     }
     return () => {
       if (typeof window !== 'undefined') {

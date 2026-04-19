@@ -56,11 +56,11 @@
     background: var(--bg-surface, #fff);
     border: 1px solid var(--border-subtle, #e2e8f0);
     border-radius: 12px;
-    padding: 0.45rem;
+    padding: 0.55rem;
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
-    min-height: 90px;
+    gap: 0.32rem;
+    min-height: 0;
     height: 100%;
   }
 
@@ -76,7 +76,10 @@
   .spark-svg {
     font-family: var(--font-sans);
     width: 100%;
-    height: 45px;
+    min-height: 62px;
+    height: 100%;
+    flex: 1;
+    display: block;
     border-radius: 4px;
     background: linear-gradient(180deg, color-mix(in srgb, var(--bg-app, #f8fafc) 60%, #fff), var(--bg-app, #f1f5f9));
   }
@@ -100,12 +103,14 @@
   }
 
    .spark-skeleton {
-     font-family: var(--font-sans);
-     height: 45px;
-     width: 100%;
-     background: linear-gradient(90deg, #e2e8f020, #cbd5e130, #e2e8f020);
-     background-size: 200% 100%;
-     border-radius: 4px;
+      font-family: var(--font-sans);
+      min-height: 62px;
+      height: 100%;
+      flex: 1;
+      width: 100%;
+      background: linear-gradient(90deg, #e2e8f020, #cbd5e130, #e2e8f020);
+      background-size: 200% 100%;
+      border-radius: 4px;
      animation: shimmer 1.5s infinite linear;
    }
 
