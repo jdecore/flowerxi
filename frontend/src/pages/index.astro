@@ -75,7 +75,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
           <section class="hero-shell">
             <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
             <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual.</p>
-            <OperationalHero {apiUrl} initialRegion="madrid" client:idle={{ timeout: 200 }} />
+            <OperationalHero {apiUrl} initialRegion="madrid" client:load />
           </section>
 
           <!-- Grid 12 columnas -->
