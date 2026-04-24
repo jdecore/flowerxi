@@ -1,12 +1,12 @@
 {
-  "scraped_at": "2026-04-23T14:17:32.440462+00:00",
-  "generated_at": "2026-04-23T14:17:32.440474+00:00",
+  "scraped_at": "2026-04-24T14:12:37.776696+00:00",
+  "generated_at": "2026-04-24T14:12:37.776713+00:00",
   "sources": [
     {
       "name": "Mercado de Flores Bogota",
       "url": "https://mercadodeflores.co/precios-rosa-corte",
       "status": "error",
-      "error": "HTTPSConnectionPool(host='mercadodeflores.co', port=443): Max retries exceeded with url: /precios-rosa-corte (Caused by SSLError(SSLError(1, '[SSL: TLSV1_ALERT_INTERNAL_ERROR] tlsv1 alert internal error (_ssl.c:1016)')))"
+      "error": "404 Client Error: Not Found for url: https://mercadodeflores.co/precios-rosa-corte"
     },
     {
       "name": "Fedeflores",
