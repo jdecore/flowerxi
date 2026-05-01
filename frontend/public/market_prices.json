@@ -1,12 +1,12 @@
 {
-  "scraped_at": "2026-04-30T14:30:28.054957+00:00",
-  "generated_at": "2026-04-30T14:30:28.054975+00:00",
+  "scraped_at": "2026-05-01T13:58:05.420906+00:00",
+  "generated_at": "2026-05-01T13:58:05.420925+00:00",
   "sources": [
     {
       "name": "Mercado de Flores Bogota",
       "url": "https://mercadodeflores.co/precios-rosa-corte",
       "status": "error",
-      "error": "404 Client Error: Not Found for url: https://mercadodeflores.co/precios-rosa-corte"
+      "error": "422 Client Error: Unprocessable Entity for url: https://mercadodeflores.co/precios-rosa-corte"
     },
     {
       "name": "Fedeflores",
