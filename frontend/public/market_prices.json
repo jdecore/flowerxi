@@ -1,12 +1,12 @@
 {
-  "scraped_at": "2026-05-08T14:20:47.471719+00:00",
-  "generated_at": "2026-05-08T14:20:47.471736+00:00",
+  "scraped_at": "2026-05-11T15:42:33.284286+00:00",
+  "generated_at": "2026-05-11T15:42:33.284304+00:00",
   "sources": [
     {
       "name": "Mercado de Flores Bogota",
       "url": "https://mercadodeflores.co/precios-rosa-corte",
       "status": "error",
-      "error": "422 Client Error: Unprocessable Entity for url: https://mercadodeflores.co/precios-rosa-corte"
+      "error": "HTTPSConnectionPool(host='mercadodeflores.co', port=443): Max retries exceeded with url: /precios-rosa-corte (Caused by SSLError(SSLError(1, '[SSL: TLSV1_ALERT_INTERNAL_ERROR] tlsv1 alert internal error (_ssl.c:1016)')))"
     },
     {
       "name": "Fedeflores",
