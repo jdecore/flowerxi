@@ -1,4 +1,14 @@
 SQL_QUERIES = {
+    "today_weather_exists": """
+        SELECT 1 FROM flowerxi_weather_daily
+        WHERE region_slug = %s AND observed_on = CURRENT_DATE
+        LIMIT 1;
+    """,
+    "region_coords": """
+        SELECT slug, name, latitude, longitude
+        FROM flowerxi_regions
+        WHERE slug = %s;
+    """,
     "regions": """
         SELECT slug, name, city
         FROM flowerxi_regions

@@ -12,6 +12,7 @@ from .utils import (
     build_agroclimatic_score,
     build_commercial_metrics,
     build_risk_narrative,
+    fetch_and_ingest_today,
     fetch_monthly_risk_rows,
     normalize_origin,
     risk_level_from_score,
@@ -279,6 +280,16 @@ def risk_operativo(region: str = Query(DEFAULT_REGION)):
 
 @app.get("/api/dashboard")
 def dashboard(region: str = Query(DEFAULT_REGION)):
+    # Check if today's data exists; if not, fetch from Open-Meteo on-demand
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(SQL_QUERIES["today_weather_exists"], (region,))
+            exists = cur.fetchone()
+
+    if not exists:
+        logger.info("No data for today in '%s' — fetching on-demand from Open-Meteo", region)
+        fetch_and_ingest_today(region)
+
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(SQL_QUERIES["dashboard_snapshot"], (region,))
