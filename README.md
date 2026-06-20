@@ -1,13 +1,14 @@
 # flowerxi — Plataforma de Vigilancia Agroclimática para Flores de Corte
 
 Monitoreo climático, análisis de riesgo y recomendaciones operativas para la
-Sabana de Bogotá. **Frontend 100% estático — sin servidor, sin base de datos.**
+Sabana de Bogotá. **Sin servidor backend — todo corre en el navegador.**
 
 ## Stack
 
 - **Frontend:** Astro + Svelte (desplegado en Vercel)
-- **Datos históricos:** JSONs estáticos en `frontend/public/data/` (1510 registros, Ene-May 2026)
-- **Dato del día:** Open-Meteo Forecast API desde el navegador (CORS-free)
+- **Histórico:** JSONs precargados en `frontend/public/data/` (Ene-May 2026)
+- **Hoy en vivo:** Open-Meteo Forecast API consultada directamente desde el navegador
+- **Motor de riesgo:** Puerto JS del modelo original (`engine.js`)
 
 ## Desarrollo local
 
