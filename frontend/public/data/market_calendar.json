@@ -1,0 +1,102 @@
+[
+  {
+    "date": "2026-01-01",
+    "name": "A\u00f1o Nuevo",
+    "type": "public"
+  },
+  {
+    "date": "2026-01-06",
+    "name": "D\u00eda de los Reyes Magos",
+    "type": "public"
+  },
+  {
+    "date": "2026-03-23",
+    "name": "D\u00eda de San Jos\u00e9",
+    "type": "public"
+  },
+  {
+    "date": "2026-03-29",
+    "name": "Domingo de Ramos",
+    "type": "public"
+  },
+  {
+    "date": "2026-04-02",
+    "name": "Jueves Santo",
+    "type": "public"
+  },
+  {
+    "date": "2026-04-03",
+    "name": "Viernes Santo",
+    "type": "public"
+  },
+  {
+    "date": "2026-04-05",
+    "name": "Domingo de Pascua",
+    "type": "public"
+  },
+  {
+    "date": "2026-05-01",
+    "name": "D\u00eda del Trabajo",
+    "type": "public"
+  },
+  {
+    "date": "2026-05-18",
+    "name": "Ascensi\u00f3n del Se\u00f1or",
+    "type": "public"
+  },
+  {
+    "date": "2026-06-08",
+    "name": "Corpus Christi",
+    "type": "public"
+  },
+  {
+    "date": "2026-06-15",
+    "name": "Sagrado Coraz\u00f3n de Jes\u00fas",
+    "type": "public"
+  },
+  {
+    "date": "2026-06-29",
+    "name": "San Pedro y San Pablo",
+    "type": "public"
+  },
+  {
+    "date": "2026-07-20",
+    "name": "D\u00eda de la Independencia",
+    "type": "public"
+  },
+  {
+    "date": "2026-08-07",
+    "name": "Batalla de Boyac\u00e1",
+    "type": "public"
+  },
+  {
+    "date": "2026-08-17",
+    "name": "Asunci\u00f3n de la Virgen",
+    "type": "public"
+  },
+  {
+    "date": "2026-10-12",
+    "name": "D\u00eda de la Raza",
+    "type": "public"
+  },
+  {
+    "date": "2026-11-02",
+    "name": "Todos los Santos",
+    "type": "public"
+  },
+  {
+    "date": "2026-11-16",
+    "name": "Independencia de Cartagena",
+    "type": "public"
+  },
+  {
+    "date": "2026-12-08",
+    "name": "Inmaculada Concepci\u00f3n",
+    "type": "public"
+  },
+  {
+    "date": "2026-12-25",
+    "name": "Navidad",
+    "type": "public"
+  }
+]

@@ -1,0 +1,72 @@
+[
+  {
+    "region_slug": "madrid",
+    "year": 2026,
+    "flower_area_ha": 420,
+    "workers": 3200,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "facatativa",
+    "year": 2026,
+    "flower_area_ha": 385,
+    "workers": 2800,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "funza",
+    "year": 2026,
+    "flower_area_ha": 360,
+    "workers": 2600,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "el-rosal",
+    "year": 2026,
+    "flower_area_ha": 310,
+    "workers": 2200,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "tocancipa",
+    "year": 2026,
+    "flower_area_ha": 280,
+    "workers": 1900,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "chia",
+    "year": 2026,
+    "flower_area_ha": 250,
+    "workers": 1700,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "mosquera",
+    "year": 2026,
+    "flower_area_ha": 220,
+    "workers": 1500,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "sopo",
+    "year": 2026,
+    "flower_area_ha": 180,
+    "workers": 1200,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "bojaca",
+    "year": 2026,
+    "flower_area_ha": 150,
+    "workers": 1000,
+    "crop_focus": "rosa de corte"
+  },
+  {
+    "region_slug": "cachipay",
+    "year": 2026,
+    "flower_area_ha": 90,
+    "workers": 600,
+    "crop_focus": "rosa de corte"
+  }
+]

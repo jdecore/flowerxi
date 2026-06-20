@@ -1,0 +1,57 @@
+[
+  {
+    "station_name": "Aeropuerto El Dorado",
+    "region_slug": "madrid",
+    "distance_km": 8.5
+  },
+  {
+    "station_name": "Aeropuerto El Dorado",
+    "region_slug": "funza",
+    "distance_km": 5.2
+  },
+  {
+    "station_name": "Aeropuerto El Dorado",
+    "region_slug": "mosquera",
+    "distance_km": 6.8
+  },
+  {
+    "station_name": "Aeropuerto El Dorado",
+    "region_slug": "bojaca",
+    "distance_km": 12.1
+  },
+  {
+    "station_name": "Base A\u00e9rea Madrid",
+    "region_slug": "madrid",
+    "distance_km": 3.2
+  },
+  {
+    "station_name": "Estaci\u00f3n Facatativ\u00e1",
+    "region_slug": "facatativa",
+    "distance_km": 2.1
+  },
+  {
+    "station_name": "Estaci\u00f3n Facatativ\u00e1",
+    "region_slug": "el-rosal",
+    "distance_km": 7.5
+  },
+  {
+    "station_name": "Estaci\u00f3n Tocancip\u00e1",
+    "region_slug": "tocancipa",
+    "distance_km": 1.5
+  },
+  {
+    "station_name": "Estaci\u00f3n Tocancip\u00e1",
+    "region_slug": "sopo",
+    "distance_km": 6.3
+  },
+  {
+    "station_name": "Estaci\u00f3n Ch\u00eda",
+    "region_slug": "chia",
+    "distance_km": 2.8
+  },
+  {
+    "station_name": "Estaci\u00f3n Ch\u00eda",
+    "region_slug": "cachipay",
+    "distance_km": 45.0
+  }
+]

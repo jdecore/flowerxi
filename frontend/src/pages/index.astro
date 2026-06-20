@@ -13,24 +13,14 @@ import RiskHeatmap from '../components/RiskHeatmap.svelte';
 import ImpactoOperacion from '../components/ImpactoOperacion.svelte';
 import ChatBot from '../islands/ChatBot.svelte';
 
-const apiUrl = import.meta.env.PUBLIC_API_URL ?? '';
-const normalizedApiUrl = String(apiUrl ?? '').trim().replace(/\/+$/, '');
-let preconnectApiOrigin = '';
-if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https://')) {
-  try {
-    preconnectApiOrigin = new URL(normalizedApiUrl).origin;
-  } catch {
-    preconnectApiOrigin = '';
-  }
-}
 ---
+
 <html lang="es">
    <head>
      <meta charset="utf-8" />
      <meta name="viewport" content="width=device-width, initial-scale=1" />
      <title>flowerxi | Dashboard Agroclimático</title>
-     {preconnectApiOrigin && <link rel="preconnect" href={preconnectApiOrigin} crossorigin />}
-     <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.googleapis.com">
      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
    </head>
@@ -58,7 +48,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
          </div>
       </header>
 
-      <StartupRegionModal {apiUrl} client:load />
+      <StartupRegionModal client:load />
       <section class="region-priority">
         <div class="region-info-left">
           <p class="region-current-label">Municipio actual</p>
@@ -75,7 +65,7 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
           <section class="hero-shell">
             <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
             <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual.</p>
-            <OperationalHero {apiUrl} initialRegion="madrid" client:load />
+            <OperationalHero initialRegion="madrid" client:load />
           </section>
 
           <!-- Grid 12 columnas -->
@@ -84,39 +74,39 @@ if (normalizedApiUrl.startsWith('http://') || normalizedApiUrl.startsWith('https
             <section class="col-8">
               <h2 class="section-head">Evidencia en vivo</h2>
               <p class="section-sub">Últimos 14 días por municipio activo</p>
-              <EvidenceSparklines {apiUrl} initialRegion="madrid" client:idle={{ timeout: 450 }} />
+              <EvidenceSparklines initialRegion="madrid" client:idle={{ timeout: 450 }} />
             </section>
 
             <!-- Chat operativo (4 cols) -->
             <aside class="col-4">
               <h2 class="section-head">Chat IA operativo</h2>
-              <ChatBot {apiUrl} embedded={true} client:idle={{ timeout: 1200 }} />
+              <ChatBot embedded={true} client:idle={{ timeout: 1200 }} />
             </aside>
           </div>
 
           <!-- Calendario ampliado -->
           <div class="one-col-row">
-            <RiskHeatmap {apiUrl} region="madrid" client:visible />
+            <RiskHeatmap region="madrid" client:visible />
           </div>
 
           <!-- Fila de negocio -->
           <div class="two-col-row">
-            <ImpactoOperacion {apiUrl} region="madrid" client:visible />
-            <CommercialIntelCard {apiUrl} initialRegion="madrid" client:visible />
+            <ImpactoOperacion region="madrid" client:visible />
+            <CommercialIntelCard initialRegion="madrid" client:visible />
           </div>
 
           <!-- Contexto Sabana -->
           <div class="one-col-row">
             <section class="comparison-card">
               <h3 class="section-head">Comparativa Sabana</h3>
-              <SabanaComparison {apiUrl} initialRegion="madrid" client:visible />
+              <SabanaComparison initialRegion="madrid" client:visible />
             </section>
           </div>
 
           <div class="one-col-row station-row">
             <section class="station-card">
               <h3 class="section-head">Estación de referencia</h3>
-              <ClosestStationFooter {apiUrl} initialRegion="madrid" client:visible />
+              <ClosestStationFooter initialRegion="madrid" client:visible />
               <p class="made-by">Hecho por Juan Enriquez- 2026</p>
             </section>
           </div>

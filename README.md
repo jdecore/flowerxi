@@ -1,56 +1,31 @@
 # flowerxi — Plataforma de Vigilancia Agroclimática para Flores de Corte
 
 Monitoreo climático, análisis de riesgo y recomendaciones operativas para la
-Sabana de Bogotá.
+Sabana de Bogotá. **Frontend 100% estático — sin servidor, sin base de datos.**
 
 ## Stack
 
-| Componente | Tecnología | Destino |
-|------------|-----------|---------|
-| `frontend/` | Astro + Svelte | Vercel |
-| `backend/` | FastAPI (Python) | Render |
-| `database/` | InsForge Postgres | Cloud |
+- **Frontend:** Astro + Svelte (desplegado en Vercel)
+- **Datos históricos:** JSONs estáticos en `frontend/public/data/` (1510 registros, Ene-May 2026)
+- **Dato del día:** Open-Meteo Forecast API desde el navegador (CORS-free)
 
 ## Desarrollo local
 
 ```bash
-# Backend
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # completar DATABASE_URL, CORS_ORIGINS
-python run.py         # http://localhost:8000
-
-# Frontend
 cd frontend
 npm install
-cp .env.example .env  # completar PUBLIC_API_URL
-npm run dev           # http://localhost:4321
+npm run dev     # http://localhost:4321
 ```
 
-## API (endpoints principales)
-
-```
-GET  /api/dashboard?region=madrid        — snapshot diario
-GET  /api/history?region=madrid&limit=30 — histórico climático
-GET  /api/risk/monthly?region=madrid     — riesgo agroclimático mensual
-GET  /api/recommendations/week?region=madrid — plan semanal
-POST /api/alerts/simulate                — simular alerta
-```
-
-## Base de datos
+## Regenerar datos estáticos (opcional)
 
 ```bash
-./database/apply.sh   # aplicar schema + seed
+pip install requests
+python scripts/dump_data.py
 ```
 
-Si falla por project link:
-```bash
-npx @insforge/cli link --project-id cd418d31-bb64-4dee-b5f2-e845a20f985e -y
-```
+Esto fetchea Open-Meteo Archive y escribe los JSONs en `frontend/public/data/`.
 
-## Despliegue
+## Deploy
 
-- Frontend → Vercel
-- Backend → Render (`render.yaml` incluido)
-- DB → InsForge (proyecto `glovar`)
+Solo el `frontend/` en Vercel. Sin backend, sin DB, sin secrets.

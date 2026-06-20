@@ -1,0 +1,242 @@
+[
+  {
+    "year_month": "2026-04",
+    "country_dest": "Estados Unidos",
+    "fob_usd": 28400000.0,
+    "net_tons": 1520.0
+  },
+  {
+    "year_month": "2026-04",
+    "country_dest": "Jap\u00f3n",
+    "fob_usd": 12300000.0,
+    "net_tons": 680.0
+  },
+  {
+    "year_month": "2026-04",
+    "country_dest": "Reino Unido",
+    "fob_usd": 9800000.0,
+    "net_tons": 510.0
+  },
+  {
+    "year_month": "2026-04",
+    "country_dest": "Canad\u00e1",
+    "fob_usd": 7200000.0,
+    "net_tons": 390.0
+  },
+  {
+    "year_month": "2026-04",
+    "country_dest": "Pa\u00edses Bajos",
+    "fob_usd": 5600000.0,
+    "net_tons": 310.0
+  },
+  {
+    "year_month": "2026-03",
+    "country_dest": "Estados Unidos",
+    "fob_usd": 27600000.0,
+    "net_tons": 1480.0
+  },
+  {
+    "year_month": "2026-03",
+    "country_dest": "Jap\u00f3n",
+    "fob_usd": 11900000.0,
+    "net_tons": 660.0
+  },
+  {
+    "year_month": "2026-03",
+    "country_dest": "Reino Unido",
+    "fob_usd": 9500000.0,
+    "net_tons": 500.0
+  },
+  {
+    "year_month": "2026-03",
+    "country_dest": "Canad\u00e1",
+    "fob_usd": 7000000.0,
+    "net_tons": 380.0
+  },
+  {
+    "year_month": "2026-03",
+    "country_dest": "Pa\u00edses Bajos",
+    "fob_usd": 5400000.0,
+    "net_tons": 300.0
+  },
+  {
+    "year_month": "2026-02",
+    "country_dest": "Estados Unidos",
+    "fob_usd": 25200000.0,
+    "net_tons": 1350.0
+  },
+  {
+    "year_month": "2026-02",
+    "country_dest": "Jap\u00f3n",
+    "fob_usd": 10800000.0,
+    "net_tons": 600.0
+  },
+  {
+    "year_month": "2026-02",
+    "country_dest": "Reino Unido",
+    "fob_usd": 8700000.0,
+    "net_tons": 460.0
+  },
+  {
+    "year_month": "2026-02",
+    "country_dest": "Canad\u00e1",
+    "fob_usd": 6400000.0,
+    "net_tons": 350.0
+  },
+  {
+    "year_month": "2026-02",
+    "country_dest": "Rusia",
+    "fob_usd": 4200000.0,
+    "net_tons": 240.0
+  },
+  {
+    "year_month": "2026-01",
+    "country_dest": "Estados Unidos",
+    "fob_usd": 23800000.0,
+    "net_tons": 1280.0
+  },
+  {
+    "year_month": "2026-01",
+    "country_dest": "Jap\u00f3n",
+    "fob_usd": 10200000.0,
+    "net_tons": 570.0
+  },
+  {
+    "year_month": "2026-01",
+    "country_dest": "Reino Unido",
+    "fob_usd": 8200000.0,
+    "net_tons": 440.0
+  },
+  {
+    "year_month": "2026-01",
+    "country_dest": "Canad\u00e1",
+    "fob_usd": 6000000.0,
+    "net_tons": 330.0
+  },
+  {
+    "year_month": "2026-01",
+    "country_dest": "Pa\u00edses Bajos",
+    "fob_usd": 4800000.0,
+    "net_tons": 270.0
+  },
+  {
+    "year_month": "2025-12",
+    "country_dest": "Estados Unidos",
+    "fob_usd": 26500000.0,
+    "net_tons": 1420.0
+  },
+  {
+    "year_month": "2025-12",
+    "country_dest": "Jap\u00f3n",
+    "fob_usd": 11400000.0,
+    "net_tons": 630.0
+  },
+  {
+    "year_month": "2025-12",
+    "country_dest": "Reino Unido",
+    "fob_usd": 9100000.0,
+    "net_tons": 490.0
+  },
+  {
+    "year_month": "2025-12",
+    "country_dest": "Canad\u00e1",
+    "fob_usd": 6700000.0,
+    "net_tons": 370.0
+  },
+  {
+    "year_month": "2025-12",
+    "country_dest": "Rusia",
+    "fob_usd": 4400000.0,
+    "net_tons": 250.0
+  },
+  {
+    "year_month": "2025-11",
+    "country_dest": "Estados Unidos",
+    "fob_usd": 22100000.0,
+    "net_tons": 1190.0
+  },
+  {
+    "year_month": "2025-11",
+    "country_dest": "Jap\u00f3n",
+    "fob_usd": 9500000.0,
+    "net_tons": 530.0
+  },
+  {
+    "year_month": "2025-11",
+    "country_dest": "Reino Unido",
+    "fob_usd": 7600000.0,
+    "net_tons": 410.0
+  },
+  {
+    "year_month": "2025-11",
+    "country_dest": "Canad\u00e1",
+    "fob_usd": 5600000.0,
+    "net_tons": 310.0
+  },
+  {
+    "year_month": "2025-11",
+    "country_dest": "Pa\u00edses Bajos",
+    "fob_usd": 4300000.0,
+    "net_tons": 240.0
+  },
+  {
+    "year_month": "2025-10",
+    "country_dest": "Estados Unidos",
+    "fob_usd": 24800000.0,
+    "net_tons": 1330.0
+  },
+  {
+    "year_month": "2025-10",
+    "country_dest": "Jap\u00f3n",
+    "fob_usd": 10600000.0,
+    "net_tons": 590.0
+  },
+  {
+    "year_month": "2025-10",
+    "country_dest": "Reino Unido",
+    "fob_usd": 8500000.0,
+    "net_tons": 460.0
+  },
+  {
+    "year_month": "2025-10",
+    "country_dest": "Canad\u00e1",
+    "fob_usd": 6300000.0,
+    "net_tons": 350.0
+  },
+  {
+    "year_month": "2025-10",
+    "country_dest": "Rusia",
+    "fob_usd": 4100000.0,
+    "net_tons": 230.0
+  },
+  {
+    "year_month": "2025-09",
+    "country_dest": "Estados Unidos",
+    "fob_usd": 21500000.0,
+    "net_tons": 1160.0
+  },
+  {
+    "year_month": "2025-09",
+    "country_dest": "Jap\u00f3n",
+    "fob_usd": 9200000.0,
+    "net_tons": 510.0
+  },
+  {
+    "year_month": "2025-09",
+    "country_dest": "Reino Unido",
+    "fob_usd": 7400000.0,
+    "net_tons": 400.0
+  },
+  {
+    "year_month": "2025-09",
+    "country_dest": "Canad\u00e1",
+    "fob_usd": 5400000.0,
+    "net_tons": 300.0
+  },
+  {
+    "year_month": "2025-09",
+    "country_dest": "Pa\u00edses Bajos",
+    "fob_usd": 4100000.0,
+    "net_tons": 230.0
+  }
+]

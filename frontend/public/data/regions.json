@@ -1,0 +1,112 @@
+[
+  {
+    "slug": "madrid",
+    "name": "Madrid",
+    "city": "Madrid",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.732,
+    "longitude": -74.264,
+    "production_share": 0.18,
+    "flower_area_ha": 420,
+    "workers": 3200
+  },
+  {
+    "slug": "facatativa",
+    "name": "Facatativ\u00e1",
+    "city": "Facatativ\u00e1",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.813,
+    "longitude": -74.354,
+    "production_share": 0.15,
+    "flower_area_ha": 385,
+    "workers": 2800
+  },
+  {
+    "slug": "funza",
+    "name": "Funza",
+    "city": "Funza",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.716,
+    "longitude": -74.211,
+    "production_share": 0.14,
+    "flower_area_ha": 360,
+    "workers": 2600
+  },
+  {
+    "slug": "el-rosal",
+    "name": "El Rosal",
+    "city": "El Rosal",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.852,
+    "longitude": -74.259,
+    "production_share": 0.12,
+    "flower_area_ha": 310,
+    "workers": 2200
+  },
+  {
+    "slug": "tocancipa",
+    "name": "Tocancip\u00e1",
+    "city": "Tocancip\u00e1",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.965,
+    "longitude": -73.911,
+    "production_share": 0.1,
+    "flower_area_ha": 280,
+    "workers": 1900
+  },
+  {
+    "slug": "chia",
+    "name": "Ch\u00eda",
+    "city": "Ch\u00eda",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.858,
+    "longitude": -74.053,
+    "production_share": 0.09,
+    "flower_area_ha": 250,
+    "workers": 1700
+  },
+  {
+    "slug": "mosquera",
+    "name": "Mosquera",
+    "city": "Mosquera",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.708,
+    "longitude": -74.233,
+    "production_share": 0.08,
+    "flower_area_ha": 220,
+    "workers": 1500
+  },
+  {
+    "slug": "sopo",
+    "name": "Sop\u00f3",
+    "city": "Sop\u00f3",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.91,
+    "longitude": -73.936,
+    "production_share": 0.06,
+    "flower_area_ha": 180,
+    "workers": 1200
+  },
+  {
+    "slug": "bojaca",
+    "name": "Bojac\u00e1",
+    "city": "Bojac\u00e1",
+    "department": "CUNDINAMARCA",
+    "latitude": 4.73,
+    "longitude": -74.347,
+    "production_share": 0.05,
+    "flower_area_ha": 150,
+    "workers": 1000
+  },
+  {
+    "slug": "cachipay",
+    "name": "Cachipay",
+    "city": "Cachipay",
+    "department": "CUNDINAMARCA",
+    "latitude": 5.265,
+    "longitude": -74.563,
+    "production_share": 0.03,
+    "flower_area_ha": 90,
+    "workers": 600
+  }
+]
