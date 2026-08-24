@@ -24,19 +24,20 @@ Arquitectura *Edge-First* de alto rendimiento, diseñada para operar **sin servi
 ┌────────────────────────────────────────────────────────┐
 │                   Vercel Edge (Astro)                  │
 ├──────────────────────────┬─────────────────────────────┤
-│   Datos Agroclimáticos   │     IA Especialista Local   │
-│   • Open-Meteo API       │     • Qwen2.5 0.5B Instruct │
-│   • Estaciones IDEAM     │     • ONNX / WASM In-Browser│
-│   • Registros DANE       │     • Privacidad Total      │
+│   Datos Agroclimáticos   │   IA Especialista Local     │
+│   • Open-Meteo API       │   • LFM2.5-230M (ONNX/WASM) │
+│   • Estaciones IDEAM     │   • Inferencia en Navegador │
+│   • Registros DANE       │   • 100% Privado y Offline  │
 └──────────────────────────┴─────────────────────────────┘
 ```
 
 ### 🧱 Componentes del Sistema
 
 * **Frontend:** [Astro](https://astro.build/) en modo estático (`output: "static"`) con arquitectura de islas interactivas.
-* **Modelos de IA en Navegador:** Motor de inferencia local con **Qwen2.5 0.5B-Instruct** y **LFM2.5** ejecutados en WebAssembly (WASM) / ONNX Runtime — *no envía datos del cultivo a servidores externos*.
+* **Motor de IA Local (LFM2.5-230M):** Inferencia agronómica ejecutada en el navegador mediante WebAssembly (WASM) y ONNX Runtime. Incluye flujo híbrido (reglas inmediatas + barra de progreso + enriquecimiento en vivo).
+* **Calendario de Riesgo Multivariable:** Comparativa histórica y proyección a 12 meses desglosando presión fúngica, encharcamiento y estrés térmico en escala 0–100%.
 * **Pipeline de Datos Automatizado:** GitHub Actions periódicos que actualizan el histórico microclimático y pronósticos en `frontend/public/data/`.
-* **Fuentes de Información:**
+* **Fuentes de Información Oficiales:**
   * Microclima y radiación: **Open-Meteo Forecast & Archive API**.
   * Red de referencia: **Estaciones Meteorológicas IDEAM** (Madrid, Funza, Facatativá, Chía, Sopó, etc.).
   * Comercio exterior: Estadísticas oficiales **DANE / Asocolflores**.
