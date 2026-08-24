@@ -1,9 +1,10 @@
-// Motor de Inferencia Agronómica Directa & IA Local
+// Inferencia Directa con Modelo Local en Navegador (Qwen2.5-0.5B / LFM2.5)
 let pipelinePromise = null;
 let generator = null;
 let modelIdLoaded = null;
 
-export const LFM_MODELS = [
+// Qwen2.5-0.5B es el modelo con mejor comprensión y generación agronómica en español para navegador
+export const MODEL_CANDIDATES = [
   'Xenova/Qwen2.5-0.5B-Instruct',
   'onnx-community/LFM2.5-230M-ONNX',
 ];
@@ -20,6 +21,7 @@ async function loadPipelineFor(candidates, onProgress) {
   const { pipeline, env } = await import('@huggingface/transformers');
   env.allowLocalModels = false;
   env.useBrowserCache = true;
+
   for (const candidate of candidates) {
     try {
       const pipe = await pipeline('text-generation', candidate, {
@@ -29,19 +31,19 @@ async function loadPipelineFor(candidates, onProgress) {
       });
       return { pipe, modelId: candidate };
     } catch (e) {
-      console.warn(`[transformers] ${candidate} falló:`, e?.message || e);
+      console.warn(`[transformers] ${candidate} falló al cargar:`, e?.message || e);
     }
   }
-  throw new Error('No se pudo inicializar modelo.');
+  throw new Error('No se pudo inicializar el modelo en el navegador.');
 }
 
-export async function getLFMModel(onProgress = null) {
+export async function getModel(onProgress = null) {
   if (generator) return generator;
   if (pipelinePromise) return pipelinePromise;
   const support = await diagnoseTransformersSupport();
   if (!support.ok) throw new Error(support.reason);
 
-  pipelinePromise = loadPipelineFor(LFM_MODELS, onProgress).then(({ pipe, modelId }) => {
+  pipelinePromise = loadPipelineFor(MODEL_CANDIDATES, onProgress).then(({ pipe, modelId }) => {
     generator = pipe;
     modelIdLoaded = modelId;
     return generator;
@@ -54,26 +56,41 @@ export async function getLFMModel(onProgress = null) {
   }
 }
 
-export function getLoadedModelName() {
-  if (!modelIdLoaded) return 'LFM2.5-230M';
-  if (modelIdLoaded.includes('LFM2.5')) return 'LFM2.5-230M';
-  if (modelIdLoaded.includes('Qwen2.5')) return 'Qwen2.5-0.5B';
+export function getModelName() {
+  if (!modelIdLoaded) return 'LFM2.5 / Qwen2.5';
+  if (modelIdLoaded.includes('Qwen2.5')) return 'Qwen2.5 0.5B Instruct';
+  if (modelIdLoaded.includes('LFM2.5')) return 'LFM2.5 230M';
   return modelIdLoaded;
 }
 
-export async function generateLFMAnalysis(contextSummary, onToken = null, onProgress = null) {
-  const gen = await getLFMModel(onProgress);
+export async function runDirectModelInference(context, onToken = null, onProgress = null) {
+  const gen = await getModel(onProgress);
 
-  const prompt = `Instrucción: Como agrónomo especialista en rosas de la Sabana de Bogotá, analiza:
-Municipio: ${contextSummary.region}
-Lluvia: ${contextSummary.today?.precip ?? 0} mm
-Temp: ${contextSummary.today?.temp ?? 14} °C
-Riesgo Fúngico: ${contextSummary.today?.fungal ?? 40} %
+  const messages = [
+    {
+      role: 'system',
+      content: 'Eres un agrónomo experto en cultivo de rosas y flores de corte en la Sabana de Bogotá. Genera 3 directivas directas y muy concretas en español para el cultivo hoy.'
+    },
+    {
+      role: 'user',
+      content: `Datos de hoy en ${context.region}:
+Lluvia: ${context.precip} mm
+Temperatura: ${context.temp} °C
+Riesgo Fúngico: ${context.fungal}%
 
-Responde estrictamente con estas 3 líneas:
-RIEGO: [Horario y litros/m2 según la lluvia de ${contextSummary.today?.precip ?? 0}mm en ${contextSummary.region}]
-SANIDAD: [Ventilación y prevención según el riesgo ${contextSummary.today?.fungal ?? 40}%]
-MANEJO: [Acción de cosecha y desinfección hoy en ${contextSummary.region}]`;
+Entrega exactamente 3 líneas con este formato:
+RIEGO: [Tu recomendación de riego específica para ${context.region}]
+SANIDAD: [Tu recomendación fitosanitaria y ventilación para ${context.region}]
+MANEJO: [Tu recomendación de labor cultural y corte para ${context.region}]`
+    }
+  ];
+
+  let prompt = '';
+  if (gen.tokenizer.apply_chat_template) {
+    prompt = gen.tokenizer.apply_chat_template(messages, { tokenize: false, add_generation_prompt: true });
+  } else {
+    prompt = `<|im_start|>system\n${messages[0].content}<|im_end|>\n<|im_start|>user\n${messages[1].content}<|im_end|>\n<|im_start|>assistant\n`;
+  }
 
   let streamer;
   if (onToken) {
@@ -87,13 +104,17 @@ MANEJO: [Acción de cosecha y desinfección hoy en ${contextSummary.region}]`;
   }
 
   const out = await gen(prompt, {
-    max_new_tokens: 150,
-    temperature: 0.2,
-    top_p: 0.8,
+    max_new_tokens: 180,
+    temperature: 0.3,
+    top_p: 0.9,
     do_sample: true,
     streamer,
   });
 
   const text = Array.isArray(out) ? out[0]?.generated_text : out?.generated_text || String(out);
-  return text;
+  const cleanResponse = text.includes('<|im_start|>assistant')
+    ? text.split('<|im_start|>assistant').pop().replace('<|im_end|>', '').trim()
+    : text.trim();
+
+  return cleanResponse;
 }

@@ -1238,3 +1238,19 @@ img { max-width: 100%; display: block; }
   border-color: #99f6e4;
   box-shadow: 0 4px 15px rgba(15, 118, 110, 0.06);
 }
+
+/* Skeleton loaders para tarjetas IA */
+.sp-card-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.sp-skel-line {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: op-shimmer 1.4s infinite linear;
+}

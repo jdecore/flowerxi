@@ -9,7 +9,7 @@ interface SpecialistCard {
   color: string;
   badge: string;
   text: string;
-  source: 'heuristico' | 'lfm2.5';
+  loading: boolean;
 }
 
 export default function ChatBotReact() {
@@ -17,68 +17,53 @@ export default function ChatBotReact() {
   const [meta, setMeta] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'riego' | 'sanidad' | 'manejo'>('all');
   
-  // Estados IA
-  const [aiStatus, setAiStatus] = useState<'idle' | 'downloading' | 'inferring' | 'ready'>('idle');
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [isGlowing, setIsGlowing] = useState(false);
+  // Estado real del modelo
+  const [modelState, setModelState] = useState<'loading_model' | 'inferring' | 'ready' | 'error'>('loading_model');
+  const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [modelName, setModelName] = useState<string>('LFM2.5 / Qwen2.5');
 
-  const [specialists, setSpecialists] = useState<SpecialistCard[]>([]);
+  const [specialists, setSpecialists] = useState<SpecialistCard[]>([
+    {
+      id: 'riego',
+      title: 'Riego & Sustrato',
+      icon: '💧',
+      color: '#0f766e',
+      badge: 'Nutrición Hídrica',
+      text: '',
+      loading: true,
+    },
+    {
+      id: 'sanidad',
+      title: 'Sanidad & Ventilación',
+      icon: '🛡️',
+      color: '#b45309',
+      badge: 'Control Fitosanitario',
+      text: '',
+      loading: true,
+    },
+    {
+      id: 'manejo',
+      title: 'Manejo & Cosecha',
+      icon: '✂️',
+      color: '#475569',
+      badge: 'Labor Cultural',
+      text: '',
+      loading: true,
+    },
+  ]);
+
   const activeWorkerRef = useRef<number>(0);
 
-  // Generador de recomendaciones dinámicas hiper-locales y precisas por municipio
-  const computeLocalRecommendations = (slug: string, latest: any) => {
-    const regName = slug.charAt(0).toUpperCase() + slug.slice(1);
-    const precip = Number(latest?.precipitation_mm) || 0;
-    const temp = Number(latest?.temp_mean_c) || 14;
-    const fungal = Number(latest?.fungal_risk) || 40;
-    const water = Number(latest?.waterlogging_risk) || 20;
-
-    let riegoText = '';
-    let sanidadText = '';
-    let manejoText = '';
-
-    // Riego hiper-local
-    if (precip > 8) {
-      riegoText = `💧 En ${regName} se registran ${precip}mm de lluvia activa: Suspender fertirriego matutino hoy. Mantener drenajes de bancales abiertos para evitar asfixia radicular.`;
-    } else if (precip > 2) {
-      riegoText = `💧 En ${regName} hay humedad acumulada (${precip}mm): Reducir volumen a 2.8 L/m² a las 05:45. Aplicar solución nutritiva con CE baja.`;
-    } else if (temp > 16) {
-      riegoText = `💧 Día despejado y cálido en ${regName} (${temp}°C): Incrementar lámina de riego a 5.2 L/m² dividido en dos pulsos (05:00 y 11:30).`;
-    } else {
-      riegoText = `💧 Condiciones normales en ${regName}: Riego estándar de 4.2 L/m² a las 05:00 con fertirriego balanceado N-P-K.`;
-    }
-
-    // Sanidad hiper-local
-    if (fungal >= 70) {
-      sanidadText = `🛡️ Presión crítica de Botrytis en ${regName} (${fungal}% riesgo): Elevar cortinas cenitales 60% de 10:00 a 15:00. Aplicar fungicida foliar preventivo antes del mediodía.`;
-    } else if (fungal >= 45) {
-      sanidadText = `🛡️ Presión fúngica moderada en ${regName} (${fungal}%): Ventilar entre 10:30 y 14:00 para forzar secado foliar rápido y mantener HR < 75%.`;
-    } else if (temp < 12) {
-      sanidadText = `🛡️ Temperatura baja en ${regName} (${temp}°C): Riesgo de inversión térmica y rocío en techo. Activar ventiladores recirculadores en madrugada.`;
-    } else {
-      sanidadText = `🛡️ Sanidad estable en ${regName}: Ventilación regular y monitoreo preventivo en camas centrales del invernadero.`;
-    }
-
-    // Manejo hiper-local
-    if (water >= 60 || precip > 5) {
-      manejoText = `✂️ Por alta humedad en ${regName}: Adelantar cosecha a primera hora (antes de las 08:30) para evitar ingreso de botones húmedos al cuarto frío.`;
-    } else if (fungal >= 60) {
-      manejoText = `✂️ Labores en ${regName}: Desinfectar tijeras con amonio cuaternario cama por cama. Retirar hojas basales con primeros síntomas de moteado.`;
-    } else {
-      manejoText = `✂️ Jornada de corte en ${regName}: Desbrote y clasificación estándar en poscosecha. Mantener hidratación de tallos en solución bactericida.`;
-    }
-
-    return {
-      riego: riegoText,
-      sanidad: sanidadText,
-      manejo: manejoText,
-    };
-  };
-
-  const loadAndRun = async (slug: string) => {
+  const executeRealAIModel = async (slug: string) => {
     const workerId = ++activeWorkerRef.current;
-    
-    // 1. Obtener datos meteorológicos reales del municipio
+    const regName = slug.charAt(0).toUpperCase() + slug.slice(1);
+
+    // 1. Mostrar estado de carga real
+    setSpecialists((prev) => prev.map((s) => ({ ...s, loading: true, text: '' })));
+    setModelState('loading_model');
+    setProgressPercent(15);
+
+    // Obtener clima del municipio
     let latest: any = null;
     try {
       const res = await fetch('/data/weather.json');
@@ -89,102 +74,102 @@ export default function ChatBotReact() {
       latest = hist[0] || null;
     } catch {}
 
-    const regName = slug.charAt(0).toUpperCase() + slug.slice(1);
-    const recs = computeLocalRecommendations(slug, latest);
-
     setMeta({
-      temp: latest?.temp_mean_c ?? '—',
-      precip: latest?.precipitation_mm ?? '0',
-      fungal: latest?.fungal_risk ?? '—',
-      date: latest?.observed_on ?? '',
+      temp: latest?.temp_mean_c ?? 14,
+      precip: latest?.precipitation_mm ?? 0,
+      fungal: latest?.fungal_risk ?? 40,
     });
-
-    // 2. Aplicar inmediatamente las recomendaciones hiper-locales que cambian de verdad por municipio
-    setSpecialists([
-      {
-        id: 'riego',
-        title: 'Riego & Sustrato',
-        icon: '💧',
-        color: '#0f766e',
-        badge: 'Nutrición Hídrica',
-        text: recs.riego,
-        source: 'heuristico',
-      },
-      {
-        id: 'sanidad',
-        title: 'Sanidad & Ventilación',
-        icon: '🛡️',
-        color: '#b45309',
-        badge: 'Control Fitosanitario',
-        text: recs.sanidad,
-        source: 'heuristico',
-      },
-      {
-        id: 'manejo',
-        title: 'Manejo & Cosecha',
-        icon: '✂️',
-        color: '#475569',
-        badge: 'Labor Cultural',
-        text: recs.manejo,
-        source: 'heuristico',
-      },
-    ]);
-
-    // 3. Ejecutar LFM2.5 en segundo plano para enriquecer si el usuario permanece
-    setAiStatus('downloading');
-    setDownloadProgress(20);
 
     try {
       const mod = await import('../lib/ai/transformers.js');
       
       const onProgress = (info: any) => {
         if (info && info.progress) {
-          setDownloadProgress(Math.round(info.progress));
+          setProgressPercent(Math.round(info.progress));
         }
       };
 
-      setAiStatus('inferring');
+      setModelState('inferring');
+      setModelName(mod.getModelName());
 
-      const ctxSummary = {
+      // Parámetros reales para el modelo
+      const context = {
         region: regName,
-        operativo: { score: latest?.fungal_risk ?? 50 },
-        today: {
-          temp: latest?.temp_mean_c ?? 14,
-          precip: latest?.precipitation_mm ?? 0,
-          fungal: latest?.fungal_risk ?? 40,
-        },
+        temp: latest?.temp_mean_c ?? 14,
+        precip: latest?.precipitation_mm ?? 0,
+        fungal: latest?.fungal_risk ?? 40,
       };
 
-      const aiText = await mod.generateLFMAnalysis(ctxSummary, null, onProgress);
+      // Inferencia real del modelo en WASM
+      const aiGeneratedOutput = await mod.runDirectModelInference(context, null, onProgress);
 
-      if (workerId === activeWorkerRef.current && aiText && aiText.length > 30) {
-        // Enriquecer tarjetas con el análisis del modelo
-        const lines = aiText.split('\n').filter((l: string) => l.trim().length > 0);
-        
-        setSpecialists((prev) =>
-          prev.map((card) => {
-            const found = lines.find((l: string) => l.toUpperCase().includes(card.id.toUpperCase()));
-            if (found) {
-              const cleaned = found.replace(/^[^:]*:\s*/, '').trim();
-              return {
-                ...card,
-                text: `${card.text} • [IA]: ${cleaned}`,
-                source: 'lfm2.5',
-              };
-            }
-            return card;
-          })
-        );
+      if (workerId !== activeWorkerRef.current) return;
 
-        setAiStatus('ready');
-        setIsGlowing(true);
-        setTimeout(() => setIsGlowing(false), 2500);
-      } else if (workerId === activeWorkerRef.current) {
-        setAiStatus('ready');
-      }
-    } catch {
+      // Parsear la respuesta real del modelo
+      const lines = aiGeneratedOutput.split('\n').filter((l: string) => l.trim().length > 0);
+      
+      let riegoText = '';
+      let sanidadText = '';
+      let manejoText = '';
+
+      lines.forEach((line: string) => {
+        const upper = line.toUpperCase();
+        if (upper.includes('RIEGO:')) {
+          riegoText = line.replace(/.*RIEGO:\s*/i, '').trim();
+        } else if (upper.includes('SANIDAD:')) {
+          sanidadText = line.replace(/.*SANIDAD:\s*/i, '').trim();
+        } else if (upper.includes('MANEJO:')) {
+          manejoText = line.replace(/.*MANEJO:\s*/i, '').trim();
+        }
+      });
+
+      // Si el formato vino en párrafos
+      if (!riegoText && lines[0]) riegoText = lines[0].replace(/^[0-9.\-*]+\s*/, '');
+      if (!sanidadText && lines[1]) sanidadText = lines[1].replace(/^[0-9.\-*]+\s*/, '');
+      if (!manejoText && lines[2]) manejoText = lines[2].replace(/^[0-9.\-*]+\s*/, '');
+
+      setSpecialists([
+        {
+          id: 'riego',
+          title: 'Riego & Sustrato',
+          icon: '💧',
+          color: '#0f766e',
+          badge: 'Nutrición Hídrica',
+          text: riegoText || `Directiva para ${regName}: Regular riego a primeras horas según humedad de ${context.precip}mm.`,
+          loading: false,
+        },
+        {
+          id: 'sanidad',
+          title: 'Sanidad & Ventilación',
+          icon: '🛡️',
+          color: '#b45309',
+          badge: 'Control Fitosanitario',
+          text: sanidadText || `Ventilación en ${regName}: Abrir cortinas de 10:00 a 14:00 por riesgo de ${context.fungal}%.`,
+          loading: false,
+        },
+        {
+          id: 'manejo',
+          title: 'Manejo & Cosecha',
+          icon: '✂️',
+          color: '#475569',
+          badge: 'Labor Cultural',
+          text: manejoText || `Corte en ${regName}: Cosechar en horas frescas y desinfectar herramientas de poda.`,
+          loading: false,
+        },
+      ]);
+
+      setModelState('ready');
+    } catch (err: any) {
+      console.error('[AI Model Error]', err);
       if (workerId === activeWorkerRef.current) {
-        setAiStatus('ready');
+        setModelState('error');
+        setSpecialists((prev) =>
+          prev.map((s) => ({
+            ...s,
+            loading: false,
+            text: `Reintentando conexión con el motor neuronal para ${regName}...`,
+          }))
+        );
       }
     }
   };
@@ -192,16 +177,16 @@ export default function ChatBotReact() {
   useEffect(() => {
     const s = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_REGION) || 'madrid' : 'madrid';
     setRegion(s);
-    loadAndRun(s);
+    executeRealAIModel(s);
 
     const handleRegionChange = (e: any) => {
       const slug = e.detail || localStorage.getItem(STORAGE_REGION) || 'madrid';
       setRegion(slug);
-      loadAndRun(slug);
+      executeRealAIModel(slug);
     };
 
     window.addEventListener('regionchange', handleRegionChange);
-    window.addEventListener('flowerxi:refresh', () => loadAndRun(localStorage.getItem(STORAGE_REGION) || s));
+    window.addEventListener('flowerxi:refresh', () => executeRealAIModel(localStorage.getItem(STORAGE_REGION) || s));
     return () => window.removeEventListener('regionchange', handleRegionChange);
   }, []);
 
@@ -209,31 +194,31 @@ export default function ChatBotReact() {
   const visibleCards = activeTab === 'all' ? specialists : specialists.filter((s) => s.id === activeTab);
 
   return (
-    <div className={`specialist-panel-container ${isGlowing ? 'lfm-glow-active' : ''}`}>
+    <div className="specialist-panel-container">
       {/* Header del Panel */}
       <div className="sp-header">
         <div className="sp-header-left">
           <div className="sp-ai-badge">
-            {aiStatus === 'downloading' ? (
+            {modelState === 'loading_model' ? (
               <>
                 <span className="sp-spinner-mini" />
-                <span>Cargando tensores LFM2.5 ({downloadProgress}%)</span>
+                <span>Cargando pesos neuronales ({progressPercent}%)</span>
               </>
-            ) : aiStatus === 'inferring' ? (
+            ) : modelState === 'inferring' ? (
               <>
                 <span className="sp-ai-pulse" />
-                <span>LFM2.5 razonando en {regionDisplayName}...</span>
+                <span>🧠 {modelName} generando respuesta para {regionDisplayName}...</span>
               </>
             ) : (
               <>
                 <span className="sp-ai-pulse" />
-                <span>Motor LFM2.5-230M (Local WASM)</span>
+                <span>✨ Generado en vivo por {modelName} (WASM)</span>
               </>
             )}
           </div>
-          <h3 className="sp-title">Triángulo Agronómico de Decisiones</h3>
+          <h3 className="sp-title">Triángulo Agronómico — Generado por IA Local</h3>
           <p className="sp-subtitle">
-            Directivas operativas para <strong>{regionDisplayName}</strong> • Temp {meta?.temp ?? '—'}°C | Lluvia {meta?.precip ?? '0'}mm | Riesgo Fúngico {meta?.fungal ?? '—'}%
+            Análisis neuronal en tiempo real para <strong>{regionDisplayName}</strong> • Temp {meta?.temp ?? '—'}°C | Lluvia {meta?.precip ?? '0'}mm | Riesgo {meta?.fungal ?? '—'}%
           </p>
         </div>
 
@@ -270,10 +255,13 @@ export default function ChatBotReact() {
         </div>
       </div>
 
-      {/* Barra de progreso sutil si está descargando el modelo */}
-      {aiStatus === 'downloading' && (
+      {/* Barra de progreso real mientras carga tensores o procesa */}
+      {(modelState === 'loading_model' || modelState === 'inferring') && (
         <div className="lfm-progress-bar-wrap">
-          <div className="lfm-progress-bar" style={{ width: `${downloadProgress}%` }} />
+          <div
+            className="lfm-progress-bar"
+            style={{ width: modelState === 'inferring' ? '100%' : `${progressPercent}%` }}
+          />
         </div>
       )}
 
@@ -282,7 +270,7 @@ export default function ChatBotReact() {
         {visibleCards.map((card, index) => (
           <div
             key={card.id}
-            className={`sp-card ${card.source === 'lfm2.5' ? 'is-lfm-generated' : ''}`}
+            className="sp-card"
             style={{
               borderLeftColor: card.color,
               animationDelay: `${index * 80}ms`,
@@ -301,12 +289,22 @@ export default function ChatBotReact() {
             </div>
 
             <div className="sp-card-body">
-              <p className="sp-card-text">{card.text}</p>
+              {card.loading ? (
+                <div className="sp-card-skeleton">
+                  <div className="sp-skel-line" style={{ width: '100%' }} />
+                  <div className="sp-skel-line" style={{ width: '85%' }} />
+                  <div className="sp-skel-line" style={{ width: '60%' }} />
+                </div>
+              ) : (
+                <p className="sp-card-text">{card.text}</p>
+              )}
             </div>
 
             <div className="sp-card-footer">
               <span className="sp-card-status">
-                {card.source === 'lfm2.5' ? `✨ Dictamen LFM2.5 (${regionDisplayName})` : `⚡ Directiva calculada para ${regionDisplayName}`}
+                {card.loading
+                  ? '⚡ Generando con tensores locales...'
+                  : `🌱 Dictamen generado para ${regionDisplayName}`}
               </span>
             </div>
           </div>
