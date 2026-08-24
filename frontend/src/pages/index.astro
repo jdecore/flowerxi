@@ -49,14 +49,9 @@ import ChatBotReact from '../islands-react/ChatBotReact.tsx';
       <!-- Layout principal -->
       <div class="main-layout">
         <main class="main-col">
-          <!-- Top row: Hero (izq) + Ayuda editorial (der) -->
+          <!-- Top row: Ayuda texto (izq) + Hero (der) -->
           <div class="hero-about-row">
-            <section class="hero-shell">
-              <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
-              <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual. Baja para ver evidencia y acción.</p>
-              <OperationalHeroReact initialRegion="madrid" client:load />
-            </section>
-            <aside class="help-card">
+            <div class="help-text-block">
               <h2 class="help-title">¿En qué te ayuda Flowerxi?</h2>
               <p class="help-lead">Decide en segundos, sin adivinar.</p>
               <p class="help-text">
@@ -68,13 +63,16 @@ import ChatBotReact from '../islands-react/ChatBotReact.tsx';
                 <li><strong>Te guía:</strong> cada gráfica explica la acción — baja y el tablero te lleva paso a paso.</li>
               </ul>
               <p class="help-foot">Elige municipio arriba y recorre el flujo. El chat local te explica cualquier dato sin salir de la página.</p>
-            </aside>
+            </div>
+            <section class="hero-shell">
+              <OperationalHeroReact initialRegion="madrid" client:load />
+            </section>
           </div>
 
           <!-- Chat protagonista — ahora full width debajo del hero/about -->
           <div class="chat-full" id="chat-anchor">
             <div class="chat-protagonist">
-              <h2 class="section-head">Chat IA local (React)</h2>
+              <h2 class="section-head">Chat IA local</h2>
               <p class="section-sub">LFM2.5-230M en tu navegador — ligero con Recharts + Transformers.js</p>
               <ChatBotReact embedded={true} client:idle={{ timeout: 600 }} />
             </div>
@@ -105,14 +103,14 @@ import ChatBotReact from '../islands-react/ChatBotReact.tsx';
           <!-- Contexto Sabana — React -->
           <div class="one-col-row">
             <section class="comparison-card">
-              <h3 class="section-head">Comparativa Sabana (React)</h3>
+              <h3 class="section-head">Comparativa Sabana</h3>
               <SabanaComparisonReact initialRegion="madrid" client:visible />
             </section>
           </div>
 
           <div class="one-col-row station-row">
             <section class="station-card">
-              <h3 class="section-head">Estación de referencia (React)</h3>
+              <h3 class="section-head">Estación de referencia</h3>
               <ClosestStationReact initialRegion="madrid" client:visible />
               <p class="made-by">Hecho por Juan Enriquez- 2026 • React islands + Recharts • LFM2.5 local</p>
             </section>
@@ -212,26 +210,13 @@ import ChatBotReact from '../islands-react/ChatBotReact.tsx';
       .main-layout { padding: 1.5rem; max-width: 1280px; margin: 0 auto; width: 100%; }
       .main-col { display: flex; flex-direction: column; gap: 1.25rem; }
 
-      /* Hero + Help */
-      .hero-about-row { display: grid; grid-template-columns: 1.45fr 0.85fr; gap: 1.25rem; align-items: start; }
-      .hero-shell { display: grid; gap: 0.5rem; min-width: 0; }
-      .hero-shell-kicker {
-        width: max-content; margin: 0;
-        font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; color: #fff;
-        border-radius: 999px; padding: 0.3rem 0.7rem;
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-        letter-spacing: 0.04em; text-transform: uppercase;
-      }
-      .hero-shell-sub { margin: 0; font-family: var(--font-sans); font-size: 0.875rem; color: var(--text-tertiary); line-height: 1.5; }
-
-      .help-card {
-        background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px;
-        padding: 20px; box-shadow: var(--shadow-sm); position: sticky; top: 74px;
-        display: grid; gap: 12px;
-      }
+      /* Hero + Help texto plano izquierda */
+      .hero-about-row { display: grid; grid-template-columns: 0.9fr 1.4fr; gap: 2rem; align-items: start; }
+      .hero-shell { display: grid; gap: 0; min-width: 0; }
+      .help-text-block { display: grid; gap: 10px; padding: 4px 0; align-content: start; }
       .help-title {
         margin: 0; font-family: "Times New Roman", Times, Georgia, serif;
-        font-size: 1.65rem; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; color: #0f172a;
+        font-size: 1.75rem; font-weight: 700; line-height: 1.15; letter-spacing: -0.03em; color: #0f172a;
       }
       .help-lead { margin: 0; font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; color: var(--primary); }
       .help-text { margin: 0; font-family: var(--font-sans); font-size: 0.875rem; line-height: 1.6; color: #334155; }
@@ -266,7 +251,6 @@ import ChatBotReact from '../islands-react/ChatBotReact.tsx';
       /* Responsive */
       @media (max-width: 1024px) {
         .hero-about-row { grid-template-columns: 1fr; }
-        .help-card { position: static; }
       }
       @media (max-width: 768px) {
         .main-layout { padding: 1rem; }

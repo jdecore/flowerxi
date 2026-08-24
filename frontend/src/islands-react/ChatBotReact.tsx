@@ -255,7 +255,7 @@ export default function ChatBotReact({ embedded = true }: { embedded?: boolean }
   return (
     <div id={embedded ? 'chat-section-react' : undefined} style={{ border: '1px solid #e2e8f0', borderRadius: 14, background: '#fff', boxShadow: '0 1px 3px rgba(15,23,42,.06)', display: 'flex', flexDirection: 'column', minHeight: 460 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottom: '1px solid #e2e8f0' }}>
-        <div><h3 style={{ margin: 0, fontSize: 16, color: '#0f172a' }}>FlowerxiBot (React)</h3><p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>LFM2.5-230M local • 100% navegador</p></div>
+        <div><h3 style={{ margin: 0, fontSize: 16, color: '#0f172a' }}>FlowerxiBot</h3><p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>LFM2.5-230M local • 100% navegador</p></div>
         <button onClick={clear} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: 'transparent', padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}>Limpiar</button>
       </div>
       <div style={{ padding: '6px 12px', fontSize: 12, color: modelReady ? '#166534' : modelError ? '#b45309' : '#64748b', borderBottom: '1px solid #f1f5f9' }}>
