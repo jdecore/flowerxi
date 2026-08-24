@@ -1,21 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+const STORAGE_REGION = 'flowerxi_region';
+
 const scoreFrom = (d: any) => {
   const f = Number(d?.fungal_risk), w = Number(d?.waterlogging_risk), h = Number(d?.heat_risk);
   if (![f, w, h].every(Number.isFinite)) return null;
   return Math.round(f * 0.5 + w * 0.3 + h * 0.2);
-};
-const levelText = (s: number | null) => (s === null ? 'SIN DATOS' : s >= 70 ? 'ALTO' : s >= 40 ? 'MEDIO' : 'BAJO');
-const reasonFrom = (d: any) => {
-  const f = Number(d?.fungal_risk), w = Number(d?.waterlogging_risk), h = Number(d?.heat_risk);
-  if (![f, w, h].every(Number.isFinite)) return 'Datos no disponibles.';
-  if (f >= w && f >= h) return 'El factor dominante hoy es riesgo fúngico.';
-  if (w >= f && w >= h) return 'El factor dominante hoy es riesgo por encharcamiento.';
-  return 'El factor dominante hoy es riesgo térmico.';
-};
-const hoursSinceRain = (hist: any[]) => {
-  for (let i = 0; i < hist.length; i++) if (Number(hist[i]?.precipitation_mm) > 0) return i * 24;
-  return null;
 };
 
 export default function OperationalHeroReact({ initialRegion = 'madrid' }: { initialRegion?: string }) {
@@ -39,100 +29,155 @@ export default function OperationalHeroReact({ initialRegion = 'madrid' }: { ini
       const score = latest ? scoreFrom(latest) : null;
       const prevScore = prev ? scoreFrom(prev) : null;
       const delta = score !== null && prevScore !== null ? score - prevScore : 0;
-      const dominant =
-        latest && Number(latest.fungal_risk) >= Number(latest.waterlogging_risk) && Number(latest.fungal_risk) >= Number(latest.heat_risk)
-          ? 'riesgo fúngico'
-          : latest && Number(latest.waterlogging_risk) >= Number(latest.fungal_risk) && Number(latest.waterlogging_risk) >= Number(latest.heat_risk)
-            ? 'encharcamiento'
-            : latest ? 'riesgo térmico' : 'Sin datos';
-      // top 3
+
+      // Determinación de directiva operativa agronómica
+      let directive = 'Monitoreo de rutina: Mantener programa regular de fertirriego y ventilación estándar.';
+      let directiveLevel: 'success' | 'warning' | 'danger' = 'success';
+      let tagText = 'RUTINA FITOSANITARIA';
+
+      if (score !== null) {
+        if (score >= 70) {
+          directiveLevel = 'danger';
+          tagText = 'ACCIÓN INMEDIATA EN CAMPO';
+          directive = 'Alta presión de botritis: Abrir cortinas cenitales al 50% entre 10:00–14:00. Suspender riego foliar vespertino y aislar tallos con daño.';
+        } else if (score >= 40) {
+          directiveLevel = 'warning';
+          tagText = 'VIGILANCIA PREVENTIVA';
+          directive = 'Riesgo moderado de humedad foliar: Ventilar antes de las 11:00 para reducir condensación matutina y verificar drenajes basales.';
+        }
+      }
+
+      // Ranking top 3 Sabana
       const latestByRegion: Record<string, any> = {};
       (hr as any[]).forEach((d) => {
         if (!latestByRegion[d.region_slug] || d.observed_on > latestByRegion[d.region_slug].observed_on) latestByRegion[d.region_slug] = d;
       });
       const top = Object.entries(latestByRegion)
-        .map(([slug, d]: any) => ({ slug, name: slug, score: scoreFrom(d) }))
+        .map(([rSlug, d]: any) => ({ slug: rSlug, name: rSlug, score: scoreFrom(d) }))
         .filter((x) => Number.isFinite(x.score))
         .sort((a, b) => (b.score as number) - (a.score as number))
         .slice(0, 3);
-      // name lookup
+
       const nameMap: Record<string, string> = {};
       (cr as any[]).forEach((r: any) => (nameMap[r.slug] = r.name));
-      top.forEach((t) => (t.name = nameMap[t.slug] || t.slug));
+      top.forEach((t) => (t.name = nameMap[t.slug] || t.slug.charAt(0).toUpperCase() + t.slug.slice(1)));
 
-      setData(
-        latest
-          ? {
-              score,
-              level: levelText(score),
-              delta,
-              trend: delta > 3 ? '↑ en aumento' : delta < -3 ? '↓ a la baja' : '→ estable',
-              confidence: hist.length >= 14 ? 78 : hist.length >= 7 ? 64 : 52,
-              days: hist.length,
-              window: score !== null && score >= 70 ? 24 : score !== null && score >= 40 ? 48 : 72,
-              hoursSince: hoursSinceRain(hist),
-              reason: reasonFrom(latest),
-              dominant,
-              latest,
-              top,
-            }
-          : null
-      );
-      if (latest) {
-        localStorage.setItem('flowerxi_today', JSON.stringify({ region: slug, score, reason: reasonFrom(latest) }));
-      }
+      setData({
+        score,
+        delta,
+        directive,
+        directiveLevel,
+        tagText,
+        latest,
+        top,
+      });
+    } catch {
+      // fallback
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('flowerxi_region') || initialRegion;
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_REGION) || initialRegion : initialRegion;
     setRegion(stored);
     load(stored);
     const h = (e: any) => {
-      const s = e.detail || localStorage.getItem('flowerxi_region') || initialRegion;
+      const s = e.detail || localStorage.getItem(STORAGE_REGION) || initialRegion;
       setRegion(s);
       load(s);
     };
     window.addEventListener('regionchange', h);
-    window.addEventListener('flowerxi:refresh', () => load(localStorage.getItem('flowerxi_region') || region));
+    window.addEventListener('flowerxi:refresh', () => load(localStorage.getItem(STORAGE_REGION) || region));
     return () => {
       window.removeEventListener('regionchange', h);
       window.removeEventListener('flowerxi:refresh', () => {});
     };
   }, []);
 
-  if (loading) return <div style={{ height: 112, borderRadius: 10, background: 'linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite linear' }} />;
-  if (!data) return <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 13 }}>Sin datos para {region}</div>;
+  const regionDisplayName = region.charAt(0).toUpperCase() + region.slice(1);
 
-  const prefix = data.delta > 0 ? '↑' : data.delta < 0 ? '↓' : '→';
+  if (loading) {
+    return <div className="op-hero-skeleton" />;
+  }
+
+  if (!data || data.score === null) {
+    return (
+      <div className="op-hero-card">
+        <p className="op-hero-empty">Sin datos operativos para {regionDisplayName}</p>
+      </div>
+    );
+  }
+
+  const badgeColors = {
+    danger: { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', dot: '#ef4444' },
+    warning: { bg: '#fffbeb', text: '#92400e', border: '#fde68a', dot: '#f59e0b' },
+    success: { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0', dot: '#22c55e' },
+  }[data.directiveLevel];
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, display: 'flex', gap: 16, alignItems: 'stretch', boxShadow: '0 1px 3px rgba(15,23,42,.07)' }} className="hero-card">
-      <div style={{ flex: 1.2, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#64748b' }}>RIESGO HOY</p>
-        <h2 style={{ margin: '3px 0 4px', fontSize: 19, color: '#0f172a', lineHeight: 1.1 }}>
-          {data.level} {data.score !== null ? `(${data.score})` : ''}
-        </h2>
-        <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>{prefix} {Math.abs(data.delta)} vs ayer • 📊 {data.trend}</p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, fontSize: 10, color: '#475569' }}>
-          <span>Confianza {data.confidence}% • {Math.min(data.days, 14)}d</span>
-          <span>⏱ {data.window}h</span>
-          <span>Última lluvia {data.hoursSince === null ? '—' : `${data.hoursSince}h`}</span>
+    <div className="op-hero-card">
+      {/* Top Tag & Municipio */}
+      <div className="op-hero-header">
+        <div className="op-status-badge" style={{ background: badgeColors.bg, color: badgeColors.text, borderColor: badgeColors.border }}>
+          <span className="op-status-dot" style={{ background: badgeColors.dot }} />
+          <span>{data.tagText}</span>
+        </div>
+        <span className="op-hero-region-label">{regionDisplayName} • Hoy</span>
+      </div>
+
+      {/* Main Metric Row */}
+      <div className="op-metric-row">
+        <div className="op-score-box">
+          <span className="op-score-num">{data.score}</span>
+          <span className="op-score-sub">/100</span>
+        </div>
+        <div className="op-score-desc">
+          <h3 className="op-score-title">
+            Índice de Riesgo {data.score >= 70 ? 'Alto' : data.score >= 40 ? 'Moderado' : 'Bajo'}
+          </h3>
+          <p className="op-score-trend">
+            {data.delta > 0 ? `↑ +${data.delta} pts vs ayer` : data.delta < 0 ? `↓ ${data.delta} pts vs ayer` : '→ Estable vs ayer'}
+            {' • '}
+            Humedad {data.latest?.precipitation_mm > 0 ? 'con lluvia activa' : 'sin lluvia'}
+          </p>
         </div>
       </div>
-      <div style={{ flex: 1, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: 11, color: '#0f172a', letterSpacing: '0.04em', textTransform: 'uppercase' }}>📍 Sabana hoy</h3>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-          {data.top.length ? data.top.map((t: any, i: number) => (
-            <span key={t.slug} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 999, padding: '4px 8px', fontSize: 11, color: '#334155' }}>
-              {i + 1}. {t.name} {i === 0 ? '🔴' : i === 1 ? '🟠' : '🟡'} <strong style={{ color: '#0f172a' }}>{t.score}</strong>
-            </span>
-          )) : <p style={{ color: '#64748b', fontSize: 11 }}>Sin ranking</p>}
+
+      {/* Directiva Agronómica Inmediata */}
+      <div className="op-directive-box" style={{ borderLeftColor: badgeColors.dot }}>
+        <div className="op-directive-head">
+          <span className="op-directive-icon">⚡</span>
+          <strong>Directiva Operativa de Campo:</strong>
+        </div>
+        <p className="op-directive-text">{data.directive}</p>
+      </div>
+
+      {/* Micro Factores + Radar Vecinos */}
+      <div className="op-footer-row">
+        <div className="op-factors-chips">
+          <span className="op-factor-chip">
+            🍄 Fúngico: <strong>{data.latest?.fungal_risk ?? '—'}%</strong>
+          </span>
+          <span className="op-factor-chip">
+            💧 Encharcamiento: <strong>{data.latest?.waterlogging_risk ?? '—'}%</strong>
+          </span>
+          <span className="op-factor-chip">
+            🌡️ Temp: <strong>{data.latest?.temp_mean_c ?? '—'}°C</strong>
+          </span>
+        </div>
+
+        <div className="op-sabana-ranking">
+          <span className="op-ranking-title">Radar Sabana:</span>
+          <div className="op-ranking-items">
+            {data.top.map((t: any, idx: number) => (
+              <span key={t.slug} className="op-rank-item">
+                {idx + 1}. {t.name} <strong style={{ color: t.score >= 70 ? '#ef4444' : t.score >= 40 ? '#f59e0b' : '#10b981' }}>{t.score}</strong>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-      <style>{`@media(max-width:768px){.hero-card{flex-direction:column}} @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}</style>
     </div>
   );
 }

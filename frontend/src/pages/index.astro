@@ -51,20 +51,26 @@ import FloralVisionScanner from '../islands-react/FloralVisionScanner.tsx';
       <!-- Layout principal -->
       <div class="main-layout">
         <main class="main-col">
-          <!-- Top row: Ayuda texto (izq) + Hero (der) -->
+          <!-- Top row: Inteligencia Agroclimática (izq) + Card Operativa (der) -->
           <div class="hero-about-row">
             <div class="help-text-block">
-              <h2 class="help-title">¿En qué te ayuda Flowerxi?</h2>
-              <p class="help-lead">Decide en segundos, sin adivinar.</p>
+              <span class="hero-tag-text">Plataforma Operativa de Floricultura</span>
+              <h1 class="help-title">Inteligencia Agroclimática para Flor de Corte</h1>
+              <p class="help-lead">Protege tu producción de exportación con decisiones preventivas diarias en la Sabana de Bogotá.</p>
               <p class="help-text">
-                Flowerxi traduce el clima de la Sabana (Open-Meteo) en <strong>qué hacer hoy</strong> en tu municipio: si ventilar, drenar o inspeccionar para evitar botritis y pérdidas.
+                Flowerxi modela el microclima en tiempo real para anticipar la esporulación de hongos y el estrés hídrico en invernadero antes de que afecten la calidad de tus tallos.
               </p>
               <ul class="help-list">
-                <li><strong>Ahorra tiempo:</strong> score operativo y ventana crítica al abrir.</li>
-                <li><strong>Reduce riesgo:</strong> alerta temprana de encharcamiento y hongos.</li>
-                <li><strong>Te guía:</strong> cada gráfica explica la acción — baja y el tablero te lleva paso a paso.</li>
+                <li>
+                  <strong>🎯 Ventana Crítica de Ventilación:</strong> Identifica las horas exactas de condensación foliar para ajustar cortinas en tu municipio.
+                </li>
+                <li>
+                  <strong>🛡️ Prevención de Botrytis & Oídio:</strong> Reduce mermas y rechazos en poscosecha mediante alertas fitosanitarias tempranas.
+                </li>
+                <li>
+                  <strong>📸 Diagnóstico Visual Instantáneo:</strong> Cruza fotos de botón y follaje con la curva de humedad del día para obtener recetas agronómicas exactas.
+                </li>
               </ul>
-              <p class="help-foot">Elige municipio arriba y recorre el flujo. El chat local te explica cualquier dato sin salir de la página.</p>
             </div>
             <section class="hero-shell">
               <OperationalHeroReact initialRegion="madrid" client:load />
