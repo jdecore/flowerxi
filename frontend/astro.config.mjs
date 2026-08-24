@@ -3,6 +3,7 @@ import svelte from '@astrojs/svelte';
 import wasm from 'vite-plugin-wasm';
 
 export default defineConfig({
+  output: 'static',
   integrations: [svelte()],
   vite: {
     plugins: [wasm()],
