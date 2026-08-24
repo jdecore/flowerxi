@@ -12,7 +12,6 @@ import CommercialReact from '../islands-react/CommercialReact.tsx';
 import SabanaComparisonReact from '../islands-react/SabanaComparisonReact.tsx';
 import ClosestStationReact from '../islands-react/ClosestStationReact.tsx';
 import ChatBotReact from '../islands-react/ChatBotReact.tsx';
-import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
 
 ---
 
@@ -50,16 +49,26 @@ import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
       <!-- Layout principal -->
       <div class="main-layout">
         <main class="main-col">
-          <!-- Top row: Hero (izq) + About 100% Local (der) -->
+          <!-- Top row: Hero (izq) + Ayuda editorial (der) -->
           <div class="hero-about-row">
             <section class="hero-shell">
               <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
               <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual. Baja para ver evidencia y acción.</p>
               <OperationalHeroReact initialRegion="madrid" client:load />
             </section>
-            <div class="about-side">
-              <AboutFlowerxiReact region="madrid" client:visible />
-            </div>
+            <aside class="help-card">
+              <h2 class="help-title">¿En qué te ayuda Flowerxi?</h2>
+              <p class="help-lead">Decide en segundos, sin adivinar.</p>
+              <p class="help-text">
+                Flowerxi traduce el clima de la Sabana (Open-Meteo) en <strong>qué hacer hoy</strong> en tu municipio: si ventilar, drenar o inspeccionar para evitar botritis y pérdidas.
+              </p>
+              <ul class="help-list">
+                <li><strong>Ahorra tiempo:</strong> score operativo y ventana crítica al abrir.</li>
+                <li><strong>Reduce riesgo:</strong> alerta temprana de encharcamiento y hongos.</li>
+                <li><strong>Te guía:</strong> cada gráfica explica la acción — baja y el tablero te lleva paso a paso.</li>
+              </ul>
+              <p class="help-foot">Elige municipio arriba y recorre el flujo. El chat local te explica cualquier dato sin salir de la página.</p>
+            </aside>
           </div>
 
           <!-- Chat protagonista — ahora full width debajo del hero/about -->
@@ -150,12 +159,10 @@ import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
             regionLabel.textContent = regionNameFromSlug(slug);
           };
 
-          syncCurrentRegion(localStorage.getItem('flowerxi_region') || 'madrid');
+           syncCurrentRegion(localStorage.getItem('flowerxi_region') || 'madrid');
           window.addEventListener('regionchange', (event) => {
             const slug = event?.detail || localStorage.getItem('flowerxi_region') || 'madrid';
             syncCurrentRegion(slug);
-            // sync AboutFlowerxi region text if needed
-            document.querySelectorAll('.about-meta strong').forEach(el=>{ if(el.textContent) el.textContent = regionNameFromSlug(slug); });
           });
 
           // Refresh datos
@@ -218,12 +225,25 @@ import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
       .btn-region-trigger:hover { background: var(--primary-hover, #6b4f92); }
       .btn-region-trigger span { line-height: 1; }
 
-      /* hero + about side + chat */
+      /* hero + help editorial + chat */
       .hero-about-row {
         display: grid; grid-template-columns: 1.45fr 0.85fr;
         gap: 1.25rem; align-items: start;
       }
-      .about-side { position: sticky; top: 74px; }
+      .help-card {
+        background: #fff; border: 1px solid var(--border-subtle); border-radius: 16px;
+        padding: 18px; box-shadow: var(--shadow-sm); position: sticky; top: 74px;
+        display: grid; gap: 10px;
+      }
+      .help-title {
+        margin: 0; font-family: "Times New Roman", Times, Georgia, serif;
+        font-size: 26px; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; color: #0f172a;
+      }
+      .help-lead { margin: 0; font-family: var(--font-sans); font-size: 15px; font-weight: 600; color: #0f766e; }
+      .help-text { margin: 0; font-family: var(--font-sans); font-size: 14px; line-height: 1.55; color: #334155; }
+      .help-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-family: var(--font-sans); font-size: 13px; color: #334155; }
+      .help-list li::marker { color: #0f766e; }
+      .help-foot { margin: 0; font-family: var(--font-sans); font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px; }
       .chat-full { display: grid; gap: 0.6rem; }
       .chat-protagonist {
         background: var(--bg-surface);
@@ -320,7 +340,7 @@ import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
       }
       @media (max-width: 1024px) {
         .hero-about-row { grid-template-columns: 1fr; }
-        .about-side { position: static; }
+        .help-card { position: static; }
       }
       @media (max-width: 768px) {
         .main-layout { padding: 1rem; }
