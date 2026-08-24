@@ -103,29 +103,36 @@ export default function OperationalHeroReact({ initialRegion = 'madrid' }: { ini
     };
   }, []);
 
-  if (loading) return <div style={{ height: 140, borderRadius: 12, background: 'linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite linear' }} />;
-  if (!data) return <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16 }}>Sin datos para {region}</div>;
+  if (loading) return <div style={{ height: 112, borderRadius: 10, background: 'linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite linear' }} />;
+  if (!data) return <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 13 }}>Sin datos para {region}</div>;
 
   const prefix = data.delta > 0 ? '↑' : data.delta < 0 ? '↓' : '→';
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 20, padding: 20, display: 'grid', gridTemplateColumns: '1fr', gap: 20, boxShadow: '0 1px 3px rgba(15,23,42,.07)' }}>
-      <div>
-        <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#64748b' }}>RIESGO HOY</p>
-        <h2 style={{ margin: '4px 0 6px', fontSize: 24, color: '#0f172a' }}>
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, display: 'flex', gap: 16, alignItems: 'stretch', boxShadow: '0 1px 3px rgba(15,23,42,.07)' }} className="hero-card">
+      <div style={{ flex: 1.2, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#64748b' }}>RIESGO HOY</p>
+        <h2 style={{ margin: '3px 0 4px', fontSize: 19, color: '#0f172a', lineHeight: 1.1 }}>
           {data.level} {data.score !== null ? `(${data.score})` : ''}
         </h2>
-        <p style={{ margin: 0, fontSize: 14, color: '#475569' }}>{prefix} {Math.abs(data.delta)} vs ayer</p>
-        <p style={{ margin: '4px 0 0', fontSize: 14, color: '#475569' }}>📊 Tendencia semanal: {data.trend}</p>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: '#475569' }}>Confianza: {data.confidence}% • {Math.min(data.days, 14)} días</p>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: '#475569' }}>⏱ Próxima ventana: {data.window}h</p>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: '#475569' }}>Última lluvia: {data.hoursSince === null ? 'Sin datos' : `hace ${data.hoursSince}h`}</p>
+        <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>{prefix} {Math.abs(data.delta)} vs ayer • 📊 {data.trend}</p>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, fontSize: 10, color: '#475569' }}>
+          <span>Confianza {data.confidence}% • {Math.min(data.days, 14)}d</span>
+          <span>⏱ {data.window}h</span>
+          <span>Última lluvia {data.hoursSince === null ? '—' : `${data.hoursSince}h`}</span>
+        </div>
       </div>
-      <div style={{ gridColumn: '1 / -1', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 14 }}>
-        <h3 style={{ margin: 0, fontSize: 14, color: '#0f172a' }}>📍 Sabana de Bogotá hoy</h3>
-        {data.top.length ? data.top.map((t: any, i: number) => <p key={t.slug} style={{ margin: '6px 0 0', fontSize: 13, color: '#475569' }}>{i + 1}. {t.name} {i === 0 ? '🔴' : i === 1 ? '🟠' : '🟡'} {t.score}</p>) : <p style={{ color: '#64748b' }}>Sin ranking</p>}
+      <div style={{ flex: 1, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <h3 style={{ margin: 0, fontSize: 11, color: '#0f172a', letterSpacing: '0.04em', textTransform: 'uppercase' }}>📍 Sabana hoy</h3>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+          {data.top.length ? data.top.map((t: any, i: number) => (
+            <span key={t.slug} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 999, padding: '4px 8px', fontSize: 11, color: '#334155' }}>
+              {i + 1}. {t.name} {i === 0 ? '🔴' : i === 1 ? '🟠' : '🟡'} <strong style={{ color: '#0f172a' }}>{t.score}</strong>
+            </span>
+          )) : <p style={{ color: '#64748b', fontSize: 11 }}>Sin ranking</p>}
+        </div>
       </div>
-      <style>{`@media(max-width:1100px){div[style*="1.2fr 1fr"]{grid-template-columns:1fr !important}} @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}</style>
+      <style>{`@media(max-width:768px){.hero-card{flex-direction:column}} @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}`}</style>
     </div>
   );
 }
