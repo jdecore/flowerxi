@@ -1,0 +1,39 @@
+/* Flowerxi Design Tokens — Slate/Teal formal + blanco */
+:root {
+  color-scheme: light;
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-muted: #f1f5f9;
+  --primary: #0f766e;
+  --primary-hover: #115e59;
+  --primary-light: #ccfbf1;
+  --primary-soft: #e6f7f5;
+  --secondary: #334155;
+  --secondary-light: #64748b;
+  --status-rutina: #0f766e;
+  --status-rutina-bg: #ccfbf1;
+  --status-vigilancia: #b45309;
+  --status-vigilancia-bg: #fef3c7;
+  --status-accion: #991b1b;
+  --status-accion-bg: #fee2e2;
+  --alert-success: var(--status-rutina);
+  --alert-medium: var(--status-vigilancia);
+  --alert-high: var(--status-accion);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #64748b;
+  --text-muted: #94a3b8;
+  --border-subtle: #e2e8f0;
+  --border-medium: #cbd5e1;
+  --border: var(--border-subtle);
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.07);
+  --shadow-md: 0 4px 12px rgba(15,23,42,0.09);
+  --shadow-lg: 0 12px 28px rgba(15,23,42,0.11);
+  --shadow: var(--shadow-sm);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+  --radius: var(--radius-sm);
+}

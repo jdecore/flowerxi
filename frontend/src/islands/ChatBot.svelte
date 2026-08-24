@@ -40,12 +40,43 @@
   let contextCacheRegion = '';
   let contextCacheAt = 0;
   let modelModulePromise = null;
+  let visionProvider = 'gemini';
+  let visionStatus = '';
+  let geminiKey = '';
+  let openrouterKey = '';
 
   const getModelModule = async () => {
     if (!modelModulePromise) {
-      modelModulePromise = import('../lib/ai/model.js');
+      modelModulePromise = import('../lib/ai/transformers.js');
     }
     return modelModulePromise;
+  };
+
+  const saveKeys = async () => {
+    const { setGeminiKey, setOpenRouterKey } = await import('../lib/ai/multimodal.js');
+    setGeminiKey(geminiKey);
+    setOpenRouterKey(openrouterKey);
+  };
+
+  const handleVision = async (e) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    visionStatus = 'Analizando foto...';
+    try {
+      const ctx = await loadBackendContext();
+      const { callGeminiVision, callOpenRouterVision } = await import('../lib/ai/multimodal.js');
+      const prompt = userQuestion.trim() || 'Describe el riesgo fitosanitario visible y recomienda acción para flor de corte';
+      const answer = visionProvider === 'gemini'
+        ? await callGeminiVision(file, prompt, ctx.contextSummary)
+        : await callOpenRouterVision(file, prompt, ctx.contextSummary);
+      appendHistory(`[Foto: ${file.name}] ${prompt}`, answer);
+      visionStatus = 'Análisis listo';
+      setTimeout(()=> visionStatus='', 2000);
+    } catch (err) {
+      visionStatus = err instanceof Error ? err.message : String(err);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const isLegacyRefusal = (value) => {
@@ -462,19 +493,16 @@
     modelError = '';
     try {
       const modelModule = await getModelModule();
-      engine = await modelModule.getAIModel((progress) => {
-        const value = Number(progress?.progress ?? 0);
-        if (Number.isFinite(value)) {
-          modelProgress = Math.max(0, Math.min(100, Math.round(value * 100)));
-        }
+      engine = await modelModule.getTransformersModel((progress) => {
+        const value = Number(progress?.progress ?? progress?.loaded ?? 0);
+        if (Number.isFinite(value) && value <= 1) modelProgress = Math.round(value * 100);
+        else if (Number.isFinite(value)) modelProgress = Math.min(100, Math.round(value));
       });
-      modelName = modelModule.getLoadedModelId() || 'WebLLM';
+      modelName = modelModule.getLoadedModelId() || 'LFM2.5-230M';
       modelReady = Boolean(engine);
-      if (!modelReady && !modelError) {
-        modelError = 'no se pudo inicializar el motor de IA local';
-      }
+      if (!modelReady && !modelError) modelError = 'no se pudo inicializar el modelo local';
     } catch (err) {
-      console.error('[flowerxi-chat] webllm init error:', err);
+      console.error('[flowerxi-chat] transformers init error:', err);
       modelReady = false;
       const message = err instanceof Error ? err.message : String(err || 'error desconocido');
       modelError = humanizeModelError(message);
@@ -516,16 +544,25 @@
         return;
       }
 
-      const messages = buildMessages(question, context);
-      const completion = await engine.chat.completions.create({
-        messages,
-        temperature: 0.3,
-        top_p: 0.9,
-        max_tokens: 160,
-        stream: false,
-      });
-      const rawAnswer = completion?.choices?.[0]?.message?.content?.trim() || '';
-      const answer = isRefusalAnswer(rawAnswer) ? noModelFallbackAnswer(question, context) : rawAnswer;
+      // Intenta LFM2.5 local con streaming si disponible
+      let rawAnswer = '';
+      try {
+        const modelModule = await getModelModule();
+        if (modelModule.generateAnswer) {
+          rawAnswer = await modelModule.generateAnswer(question, context.contextSummary);
+        } else {
+          // fallback: pipeline direct
+          const gen = engine;
+          const prompt = `Contexto: ${JSON.stringify(context.contextSummary)}\nPregunta: ${question}\nRespuesta:`;
+          const out = await gen(prompt, { max_new_tokens: 180, temperature: 0.3 });
+          rawAnswer = Array.isArray(out) ? out[0]?.generated_text : String(out);
+          if (rawAnswer.includes('Respuesta:')) rawAnswer = rawAnswer.split('Respuesta:').pop().trim();
+        }
+      } catch (e) {
+        rawAnswer = '';
+      }
+      rawAnswer = String(rawAnswer || '').trim();
+      const answer = !rawAnswer || isRefusalAnswer(rawAnswer) ? noModelFallbackAnswer(question, context) : rawAnswer;
       appendHistory(question, answer);
     } catch (err) {
       console.error('[flowerxi-chat] error:', err);
@@ -562,6 +599,8 @@
     loadHistory();
     if (typeof window !== 'undefined') {
       region = window.localStorage.getItem(STORAGE_REGION) || region;
+      geminiKey = window.localStorage.getItem('flowerxi_gemini_key') || '';
+      openrouterKey = window.localStorage.getItem('flowerxi_openrouter_key') || '';
       window.addEventListener('openchat', openChat);
       window.addEventListener('regionchange', onRegionChange);
     }
@@ -586,13 +625,13 @@
       </div>
     </header>
     {#if isModelLoading}
-      <p class="status">Cargando modelo local WebLLM{modelProgress ? ` (${modelProgress}%)` : '...'}</p>
+      <p class="status">Cargando modelo local LFM2.5-230M{modelProgress ? ` (${modelProgress}%)` : '...'}</p>
     {:else if modelReady}
-      <p class="status model-ok">Modelo local activo: {modelName || 'WebLLM'}</p>
+      <p class="status model-ok">Modelo local activo: {modelName || 'LFM2.5-230M'} • 100% en tu navegador</p>
     {:else if modelError}
-      <p class="status model-warn">WebLLM no disponible: {modelError}. Usando fallback backend.</p>
+      <p class="status model-warn">Modelo local no disponible: {modelError}. Usando fallback con datos reales.</p>
     {:else}
-      <p class="status">Respuestas operativas con fallback backend mientras se activa WebLLM.</p>
+      <p class="status">Respuestas con datos reales; el modelo LFM2.5 se activa al preguntar.</p>
     {/if}
 
     <div class="chat-history">
@@ -617,9 +656,27 @@
         placeholder="Ej: ¿Qué acción recomiendas para hoy en mi municipio?"
         disabled={isAnswering}
       ></textarea>
-      <button type="button" on:click={askQuestion} disabled={isAnswering}>
-        {isAnswering ? 'Pensando...' : 'Enviar'}
-      </button>
+      <div class="composer-row">
+        <label class="upload-btn" title="Analizar foto con Gemini/OpenRouter (BYOK)">
+          <input type="file" accept="image/*" capture="environment" on:change={handleVision} hidden />
+          📷 Foto
+        </label>
+        <select bind:value={visionProvider} class="vision-select" aria-label="Proveedor visión">
+          <option value="gemini">Gemini Flash</option>
+          <option value="openrouter">OpenRouter Nemotron</option>
+        </select>
+        <button type="button" on:click={askQuestion} disabled={isAnswering} class="send-btn">
+          {isAnswering ? 'Pensando...' : 'Enviar'}
+        </button>
+      </div>
+      {#if visionStatus}<p class="status" style="padding:0.3rem 0">{visionStatus}</p>{/if}
+      <details class="key-details"><summary>🔑 Keys BYOK</summary>
+        <div class="key-grid">
+          <input placeholder="Gemini API key" bind:value={geminiKey} on:change={() => saveKeys()} />
+          <input placeholder="OpenRouter API key" bind:value={openrouterKey} on:change={() => saveKeys()} />
+          <small>Se guardan en localStorage. También puedes definir PUBLIC_GEMINI_API_KEY / PUBLIC_OPENROUTER_API_KEY.</small>
+        </div>
+      </details>
     </div>
   </article>
 {/if}
@@ -760,10 +817,18 @@
     border-color: var(--primary, #7b5ba6);
   }
 
+  .composer-row { display: flex; gap: 0.5rem; align-items: center; }
+  .upload-btn { border: 1px solid var(--border-subtle); border-radius: 10px; padding: 0.45rem 0.6rem; background: var(--bg-app); cursor: pointer; font-size: var(--text-sm); }
+  .vision-select { border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.4rem; background: var(--bg-surface); font-size: var(--text-sm); }
+  .send-btn { flex: 1; }
+  .key-details { font-size: var(--text-sm); color: var(--text-secondary); }
+  .key-details summary { cursor: pointer; }
+  .key-grid { display: grid; gap: 0.4rem; margin-top: 0.4rem; }
+  .key-grid input { border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.45rem 0.55rem; font-size: var(--text-sm); }
   .composer button {
     border: none;
     border-radius: 10px;
-    background: var(--primary, #7b5ba6);
+    background: var(--primary, #0f766e);
     color: #fff;
     font-family: var(--font-sans);
     font-size: var(--text-base);

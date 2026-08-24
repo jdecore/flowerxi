@@ -9,14 +9,15 @@
   },
   "dependencies": {
     "@astrojs/svelte": "^7.0.0",
-    "@mlc-ai/web-llm": "^0.2.79",
-    "apexcharts": "^5.10.6",
+    "@huggingface/transformers": "^3.8.1",
     "astro": "^5.7.0",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",
     "layercake": "^10.0.2",
-    "recharts": "^2.12.0",
-    "svelte": "^5.0.0",
-    "svelte-apexcharts": "^1.0.2"
+    "onnxruntime-web": "^1.19.0",
+    "svelte": "^5.0.0"
+  },
+  "devDependencies": {
+    "vite-plugin-wasm": "^3.4.0"
   }
 }

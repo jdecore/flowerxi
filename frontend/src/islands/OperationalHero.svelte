@@ -187,42 +187,40 @@
     loading = true;
     simulation = null;
     try {
-      await new Promise((r) => setTimeout(r, 200));
-
-      score = 55;
-      level = 'MEDIO';
-      delta = 30;
-      trendSource = 'stable';
-      trendLabel = '→ estable';
-      confidencePct = 78;
-      historyDaysUsed = 14;
-      criticalWindowHours = 24;
-      hoursSinceRain = 0;
-      explanation = {
-        dominant: 'encharcamiento',
-        lines: [
-          { label: 'Humedad moderada', impact: 'impacto medio' },
-          { label: 'Suelo con humedad acumulada', impact: 'impacto medio' },
-          { label: 'Temperatura templada', impact: 'impacto bajo' },
-        ],
-      };
-      reason = 'El factor dominante hoy es riesgo por encharcamiento.';
-      actionToday = 'Refuerza ventilación, drenaje y monitoreo de humedad en el turno.';
-      nextReviewLabel = 'mañana 6:00 AM';
-      regionalTop = [
-        { slug: 'madrid', name: 'Madrid', score: 55 },
-        { slug: 'facatativa', name: 'Facatativá', score: 52 },
-        { slug: 'funza', name: 'Funza', score: 48 },
-      ];
-      latestDay = {
-        temp_mean_c: 22,
-        precipitation_mm: 0,
-        fungal_risk: 38.5,
-        waterlogging_risk: 33.3,
-        heat_risk: 0.7,
-      };
-
-      persistTodayContext(latestDay);
+      const [historyRes, compareRes] = await Promise.all([
+        fetchJson(`/api/history?region=${encodeURIComponent(region)}&limit=14`),
+        fetchJson('/api/municipalities/compare'),
+      ]);
+      const history = Array.isArray(historyRes?.items) ? [...historyRes.items].sort((a,b)=> String(b.observed_on).localeCompare(String(a.observed_on))) : [];
+      latestDay = history[0] || null;
+      const prev = history[1] || null;
+      score = latestDay ? scoreFromSignals(latestDay) : null;
+      const prevScore = prev ? scoreFromSignals(prev) : null;
+      delta = (score !== null && prevScore !== null) ? score - prevScore : 0;
+      const lvl = levelFromScore(score);
+      level = lvl.text;
+      reason = latestDay ? reasonFromSignals(latestDay) : 'Datos no disponibles';
+      actionToday = latestDay ? actionFromSignals(latestDay, score) : 'Datos no disponibles.';
+      explanation = latestDay ? buildExplanation(latestDay) : { dominant: 'Sin datos', lines: [] };
+      confidencePct = confidenceFromData(null, history.length);
+      historyDaysUsed = history.length;
+      criticalWindowHours = score !== null && score >= 70 ? 24 : score !== null && score >= 40 ? 48 : 72;
+      nextReviewLabel = nextReviewFromWindow(criticalWindowHours);
+      const histDesc = history;
+      hoursSinceRain = hoursFromLastRain(histDesc);
+      trendSource = delta > 3 ? 'up' : delta < -3 ? 'down' : 'stable';
+      trendLabel = trendLabelFromSource(trendSource);
+      if (Array.isArray(compareRes?.items) && compareRes.items.length) {
+        regionalTop = [...compareRes.items]
+          .map(i => ({ slug: i.slug, name: i.name || i.slug, score: scoreFromCompareItem(i) }))
+          .filter(i=> Number.isFinite(i.score))
+          .sort((a,b)=> b.score - a.score).slice(0,3);
+      } else if (latestDay) {
+        regionalTop = [{ slug: region, name: region, score }];
+      } else {
+        regionalTop = [];
+      }
+      if (latestDay) persistTodayContext(latestDay);
     } catch (err) {
       console.error('[flowerxi-hero] load error:', err);
       score = null;
@@ -449,7 +447,7 @@
     margin-top: 0.65rem;
     border: none;
     border-radius: 10px;
-    background: var(--primary, #7b5ba6);
+    background: var(--primary, #0f766e);
     color: #fff;
     font: inherit;
     font-size: 0.84rem;

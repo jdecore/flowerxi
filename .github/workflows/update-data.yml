@@ -1,0 +1,39 @@
+name: Update flowerxi data
+
+on:
+  schedule:
+    - cron: "0 11 * * *"  # 06:00 America/Bogota daily
+  workflow_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generate data
+        run: |
+          python scripts/dump_data.py
+          # generate meta.json
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          COUNT=$(jq length frontend/public/data/weather.json 2>/dev/null || echo 0)
+          cat > frontend/public/data/meta.json <<EOF
+          {
+            "generated_at": "$DATE",
+            "data_until": "$(jq -r '.[0].observed_on' frontend/public/data/weather.json 2>/dev/null || echo "")",
+            "weather_records": $COUNT,
+            "regions": 10
+          }
+          EOF
+          cat frontend/public/data/meta.json
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add frontend/public/data/*.json
+          git diff --staged --quiet || git commit -m "chore(data): update $(date -u +%Y-%m-%d)"
+          git push || echo "No push needed"
