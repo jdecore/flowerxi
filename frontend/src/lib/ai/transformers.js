@@ -68,11 +68,16 @@ export async function resetModel() {
   pipelinePromise = null;
 }
 
-// Helper para generar respuesta con contexto flowerxi
+// Helper local: Resumen y consejos de cultivo por lugar (LFM2.5-230M solo local)
 export async function generateAnswer(question, contextSummary, onToken = null) {
   const gen = await getTransformersModel();
-  const system = `Eres FlowerxiBot, asistente agronómico para flores de corte en Cundinamarca. Responde en español, breve, sin inventar datos. Contexto JSON: ${JSON.stringify(contextSummary)}`;
-  const prompt = `${system}\n\nPregunta: ${question}\nRespuesta:`;
+  const system = `Eres FlowerxiBot, agrónomo senior de flores de corte en la Sabana de Bogotá (Madrid, Facatativá, Funza, El Rosal, Tocancipá, Chía, Mosquera, Sopó, Bojacá, Cachipay).
+Con el contexto JSON real (clima últimos 14 días, riesgo fúngico/agua/calor, municipio). Tu tarea:
+- Da un RESUMEN operativo de hoy (1-2 líneas, score y por qué)
+- Luego 3 CONSEJOS DE CULTIVO hiper-locales: riego/hora, ventilación/drenaje, fertilización/poda o control preventivo, adaptados a la temperatura/precipitación/riesgo del lugar.
+Sé concreto (ej: "riego 5am 4L/m2", "ventila 10-14h"), en español breve, sin inventar datos. Si falta dato, dilo.
+Contexto JSON: ${JSON.stringify(contextSummary)}`;
+  const prompt = `${system}\n\nConsulta del cultivador: ${question}\nRespuesta (resumen + 3 consejos):`;
   // v3.8.1: TextStreamer si se quiere streaming opcional
   let streamer;
   if (onToken) {

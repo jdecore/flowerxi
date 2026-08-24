@@ -57,19 +57,13 @@ export default function ChatBotReact({ embedded = true }: { embedded?: boolean }
   const [progress, setProgress] = useState(0);
   const [modelName, setModelName] = useState('');
   const [modelError, setModelError] = useState('');
-  const [provider, setProvider] = useState<'gemini' | 'openrouter'>('gemini');
-  const [visionStatus, setVisionStatus] = useState('');
-  const [geminiKey, setGeminiKey] = useState('');
-  const [openrouterKey, setOpenrouterKey] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const engineRef = useRef<any>(null);
   const contextCache = useRef<any>(null);
 
-  // load history + region
+  // load history + region (solo local LFM2.5)
   useEffect(() => {
     setRegion(localStorage.getItem(STORAGE_REGION) || 'madrid');
-    setGeminiKey(localStorage.getItem('flowerxi_gemini_key') || '');
-    setOpenrouterKey(localStorage.getItem('flowerxi_openrouter_key') || '');
     try {
       const saved = localStorage.getItem(CHAT_KEY);
       const parsed = saved ? JSON.parse(saved) : [];
@@ -227,42 +221,17 @@ export default function ChatBotReact({ embedded = true }: { embedded?: boolean }
     }
   };
 
-  const handleVision = async (e: any) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setVisionStatus('Analizando foto...');
-    try {
-      const ctx = await loadContext();
-      const mod = await import('../lib/ai/multimodal.js');
-      const prompt = input.trim() || 'Describe riesgo fitosanitario visible y recomienda acción para flor de corte';
-      const ans = provider === 'gemini' ? await mod.callGeminiVision(file, prompt, { region, ctx }) : await mod.callOpenRouterVision(file, prompt, { region, ctx });
-      append(`[Foto: ${file.name}] ${prompt}`, ans);
-      setVisionStatus('Listo');
-      setTimeout(() => setVisionStatus(''), 2000);
-    } catch (err: any) {
-      setVisionStatus(err.message || 'Error visión');
-    } finally {
-      e.target.value = '';
-    }
-  };
-
-  const saveKeys = async () => {
-    const mod = await import('../lib/ai/multimodal.js');
-    mod.setGeminiKey(geminiKey);
-    mod.setOpenRouterKey(openrouterKey);
-  };
-
   return (
     <div id={embedded ? 'chat-section-react' : undefined} style={{ border: '1px solid #e2e8f0', borderRadius: 14, background: '#fff', boxShadow: '0 1px 3px rgba(15,23,42,.06)', display: 'flex', flexDirection: 'column', minHeight: 460 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottom: '1px solid #e2e8f0' }}>
-        <div><h3 style={{ margin: 0, fontSize: 16, color: '#0f172a' }}>FlowerxiBot</h3><p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>LFM2.5-230M local • 100% navegador</p></div>
+        <div><h3 style={{ margin: 0, fontSize: 16, color: '#0f172a' }}>Resumen y consejos — LFM2.5 local</h3><p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>100% en tu navegador • resumen diario + 3 consejos de cultivo por lugar</p></div>
         <button onClick={clear} style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: 'transparent', padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}>Limpiar</button>
       </div>
       <div style={{ padding: '6px 12px', fontSize: 12, color: modelReady ? '#166534' : modelError ? '#b45309' : '#64748b', borderBottom: '1px solid #f1f5f9' }}>
-        {modelLoading ? `Cargando LFM2.5 ${progress ? `(${progress}%)` : '...'}` : modelReady ? `Modelo activo: ${modelName}` : modelError ? `Modelo no disponible: ${modelError} — usando fallback` : 'Fallback con datos reales; modelo se activa al preguntar.'}
+        {modelLoading ? `Cargando LFM2.5 ${progress ? `(${progress}%)` : '...'}` : modelReady ? `Modelo activo: ${modelName} — local` : modelError ? `Modelo no disponible: ${modelError} — usando fallback` : 'Consejos con datos reales; el modelo LFM2.5 se activa al preguntar.'}
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: 12, display: 'grid', gap: 8, maxHeight: 320 }}>
-        {history.length === 0 && <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>Pregunta: “¿Cómo está el riesgo hoy?”, “¿Qué debo hacer?” o sube una foto.</p>}
+        {history.length === 0 && <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>Pide tu resumen: “Resumen de hoy en {region} + 3 consejos” o “¿Qué riego me recomiendas esta semana?”</p>}
         {history.map((m, i) => (
           <div key={i} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: '#f8fafc' }}>
             <p style={{ margin: 0, fontSize: 13 }}><strong>Tú:</strong> {m.q}</p>
@@ -272,19 +241,9 @@ export default function ChatBotReact({ embedded = true }: { embedded?: boolean }
         ))}
       </div>
       <div style={{ display: 'grid', gap: 8, padding: 12, borderTop: '1px solid #e2e8f0' }}>
-        <textarea ref={inputRef} rows={2} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } }} placeholder="Ej: ¿Qué acción recomiendas hoy?" disabled={answering} style={{ width: '100%', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', padding: '8px 10px', fontSize: 13, resize: 'vertical', minHeight: 56 }} />
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '6px 10px', background: '#f8fafc', cursor: 'pointer', fontSize: 12 }}>
-            <input type="file" accept="image/*" capture="environment" onChange={handleVision} hidden /> 📷 Foto
-          </label>
-          <select value={provider} onChange={(e) => setProvider(e.target.value as any)} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 6, fontSize: 12 }}>
-            <option value="gemini">Gemini Flash</option>
-            <option value="openrouter">OpenRouter Nemotron</option>
-          </select>
-          <button onClick={ask} disabled={answering} style={{ flex: 1, border: 'none', borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 600, padding: '8px 12px', cursor: 'pointer' }}>{answering ? 'Pensando...' : 'Enviar'}</button>
-        </div>
-        {visionStatus && <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{visionStatus}</p>}
-        <details style={{ fontSize: 12, color: '#64748b' }}><summary style={{ cursor: 'pointer' }}>🔑 Keys BYOK</summary><div style={{ display: 'grid', gap: 6, marginTop: 6 }}><input placeholder="Gemini API key" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} onBlur={saveKeys} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 6 }} /><input placeholder="OpenRouter API key" value={openrouterKey} onChange={(e) => setOpenrouterKey(e.target.value)} onBlur={saveKeys} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 6 }} /><small>Se guardan en localStorage. También PUBLIC_ env.</small></div></details>
+        <textarea ref={inputRef} rows={2} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } }} placeholder="Ej: Resumen de hoy + 3 consejos para mi lote en este clima" disabled={answering} style={{ width: '100%', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', padding: '8px 10px', fontSize: 13, resize: 'vertical', minHeight: 56 }} />
+        <button onClick={ask} disabled={answering} style={{ border: 'none', borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 600, padding: '9px 12px', cursor: 'pointer' }}>{answering ? 'Pensando (LFM2.5 local)...' : 'Pedir resumen y consejos'}</button>
+        <p style={{ margin: 0, fontSize: 11, color: '#94a3b8' }}>Solo modelo local LFM2.5-230M — sin salir del navegador. Para análisis de foto, usa la card de abajo.</p>
       </div>
     </div>
   );
