@@ -1,10 +1,10 @@
 import { defineConfig } from 'astro/config';
-import svelte from '@astrojs/svelte';
+import react from '@astrojs/react';
 import wasm from 'vite-plugin-wasm';
 
 export default defineConfig({
   output: 'static',
-  integrations: [svelte()],
+  integrations: [react()],
   vite: {
     plugins: [wasm()],
     optimizeDeps: { exclude: ['@huggingface/transformers'] },
@@ -13,7 +13,7 @@ export default defineConfig({
         output: {
           manualChunks: {
             transformers: ['@huggingface/transformers', 'onnxruntime-web'],
-            charts: ['d3-scale', 'd3-shape', 'layercake'],
+            reactCharts: ['react', 'react-dom', 'recharts'],
           },
         },
       },

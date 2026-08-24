@@ -3,16 +3,16 @@ import '../styles/index.css';
 import '../styles/typography.css';
 
 // Componentes
-import StartupRegionModal from '../islands/StartupRegionModal.svelte';
-import OperationalHero from '../islands/OperationalHero.svelte';
-import EvidenceSparklines from '../islands/EvidenceSparklines.svelte';
-import CommercialIntelCard from '../islands/CommercialIntelCard.svelte';
-import SabanaComparison from '../islands/SabanaComparison.svelte';
-import ClosestStationFooter from '../islands/ClosestStationFooter.svelte';
-import RiskHeatmap from '../components/RiskHeatmap.svelte';
-import ImpactoOperacion from '../components/ImpactoOperacion.svelte';
-import ChatBot from '../islands/ChatBot.svelte';
-import AboutFlowerxi from '../components/AboutFlowerxi.svelte';
+import StartupRegionModalReact from '../islands-react/StartupRegionModalReact.tsx';
+import OperationalHeroReact from '../islands-react/OperationalHeroReact.tsx';
+import EvidenceChartsReact from '../islands-react/EvidenceChartsReact.tsx';
+import RiskHeatmapReact from '../islands-react/RiskHeatmapReact.tsx';
+import ImpactoOperacionReact from '../islands-react/ImpactoOperacionReact.tsx';
+import CommercialReact from '../islands-react/CommercialReact.tsx';
+import SabanaComparisonReact from '../islands-react/SabanaComparisonReact.tsx';
+import ClosestStationReact from '../islands-react/ClosestStationReact.tsx';
+import ChatBotReact from '../islands-react/ChatBotReact.tsx';
+import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
 
 ---
 
@@ -39,16 +39,13 @@ import AboutFlowerxi from '../components/AboutFlowerxi.svelte';
              <span id="current-region">Madrid</span>
              <span class="chev">▾</span>
            </button>
-           <button class="btn-icon" id="btn-chat" title="Abrir chat IA" aria-label="Abrir chat IA">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
-           </button>
-           <button class="btn-icon" id="btn-refresh" title="Actualizar" aria-label="Actualizar">
+            <button class="btn-icon" id="btn-refresh" title="Actualizar" aria-label="Actualizar">
              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
            </button>
          </div>
       </header>
 
-      <StartupRegionModal client:load />
+      <StartupRegionModalReact client:load />
 
       <!-- Layout principal -->
       <div class="main-layout">
@@ -56,54 +53,54 @@ import AboutFlowerxi from '../components/AboutFlowerxi.svelte';
           <section class="hero-shell">
             <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
             <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual. Baja para ver evidencia y acción.</p>
-            <OperationalHero initialRegion="madrid" client:load />
+            <OperationalHeroReact initialRegion="madrid" client:load />
           </section>
 
-          <!-- Explicación + Chat protagonista (2-col) justo después del hero -->
+          <!-- Explicación + Chat protagonista (2-col) justo después del hero — React -->
           <div class="intro-chat-row" id="chat-anchor">
-            <AboutFlowerxi region="madrid" client:visible />
+            <AboutFlowerxiReact region="madrid" client:visible />
             <div class="chat-protagonist">
-              <h2 class="section-head">Chat IA local</h2>
-              <p class="section-sub">LFM2.5-230M en tu navegador — sin enviar datos a la nube</p>
-              <ChatBot embedded={true} client:idle={{ timeout: 600 }} />
+              <h2 class="section-head">Chat IA local (React)</h2>
+              <p class="section-sub">LFM2.5-230M en tu navegador — ligero con Recharts + Transformers.js</p>
+              <ChatBotReact embedded={true} client:idle={{ timeout: 600 }} />
             </div>
           </div>
 
-          <!-- Evidencia en vivo -->
+          <!-- Evidencia en vivo — React + Recharts -->
           <section class="evidence-shell">
             <h2 class="section-head">Evidencia en vivo</h2>
-            <p class="section-sub">Últimos 14 días por municipio activo — prueba del score</p>
-            <EvidenceSparklines initialRegion="madrid" client:idle={{ timeout: 450 }} />
+            <p class="section-sub">Últimos 14 días — React + Recharts, gradientes slate/teal</p>
+            <EvidenceChartsReact initialRegion="madrid" client:visible />
           </section>
 
-          <!-- Calendario 12m -->
+          <!-- Calendario 12m — React -->
           <div class="one-col-row">
-            <RiskHeatmap region="madrid" client:visible />
+            <RiskHeatmapReact region="madrid" client:visible />
           </div>
 
-          <!-- Impacto 7d -->
+          <!-- Impacto 7d — React -->
           <div class="one-col-row">
-            <ImpactoOperacion region="madrid" client:visible />
+            <ImpactoOperacionReact initialRegion="madrid" client:visible />
           </div>
 
-          <!-- Comercial -->
+          <!-- Comercial — React -->
           <div class="one-col-row">
-            <CommercialIntelCard initialRegion="madrid" client:visible />
+            <CommercialReact client:visible />
           </div>
 
-          <!-- Contexto Sabana -->
+          <!-- Contexto Sabana — React -->
           <div class="one-col-row">
             <section class="comparison-card">
-              <h3 class="section-head">Comparativa Sabana</h3>
-              <SabanaComparison initialRegion="madrid" client:visible />
+              <h3 class="section-head">Comparativa Sabana (React)</h3>
+              <SabanaComparisonReact initialRegion="madrid" client:visible />
             </section>
           </div>
 
           <div class="one-col-row station-row">
             <section class="station-card">
-              <h3 class="section-head">Estación de referencia</h3>
-              <ClosestStationFooter initialRegion="madrid" client:visible />
-              <p class="made-by">Hecho por Juan Enriquez- 2026</p>
+              <h3 class="section-head">Estación de referencia (React)</h3>
+              <ClosestStationReact initialRegion="madrid" client:visible />
+              <p class="made-by">Hecho por Juan Enriquez- 2026 • React islands + Recharts • LFM2.5 local</p>
             </section>
           </div>
         </main>
@@ -154,11 +151,6 @@ import AboutFlowerxi from '../components/AboutFlowerxi.svelte';
             syncCurrentRegion(slug);
             // sync AboutFlowerxi region text if needed
             document.querySelectorAll('.about-meta strong').forEach(el=>{ if(el.textContent) el.textContent = regionNameFromSlug(slug); });
-          });
-
-          // Abrir chat
-          document.getElementById('btn-chat')?.addEventListener('click', () => {
-            window.dispatchEvent(new Event('openchat'));
           });
 
           // Refresh datos

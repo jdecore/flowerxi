@@ -8,16 +8,15 @@
     "preview": "astro preview --host 0.0.0.0 --port 4321"
   },
   "dependencies": {
-    "@astrojs/svelte": "^7.0.0",
     "@huggingface/transformers": "^3.8.1",
     "astro": "^5.7.0",
-    "d3-scale": "^4.0.2",
-    "d3-shape": "^3.2.0",
-    "layercake": "^10.0.2",
     "onnxruntime-web": "^1.19.0",
-    "svelte": "^5.0.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.4"
   },
   "devDependencies": {
+    "@astrojs/react": "^4.4.2",
     "vite-plugin-wasm": "^3.4.0"
   }
 }

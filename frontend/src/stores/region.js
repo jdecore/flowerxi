@@ -1,4 +1,14 @@
-import { writable } from 'svelte/store';
+// React-only store — reemplazo de svelte/store (eliminado Svelte)
+function writable(initial) {
+  let value = initial;
+  const subs = new Set();
+  return {
+    set(v) { value = v; subs.forEach((fn) => fn(v)); },
+    update(fn) { this.set(fn(value)); },
+    subscribe(fn) { fn(value); subs.add(fn); return () => subs.delete(fn); },
+    get() { return value; },
+  };
+}
 
 export const regionStore = writable('madrid');
 export const lotStore = writable('lote-3-lavanda');
