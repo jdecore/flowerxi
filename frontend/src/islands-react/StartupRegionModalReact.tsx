@@ -86,15 +86,14 @@ export default function StartupRegionModalReact() {
               key={r.slug}
               onClick={() => setSelected(r.slug)}
               style={{
-                textAlign: 'left', padding: '10px 12px', borderRadius: 10, cursor: 'pointer', display: 'grid', gap: 2,
+                textAlign: 'center', padding: '14px 12px', borderRadius: 10, cursor: 'pointer', display: 'grid', placeItems: 'center',
                 border: `1px solid ${selected === r.slug ? '#0f766e' : '#e2e8f0'}`,
                 background: selected === r.slug ? '#0f766e' : '#fff',
                 color: selected === r.slug ? '#fff' : '#0f172a',
                 transition: 'all 150ms',
               }}
             >
-              <span style={{ fontWeight: 600, fontSize: 14, color: 'inherit' }}>{r.name}</span>
-              <span style={{ fontSize: 12, color: selected === r.slug ? 'rgba(255,255,255,.85)' : '#64748b' }}>{r.slug}</span>
+              <span style={{ fontWeight: 700, fontSize: 16, color: 'inherit' }}>{r.name}</span>
             </button>
           ))}
         </div>

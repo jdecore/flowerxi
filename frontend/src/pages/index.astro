@@ -50,15 +50,20 @@ import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
       <!-- Layout principal -->
       <div class="main-layout">
         <main class="main-col">
-          <section class="hero-shell">
-            <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
-            <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual. Baja para ver evidencia y acción.</p>
-            <OperationalHeroReact initialRegion="madrid" client:load />
-          </section>
+          <!-- Top row: Hero (izq) + About 100% Local (der) -->
+          <div class="hero-about-row">
+            <section class="hero-shell">
+              <p class="hero-shell-kicker">🌹 Flowerxi operativo</p>
+              <p class="hero-shell-sub">Lectura en tiempo real para el municipio actual. Baja para ver evidencia y acción.</p>
+              <OperationalHeroReact initialRegion="madrid" client:load />
+            </section>
+            <div class="about-side">
+              <AboutFlowerxiReact region="madrid" client:visible />
+            </div>
+          </div>
 
-          <!-- Explicación + Chat protagonista (2-col) justo después del hero — React -->
-          <div class="intro-chat-row" id="chat-anchor">
-            <AboutFlowerxiReact region="madrid" client:visible />
+          <!-- Chat protagonista — ahora full width debajo del hero/about -->
+          <div class="chat-full" id="chat-anchor">
             <div class="chat-protagonist">
               <h2 class="section-head">Chat IA local (React)</h2>
               <p class="section-sub">LFM2.5-230M en tu navegador — ligero con Recharts + Transformers.js</p>
@@ -213,11 +218,13 @@ import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
       .btn-region-trigger:hover { background: var(--primary-hover, #6b4f92); }
       .btn-region-trigger span { line-height: 1; }
 
-      /* intro chat row + evidence */
-      .intro-chat-row {
-        display: grid; grid-template-columns: 1fr 1fr;
-        gap: 1.25rem;
+      /* hero + about side + chat */
+      .hero-about-row {
+        display: grid; grid-template-columns: 1.45fr 0.85fr;
+        gap: 1.25rem; align-items: start;
       }
+      .about-side { position: sticky; top: 74px; }
+      .chat-full { display: grid; gap: 0.6rem; }
       .chat-protagonist {
         background: var(--bg-surface);
         border: 1px solid var(--border-subtle);
@@ -311,11 +318,14 @@ import AboutFlowerxiReact from '../islands-react/AboutFlowerxiReact.tsx';
       @media (max-width: 1024px) {
         .two-col-row { grid-template-columns: 1fr; }
       }
+      @media (max-width: 1024px) {
+        .hero-about-row { grid-template-columns: 1fr; }
+        .about-side { position: static; }
+      }
       @media (max-width: 768px) {
         .main-layout { padding: 1rem; }
         .topbar { padding: 0.6rem 1rem; }
         .hero-shell-sub { margin-top: 0; }
-        .intro-chat-row { grid-template-columns: 1fr; }
         .topbar-end { flex: 1; justify-content: flex-end; }
       }
     </style>

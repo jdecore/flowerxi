@@ -109,7 +109,7 @@ export default function OperationalHeroReact({ initialRegion = 'madrid' }: { ini
   const prefix = data.delta > 0 ? '↑' : data.delta < 0 ? '↓' : '→';
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 20, padding: 20, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20, boxShadow: '0 1px 3px rgba(15,23,42,.07)' }}>
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 20, padding: 20, display: 'grid', gridTemplateColumns: '1fr', gap: 20, boxShadow: '0 1px 3px rgba(15,23,42,.07)' }}>
       <div>
         <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#64748b' }}>RIESGO HOY</p>
         <h2 style={{ margin: '4px 0 6px', fontSize: 24, color: '#0f172a' }}>
@@ -120,12 +120,6 @@ export default function OperationalHeroReact({ initialRegion = 'madrid' }: { ini
         <p style={{ margin: '4px 0 0', fontSize: 13, color: '#475569' }}>Confianza: {data.confidence}% • {Math.min(data.days, 14)} días</p>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: '#475569' }}>⏱ Próxima ventana: {data.window}h</p>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: '#475569' }}>Última lluvia: {data.hoursSince === null ? 'Sin datos' : `hace ${data.hoursSince}h`}</p>
-      </div>
-      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 14 }}>
-        <h3 style={{ margin: 0, fontSize: 14, color: '#0f172a' }}>¿Por qué?</h3>
-        <p style={{ margin: '8px 0 0', fontWeight: 600, color: '#0f172a', fontSize: 13 }}>Factor dominante: {data.dominant}</p>
-        <p style={{ margin: '6px 0 0', fontSize: 13, color: '#475569' }}>Humedad: {data.latest.fungal_risk} • Agua: {data.latest.waterlogging_risk} • Calor: {data.latest.heat_risk}</p>
-        <small style={{ display: 'block', marginTop: 8, color: '#94a3b8', fontSize: 12 }}>{data.reason}</small>
       </div>
       <div style={{ gridColumn: '1 / -1', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 14 }}>
         <h3 style={{ margin: 0, fontSize: 14, color: '#0f172a' }}>📍 Sabana de Bogotá hoy</h3>
