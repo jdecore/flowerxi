@@ -81,36 +81,38 @@ import ChatBotReact from '../islands-react/ChatBotReact.tsx';
             <ChatBotReact client:idle={{ timeout: 600 }} />
           </div>
 
-          <!-- Evidencia en vivo — React + Recharts -->
+          <!-- Evidencia en vivo -->
           <section class="evidence-shell">
-            <h2 class="section-head">Evidencia en vivo</h2>
-            <p class="section-sub">Últimos 14 días — React + Recharts, gradientes slate/teal</p>
+            <h2 class="section-head">Evidencia Agroclimática en Vivo</h2>
+            <p class="section-sub">Series de tiempo a 14 días — Datos directos Open-Meteo & Estaciones IDEAM Sabana</p>
             <EvidenceChartsReact initialRegion="madrid" client:visible />
           </section>
 
-          <!-- Calendario 12m — React -->
+          <!-- Calendario 12m -->
           <div class="one-col-row">
             <RiskHeatmapReact region="madrid" client:visible />
           </div>
 
-          <!-- Comercial — React -->
+          <!-- Comercial -->
           <div class="one-col-row">
             <CommercialReact client:visible />
           </div>
 
-          <!-- Contexto Sabana — React -->
+          <!-- Contexto Sabana -->
           <div class="one-col-row">
             <section class="comparison-card">
-              <h3 class="section-head">Comparativa Sabana</h3>
+              <h3 class="section-head">Comparativa Sabana de Bogotá</h3>
               <SabanaComparisonReact initialRegion="madrid" client:visible />
             </section>
           </div>
 
           <div class="one-col-row station-row">
             <section class="station-card">
-              <h3 class="section-head">Estación de referencia</h3>
+              <h3 class="section-head">Estación Agroclimática de Referencia</h3>
               <ClosestStationReact initialRegion="madrid" client:visible />
-              <p class="made-by">Hecho por Juan Enriquez- 2026 • React islands + Recharts • LFM2.5 local</p>
+              <p class="made-by">
+                Flowerxi 2026 • <strong>Fuentes de datos:</strong> Open-Meteo API, Red de Estaciones IDEAM & DANE Exportaciones • <strong>IA:</strong> Motor Local Qwen2.5 0.5B Instruct / LFM2.5
+              </p>
             </section>
           </div>
         </main>
