@@ -20,8 +20,12 @@ export async function getLFMModel(onProgress = null) {
   if (!support.ok) throw new Error(support.reason);
 
   const { pipeline, env } = await import('@huggingface/transformers');
+  
+  // Configuración explícita para navegador y CDN
   env.allowLocalModels = false;
   env.useBrowserCache = true;
+  env.backends.onnx.wasm.numThreads = Math.min(4, typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2);
+  env.backends.onnx.wasm.simd = true;
 
   pipelinePromise = pipeline('text-generation', LFM_MODEL_ID, {
     dtype: 'q4',
@@ -43,15 +47,14 @@ export async function getLFMModel(onProgress = null) {
 export async function runSingleLFMAnalysis(context, onProgress = null) {
   const gen = await getLFMModel(onProgress);
 
-  // Prompt ultra conciso para máxima velocidad de generación de tokens
   const prompt = `Contexto: Cultivo de rosas en ${context.region} (Lluvia: ${context.precip}mm, Temp: ${context.temp}°C, Riesgo Botrytis: ${context.fungal}%).
 Dictamen agronómico inmediato:`;
 
   const out = await gen(prompt, {
-    max_new_tokens: 65, // Reducido para que la inferencia sea casi instantánea (1-2s)
+    max_new_tokens: 65,
     temperature: 0.2,
     top_p: 0.8,
-    do_sample: false, // Inferencia determinista más rápida
+    do_sample: false,
   });
 
   const text = Array.isArray(out) ? out[0]?.generated_text : out?.generated_text || String(out);
