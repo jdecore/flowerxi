@@ -69,13 +69,9 @@ import ChatBotReact from '../islands-react/ChatBotReact.tsx';
             </section>
           </div>
 
-          <!-- Chat protagonista — ahora full width debajo del hero/about -->
+          <!-- Resumen automático — solo LFM2.5 local -->
           <div class="chat-full" id="chat-anchor">
-            <div class="chat-protagonist">
-              <h2 class="section-head">Resumen y consejos de cultivo — solo LFM2.5 local</h2>
-              <p class="section-sub">100% en tu navegador • sin Gemini/OpenRouter • resumen + 3 consejos hiper-locales</p>
-              <ChatBotReact embedded={true} client:idle={{ timeout: 600 }} />
-            </div>
+            <ChatBotReact client:idle={{ timeout: 600 }} />
           </div>
 
           <!-- Evidencia en vivo — React + Recharts -->
