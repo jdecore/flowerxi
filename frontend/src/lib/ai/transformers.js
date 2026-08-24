@@ -1,13 +1,11 @@
-// Modelo Local Dedicado: Liquid Foundation Model (LFM2.5-230M-ONNX)
+// Motor de Inferencia Agronómica Directa & IA Local
 let pipelinePromise = null;
 let generator = null;
 let modelIdLoaded = null;
 
-// Modelo principal LFM2.5-230M con fallbacks ultraligeros
 export const LFM_MODELS = [
-  'onnx-community/LFM2.5-230M-ONNX',
-  'onnx-community/LFM2-230M-ONNX',
   'Xenova/Qwen2.5-0.5B-Instruct',
+  'onnx-community/LFM2.5-230M-ONNX',
 ];
 
 export async function diagnoseTransformersSupport() {
@@ -31,11 +29,10 @@ async function loadPipelineFor(candidates, onProgress) {
       });
       return { pipe, modelId: candidate };
     } catch (e) {
-      console.warn(`[transformers] ${candidate} falló, probando fallback:`, e?.message || e);
-      continue;
+      console.warn(`[transformers] ${candidate} falló:`, e?.message || e);
     }
   }
-  throw new Error('No se pudo inicializar LFM2.5.');
+  throw new Error('No se pudo inicializar modelo.');
 }
 
 export async function getLFMModel(onProgress = null) {
@@ -60,7 +57,6 @@ export async function getLFMModel(onProgress = null) {
 export function getLoadedModelName() {
   if (!modelIdLoaded) return 'LFM2.5-230M';
   if (modelIdLoaded.includes('LFM2.5')) return 'LFM2.5-230M';
-  if (modelIdLoaded.includes('LFM2')) return 'LFM2-230M';
   if (modelIdLoaded.includes('Qwen2.5')) return 'Qwen2.5-0.5B';
   return modelIdLoaded;
 }
@@ -68,14 +64,16 @@ export function getLoadedModelName() {
 export async function generateLFMAnalysis(contextSummary, onToken = null, onProgress = null) {
   const gen = await getLFMModel(onProgress);
 
-  const system = `Eres un experto agrónomo en floricultura de la Sabana de Bogotá.
-Analiza las condiciones del día y entrega 3 recomendaciones breves en español:
-1. RIEGO: Volumen y hora.
-2. SANIDAD: Ventilación y prevención botritis.
-3. MANEJO: Poda o cosecha.`;
+  const prompt = `Instrucción: Como agrónomo especialista en rosas de la Sabana de Bogotá, analiza:
+Municipio: ${contextSummary.region}
+Lluvia: ${contextSummary.today?.precip ?? 0} mm
+Temp: ${contextSummary.today?.temp ?? 14} °C
+Riesgo Fúngico: ${contextSummary.today?.fungal ?? 40} %
 
-  const prompt = `<|im_start|>system\n${system}<|im_end|>\n<|im_start|>user\nCultivo en ${contextSummary.region}:
-Riesgo ${contextSummary.operativo.score ?? 50}/100, Temp ${contextSummary.today?.temp ?? 14}°C, Lluvia ${contextSummary.today?.precip ?? 0}mm, Humedad fúngica ${contextSummary.today?.fungal ?? 40}%.<|im_end|>\n<|im_start|>assistant\n`;
+Responde estrictamente con estas 3 líneas:
+RIEGO: [Horario y litros/m2 según la lluvia de ${contextSummary.today?.precip ?? 0}mm en ${contextSummary.region}]
+SANIDAD: [Ventilación y prevención según el riesgo ${contextSummary.today?.fungal ?? 40}%]
+MANEJO: [Acción de cosecha y desinfección hoy en ${contextSummary.region}]`;
 
   let streamer;
   if (onToken) {
@@ -89,17 +87,13 @@ Riesgo ${contextSummary.operativo.score ?? 50}/100, Temp ${contextSummary.today?
   }
 
   const out = await gen(prompt, {
-    max_new_tokens: 160,
-    temperature: 0.35,
-    top_p: 0.85,
+    max_new_tokens: 150,
+    temperature: 0.2,
+    top_p: 0.8,
     do_sample: true,
     streamer,
   });
 
   const text = Array.isArray(out) ? out[0]?.generated_text : out?.generated_text || String(out);
-  const responsePart = text.includes('<|im_start|>assistant')
-    ? text.split('<|im_start|>assistant').pop().replace('<|im_end|>', '').trim()
-    : text.trim();
-
-  return responsePart;
+  return text;
 }
